@@ -188,7 +188,7 @@ function resetSelectedItem() {
 }
 
 const taxesTableFields = createResource({
-	url: "hrms.api.get_doctype_fields",
+	url: "indian_hrms_compliance.api.get_doctype_fields",
 	params: { doctype: "Expense Taxes and Charges" },
 	transform(data) {
 		const excludeFields = ["description_sb"]

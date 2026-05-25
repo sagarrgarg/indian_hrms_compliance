@@ -80,7 +80,7 @@ const routes = [
 ]
 
 const router = createRouter({
-	history: createWebHistory("/hrms"),
+	history: createWebHistory("/indian_hrms_compliance"),
 	routes,
 })
 

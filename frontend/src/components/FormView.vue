@@ -454,7 +454,7 @@ const tabFields = computed(() => {
 })
 
 const attachedFiles = createResource({
-	url: "hrms.api.get_attachments",
+	url: "indian_hrms_compliance.api.get_attachments",
 	params: {
 		dt: props.doctype,
 		dn: props.id,
@@ -593,7 +593,7 @@ const docPermissions = createResource({
 })
 
 const permittedWriteFields = createResource({
-	url: "hrms.api.get_permitted_fields_for_write",
+	url: "indian_hrms_compliance.api.get_permitted_fields_for_write",
 	params: { doctype: props.doctype },
 })
 

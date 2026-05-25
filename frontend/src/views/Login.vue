@@ -165,14 +165,14 @@ async function submit(e) {
 }
 
 const user_pass_login_disabled = createResource({
-	url: "hrms.api.system_settings.get_user_pass_login_disabled",
+	url: "indian_hrms_compliance.api.system_settings.get_user_pass_login_disabled",
 	method: 'GET',
 	initialData: 1,
 	auto: true,
 })
 
 const authProviders = createResource({
-	url: "hrms.api.oauth.oauth_providers",
+	url: "indian_hrms_compliance.api.oauth.oauth_providers",
 	auto: true,
 })
 </script>

@@ -4,15 +4,15 @@ include *.json
 include *.md
 include *.py
 include *.txt
-recursive-include hrms *.css
-recursive-include hrms *.csv
-recursive-include hrms *.html
-recursive-include hrms *.ico
-recursive-include hrms *.js
-recursive-include hrms *.json
-recursive-include hrms *.md
-recursive-include hrms *.png
-recursive-include hrms *.py
-recursive-include hrms *.svg
-recursive-include hrms *.txt
-recursive-exclude hrms *.pyc
+recursive-include indian_hrms_compliance *.css
+recursive-include indian_hrms_compliance *.csv
+recursive-include indian_hrms_compliance *.html
+recursive-include indian_hrms_compliance *.ico
+recursive-include indian_hrms_compliance *.js
+recursive-include indian_hrms_compliance *.json
+recursive-include indian_hrms_compliance *.md
+recursive-include indian_hrms_compliance *.png
+recursive-include indian_hrms_compliance *.py
+recursive-include indian_hrms_compliance *.svg
+recursive-include indian_hrms_compliance *.txt
+recursive-exclude indian_hrms_compliance *.pyc

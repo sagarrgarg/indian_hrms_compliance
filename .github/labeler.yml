@@ -1,4 +1,4 @@
 # Any python files modifed but no test files modified
 needs-tests:
-- any: ['hrms/**/*.py']
-  all: ['!hrms/**/test*.py']
+- any: ['indian_hrms_compliance/**/*.py']
+  all: ['!indian_hrms_compliance/**/test*.py']

@@ -70,7 +70,7 @@ const salarySlip = ref({})
 
 // get form fields
 const formFields = createResource({
-	url: "hrms.api.get_doctype_fields",
+	url: "indian_hrms_compliance.api.get_doctype_fields",
 	params: { doctype: "Salary Slip" },
 	transform(data) {
 		return getFilteredFields(data)
@@ -133,7 +133,7 @@ function downloadPDF() {
 		headers["X-Frappe-CSRF-Token"] = window.csrf_token
 	}
 
-	fetch("/api/method/hrms.api.download_salary_slip", {
+	fetch("/api/method/indian_hrms_compliance.api.download_salary_slip", {
 		method: "POST",
 		headers,
 		body: new URLSearchParams({ name: salarySlipName }),

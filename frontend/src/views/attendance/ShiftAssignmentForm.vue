@@ -35,7 +35,7 @@ const shiftAssignment = ref({})
 
 // get form fields
 const formFields = createResource({
-	url: "hrms.api.get_doctype_fields",
+	url: "indian_hrms_compliance.api.get_doctype_fields",
 	params: { doctype: "Shift Assignment" },
 	auto: true,
 	transform(data) {

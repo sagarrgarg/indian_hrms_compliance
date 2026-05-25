@@ -1,19 +1,19 @@
 <div align="center">
 	<a href="https://frappehr.com">
-		<img src="https://raw.githubusercontent.com/frappe/hrms/develop/hrms/public/images/frappe-hr-logo.png" height="128" alt="Frappe HR Logo">
+		<img src="https://raw.githubusercontent.com/frappe/indian_hrms_compliance/develop/indian_hrms_compliance/public/images/frappe-hr-logo.png" height="128" alt="Frappe HR Logo">
 	</a>
 	<h2>Frappe HR</h2>
 	<p align="center">
 		<p>Open Source, modern, and easy-to-use HR and Payroll Software for all organizations</p>
 	</p>
 
-[![CI](https://github.com/frappe/hrms/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/frappe/hrms/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/frappe/hrms/branch/develop/graph/badge.svg?token=0TwvyUg3I5)](https://codecov.io/gh/frappe/hrms)
+[![CI](https://github.com/frappe/indian_hrms_compliance/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/frappe/indian_hrms_compliance/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/frappe/indian_hrms_compliance/branch/develop/graph/badge.svg?token=0TwvyUg3I5)](https://codecov.io/gh/frappe/indian_hrms_compliance)
 
 [https://frappehr.com](https://frappehr.com)
 
 <div align="center" style="max-height: 40px;">
-	<a href="https://frappecloud.com/hrms/signup">
+	<a href="https://frappecloud.com/indian_hrms_compliance/signup">
 		<img src=".github/try-on-f-cloud-button.svg" height="40">
 	</a>
 </div>
@@ -24,7 +24,7 @@
 
 Frappe HR has everything you need to drive excellence within the company. It's a complete HRMS solution with over 13 different modules right from Employee Management, Onboarding, Leaves, to Payroll, Taxation, and more!
 
-![HRMS](hrms.png)
+![HRMS](indian_hrms_compliance.png)
 
 ## Key Features
 
@@ -48,14 +48,14 @@ Frappe HR has everything you need to drive excellence within the company. It's a
 
 1. [Install bench](https://github.com/frappe/bench).
 2. [Install ERPNext](https://github.com/frappe/erpnext#installation).
-3. Once ERPNext is installed, add the hrms app to your bench by running
+3. Once ERPNext is installed, add the indian_hrms_compliance app to your bench by running
 
 	```sh
-	$ bench get-app hrms
+	$ bench get-app indian_hrms_compliance
 	```
-4. After that, you can install the hrms app on the required site by running
+4. After that, you can install the indian_hrms_compliance app on the required site by running
 	```sh
-	$ bench --site sitename install-app hrms
+	$ bench --site sitename install-app indian_hrms_compliance
 	```
 
 
@@ -67,7 +67,7 @@ Frappe HR has everything you need to drive excellence within the company. It's a
 
 ## Contribute
 
-1. [Issue Guidelines](https://github.com/frappe/erpnext/wiki/Issue-Guidelines) - [Create an issue](https://github.com/frappe/hrms/issues/new)
+1. [Issue Guidelines](https://github.com/frappe/erpnext/wiki/Issue-Guidelines) - [Create an issue](https://github.com/frappe/indian_hrms_compliance/issues/new)
 1. [Contribution Guidelines](https://github.com/frappe/erpnext/wiki/Contribution-Guidelines)
 
 ## License

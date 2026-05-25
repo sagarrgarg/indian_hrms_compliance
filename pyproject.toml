@@ -1,5 +1,5 @@
 [project]
-name = "hrms"
+name = "indian_hrms_compliance"
 authors = [
     { name = "Frappe Technologies Pvt Ltd", email = "developers@frappe.io" },
 ]
@@ -44,7 +44,7 @@ docstring-code-format = true
 [tool.ruff.lint.isort.sections]
 "frappe" = ["frappe"]
 "erpnext" = ["erpnext"]
-"hrms" = ["hrms"]
+"indian_hrms_compliance" = ["indian_hrms_compliance"]
 
 [tool.ruff.lint.isort]
 section-order = [
@@ -53,7 +53,7 @@ section-order = [
     "third-party",
     "frappe",
     "erpnext",
-    "hrms",
+    "indian_hrms_compliance",
     "first-party",
     "local-folder",
 ]
@@ -61,9 +61,9 @@ section-order = [
 
 [project.urls]
 Homepage = "https://frappe.io/hr"
-Repository = "https://github.com/frappe/hrms.git"
+Repository = "https://github.com/frappe/indian_hrms_compliance.git"
 Documentation = "https://docs.frappe.io/hr"
-"Bug Reports" = "https://github.com/frappe/hrms/issues"
+"Bug Reports" = "https://github.com/frappe/indian_hrms_compliance/issues"
 
 
 [tool.bench.frappe-dependencies]

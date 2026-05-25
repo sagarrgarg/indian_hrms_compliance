@@ -15,7 +15,7 @@ export function initSocket() {
 		reconnectionAttempts: 5,
 	})
 
-	socket.on("hrms:refetch_resource", (data) => {
+	socket.on("indian_hrms_compliance:refetch_resource", (data) => {
 		if (data.cache_key) {
 			let resource =
 				getCachedResource(data.cache_key) ||

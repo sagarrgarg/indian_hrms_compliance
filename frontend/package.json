@@ -6,10 +6,10 @@
 	"scripts": {
 		"dev": "vite",
 		"serve": "vite preview",
-		"build": "vite build --base=/assets/hrms/frontend/ && yarn copy-html-entry",
+		"build": "vite build --base=/assets/indian_hrms_compliance/frontend/ && yarn copy-html-entry",
 		"ionic:build": "npm run build",
 		"ionic:serve": "vite dev --host",
-		"copy-html-entry": "cp ../hrms/public/frontend/index.html ../hrms/www/hrms.html"
+		"copy-html-entry": "cp ../indian_hrms_compliance/public/frontend/index.html ../indian_hrms_compliance/www/indian_hrms_compliance.html"
 	},
 	"dependencies": {
 		"@ionic/vue": "^7.4.3",

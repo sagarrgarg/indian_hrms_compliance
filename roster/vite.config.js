@@ -17,7 +17,7 @@ export default defineConfig({
 		},
 	},
 	build: {
-		outDir: `../hrms/public/roster`,
+		outDir: `../indian_hrms_compliance/public/roster`,
 		emptyOutDir: true,
 		target: "es2015",
 		commonjsOptions: {

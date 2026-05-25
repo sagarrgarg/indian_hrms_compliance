@@ -2,8 +2,8 @@ import { createResource, createListResource } from "frappe-ui"
 import { userResource } from "./user"
 
 export const unreadNotificationsCount = createResource({
-	url: "hrms.api.get_unread_notifications_count",
-	cache: "hrms:unread_notifications_count",
+	url: "indian_hrms_compliance.api.get_unread_notifications_count",
+	cache: "indian_hrms_compliance:unread_notifications_count",
 	initialData: 0,
 	auto: true,
 })
@@ -21,7 +21,7 @@ export const notifications = createListResource({
 		"reference_document_name",
 	],
 	auto: false,
-	cache: "hrms:notifications",
+	cache: "indian_hrms_compliance:notifications",
 	orderBy: "creation desc",
 	onSuccess() {
 		unreadNotificationsCount.reload()
@@ -29,7 +29,7 @@ export const notifications = createListResource({
 })
 
 export const arePushNotificationsEnabled = createResource({
-	url: "hrms.api.are_push_notifications_enabled",
-	cache: "hrms:push_notifications_enabled",
+	url: "indian_hrms_compliance.api.are_push_notifications_enabled",
+	cache: "indian_hrms_compliance:push_notifications_enabled",
 	auto: true,
 })

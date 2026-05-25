@@ -59,10 +59,10 @@ app.provide("$socket", socket)
 app.provide("$dayjs", dayjs)
 
 const registerServiceWorker = async () => {
-	window.frappePushNotification = new FrappePushNotification("hrms")
+	window.frappePushNotification = new FrappePushNotification("indian_hrms_compliance")
 
 	if ("serviceWorker" in navigator) {
-		let serviceWorkerURL = "/assets/hrms/frontend/sw.js"
+		let serviceWorkerURL = "/assets/indian_hrms_compliance/frontend/sw.js"
 		let config = ""
 
 		try {
@@ -96,7 +96,7 @@ const registerServiceWorker = async () => {
 router.isReady().then(async () => {
 	if (import.meta.env.DEV) {
 		await frappeRequest({
-			url: "/api/method/hrms.www.hrms.get_context_for_dev",
+			url: "/api/method/indian_hrms_compliance.www.indian_hrms_compliance.get_context_for_dev",
 		}).then(async (values) => {
 			if (!window.frappe) window.frappe = {}
 			window.frappe.boot = values

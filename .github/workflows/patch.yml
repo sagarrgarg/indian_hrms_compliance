@@ -117,20 +117,20 @@ jobs:
 
           git -C "apps/frappe" remote set-url upstream https://github.com/frappe/frappe.git
           git -C "apps/erpnext" remote set-url upstream https://github.com/frappe/erpnext.git
-          git -C "apps/hrms" remote set-url upstream https://github.com/frappe/hrms.git
+          git -C "apps/indian_hrms_compliance" remote set-url upstream https://github.com/frappe/hrms.git
 
           echo "Updating to latest version"
           git -C "apps/frappe" fetch --depth 1 upstream "${GITHUB_BASE_REF:-${GITHUB_REF##*/}}"
           git -C "apps/frappe" checkout -q -f FETCH_HEAD
           git -C "apps/erpnext" fetch --depth 1 upstream "${GITHUB_BASE_REF:-${GITHUB_REF##*/}}"
           git -C "apps/erpnext" checkout -q -f FETCH_HEAD
-          git -C "apps/hrms" checkout -q -f "$GITHUB_SHA"
+          git -C "apps/indian_hrms_compliance" checkout -q -f "$GITHUB_SHA"
 
           pgrep honcho | xargs kill
           rm -rf ~/frappe-bench/env
           bench -v setup env
           bench pip install -e ./apps/erpnext
-          bench pip install -e ./apps/hrms
+          bench pip install -e ./apps/indian_hrms_compliance
           bench start &>> ~/frappe-bench/bench_start.log &
 
           bench --site test_site migrate
