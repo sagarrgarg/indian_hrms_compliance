@@ -25,6 +25,31 @@ class EmployeeMaster(Employee):
 
 		self.employee = self.name
 
+	def validate_duplicate_user_id(self):
+		# Allow the same user_id across Companies. Hard-lock per (user_id, company)
+		# when status == Active. Sequential rejoin (previous record Inactive/Left) is allowed.
+		if not self.user_id:
+			return
+		duplicate = frappe.db.get_value(
+			"Employee",
+			{
+				"user_id": self.user_id,
+				"company": self.company,
+				"status": "Active",
+				"name": ("!=", self.name or ""),
+			},
+			"name",
+		)
+		if duplicate:
+			frappe.throw(
+				_("User {0} is already mapped to Active Employee {1} in {2}.").format(
+					frappe.bold(self.user_id),
+					get_link_to_form("Employee", duplicate),
+					frappe.bold(self.company),
+				),
+				frappe.DuplicateEntryError,
+			)
+
 
 def validate_onboarding_process(doc, method=None):
 	"""Validates Employee Creation for linked Employee Onboarding"""
