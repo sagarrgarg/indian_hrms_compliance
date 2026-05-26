@@ -202,7 +202,12 @@ doc_events = {
 	},
 	"Loan": {"validate": "indian_hrms_compliance.hr.utils.validate_loan_repay_from_salary"},
 	"Employee": {
-		"validate": "indian_hrms_compliance.overrides.employee_master.validate_onboarding_process",
+		"validate": [
+			"indian_hrms_compliance.overrides.employee_master.validate_onboarding_process",
+			"indian_hrms_compliance.overrides.employee_master.validate_statutory_id_formats",
+			"indian_hrms_compliance.overrides.employee_master.validate_person_data_consistency",
+			"indian_hrms_compliance.overrides.employee_master.validate_single_primary_employer",
+		],
 		"on_update": [
 			"indian_hrms_compliance.overrides.employee_master.update_approver_role",
 			"indian_hrms_compliance.overrides.employee_master.publish_update",

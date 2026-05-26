@@ -1,12 +1,31 @@
 # Copyright (c) 2022, Frappe Technologies Pvt. Ltd. and Contributors
 # License: GNU General Public License v3. See license.txt
 
+import re
+
 import frappe
 from frappe import _
 from frappe.model.naming import set_name_by_naming_series
 from frappe.utils import add_years, cint, get_link_to_form, getdate
 
 from erpnext.setup.doctype.employee.employee import Employee
+
+PAN_RE = re.compile(r"^[A-Z]{5}[0-9]{4}[A-Z]$")
+UAN_RE = re.compile(r"^[0-9]{12}$")
+IFSC_RE = re.compile(r"^[A-Z]{4}0[A-Z0-9]{6}$")
+AADHAAR_LAST4_RE = re.compile(r"^[0-9]{4}$")
+
+# Fields that must match across Employee records sharing the same user_id
+# (they describe the human, not the employment).
+PERSON_LEVEL_FIELDS = (
+	"pan_number",
+	"uan_number",
+	"esic_ip_number",
+	"aadhaar_last_4",
+	"nps_pran",
+	"date_of_birth",
+	"gender",
+)
 
 
 class EmployeeMaster(Employee):
@@ -49,6 +68,79 @@ class EmployeeMaster(Employee):
 				),
 				frappe.DuplicateEntryError,
 			)
+
+
+def validate_statutory_id_formats(doc, method=None):
+	if doc.get("pan_number") and not PAN_RE.match(doc.pan_number):
+		frappe.throw(_("PAN must match format AAAAA9999A (5 letters, 4 digits, 1 letter)."))
+	if doc.get("uan_number") and not UAN_RE.match(doc.uan_number):
+		frappe.throw(_("UAN must be exactly 12 digits."))
+	if doc.get("ifsc_code") and not IFSC_RE.match(doc.ifsc_code):
+		frappe.throw(_("IFSC must be 4 letters + '0' + 6 alphanumeric (e.g., HDFC0001234)."))
+	if doc.get("aadhaar_last_4") and not AADHAAR_LAST4_RE.match(doc.aadhaar_last_4):
+		frappe.throw(_("Aadhaar Last 4 Digits must be exactly 4 digits."))
+
+
+def validate_person_data_consistency(doc, method=None):
+	# When the same user_id appears on multiple Employee records, person-level
+	# fields (PAN, UAN, ESIC IP, Aadhaar last-4, NPS PRAN, DOB, gender) must
+	# agree across them. We only flag mismatches between *non-empty* values —
+	# a blank on one Employee never contradicts a value on another.
+	if not doc.user_id:
+		return
+
+	others = frappe.get_all(
+		"Employee",
+		filters={"user_id": doc.user_id, "name": ("!=", doc.name or "")},
+		fields=["name", *PERSON_LEVEL_FIELDS],
+	)
+	if not others:
+		return
+
+	mismatches = []
+	for other in others:
+		for field in PERSON_LEVEL_FIELDS:
+			mine = doc.get(field)
+			theirs = other.get(field)
+			if mine and theirs and str(mine) != str(theirs):
+				mismatches.append((other.name, field, mine, theirs))
+
+	if mismatches:
+		lines = [
+			_("{0} on Employee {1}: this record has {2!r}, other has {3!r}").format(
+				field, get_link_to_form("Employee", other_name), mine, theirs
+			)
+			for other_name, field, mine, theirs in mismatches
+		]
+		frappe.throw(
+			_("Person-level fields must match across Employees linked to the same User:")
+			+ "<br>"
+			+ "<br>".join(lines),
+			title=_("Statutory ID Mismatch"),
+		)
+
+
+def validate_single_primary_employer(doc, method=None):
+	# Only one Active Employee per user_id may be the Primary Employer.
+	if not (doc.user_id and doc.get("is_primary_employer")):
+		return
+	other = frappe.db.get_value(
+		"Employee",
+		{
+			"user_id": doc.user_id,
+			"is_primary_employer": 1,
+			"status": "Active",
+			"name": ("!=", doc.name or ""),
+		},
+		"name",
+	)
+	if other:
+		frappe.throw(
+			_("Employee {0} is already marked Primary Employer for {1}. Only one Primary Employer per User at a time.").format(
+				get_link_to_form("Employee", other), frappe.bold(doc.user_id)
+			),
+			title=_("Duplicate Primary Employer"),
+		)
 
 
 def validate_onboarding_process(doc, method=None):
