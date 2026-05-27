@@ -1,0 +1,201 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "format:{policy_name} - {version}",
+ "creation": "2026-05-27 22:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "policy_section",
+  "policy_name",
+  "policy_category",
+  "version",
+  "status",
+  "column_break_meta",
+  "effective_date",
+  "requires_acknowledgement",
+  "acknowledgement_due_days",
+  "policy_owner",
+  "content_section",
+  "content_html",
+  "attachment",
+  "applicability_section",
+  "applicable_to_all",
+  "applicable_companies",
+  "versioning_section",
+  "superseded_by",
+  "superseded_date"
+ ],
+ "fields": [
+  {
+   "fieldname": "policy_section",
+   "fieldtype": "Section Break",
+   "label": "Policy Details"
+  },
+  {
+   "fieldname": "policy_name",
+   "fieldtype": "Data",
+   "label": "Policy Name",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_global_search": 1
+  },
+  {
+   "fieldname": "policy_category",
+   "fieldtype": "Select",
+   "label": "Category",
+   "options": "\nCode of Conduct\nPOSH\nIT & Acceptable Use\nAnti-Bribery & Anti-Corruption\nData Privacy\nSafety\nLeave\nTravel\nExpense\nOther",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "version",
+   "fieldtype": "Data",
+   "label": "Version",
+   "reqd": 1,
+   "default": "1.0",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "Draft\nActive\nSuperseded\nRetired",
+   "default": "Draft",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "column_break_meta",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "effective_date",
+   "fieldtype": "Date",
+   "label": "Effective Date",
+   "mandatory_depends_on": "eval:doc.status=='Active'",
+   "description": "Date from which this policy version is in force. Required when publishing."
+  },
+  {
+   "fieldname": "requires_acknowledgement",
+   "fieldtype": "Check",
+   "label": "Requires Acknowledgement",
+   "default": "1"
+  },
+  {
+   "fieldname": "acknowledgement_due_days",
+   "fieldtype": "Int",
+   "label": "Acknowledgement Due (days)",
+   "default": "7",
+   "depends_on": "eval:doc.requires_acknowledgement",
+   "description": "Days after effective date by which employees must acknowledge."
+  },
+  {
+   "fieldname": "policy_owner",
+   "fieldtype": "Link",
+   "label": "Policy Owner",
+   "options": "User",
+   "description": "HR person who maintains this policy."
+  },
+  {
+   "fieldname": "content_section",
+   "fieldtype": "Section Break",
+   "label": "Content"
+  },
+  {
+   "fieldname": "content_html",
+   "fieldtype": "Text Editor",
+   "label": "Policy Content",
+   "description": "Inline body of the policy. Searchable. Shown to employees on acknowledgement."
+  },
+  {
+   "fieldname": "attachment",
+   "fieldtype": "Attach",
+   "label": "Canonical PDF",
+   "description": "Optional signed PDF version (auditable)."
+  },
+  {
+   "fieldname": "applicability_section",
+   "fieldtype": "Section Break",
+   "label": "Applicability"
+  },
+  {
+   "fieldname": "applicable_to_all",
+   "fieldtype": "Check",
+   "label": "Applicable to All Active Employees",
+   "default": "1"
+  },
+  {
+   "fieldname": "applicable_companies",
+   "fieldtype": "Table",
+   "label": "Applicable Companies",
+   "options": "HRMS Policy Company Filter",
+   "depends_on": "eval:!doc.applicable_to_all",
+   "description": "Limit applicability to selected Companies."
+  },
+  {
+   "fieldname": "versioning_section",
+   "fieldtype": "Section Break",
+   "label": "Versioning",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "superseded_by",
+   "fieldtype": "Link",
+   "label": "Superseded By",
+   "options": "HRMS Policy",
+   "read_only": 1,
+   "description": "Set automatically when a newer version is published with the same Policy Name."
+  },
+  {
+   "fieldname": "superseded_date",
+   "fieldtype": "Date",
+   "label": "Superseded Date",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-05-27 22:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "HR",
+ "name": "HRMS Policy",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR User",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "read": 1,
+   "role": "Employee"
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "policy_name",
+ "track_changes": 1
+}
