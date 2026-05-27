@@ -15,6 +15,11 @@ UAN_RE = re.compile(r"^[0-9]{12}$")
 IFSC_RE = re.compile(r"^[A-Z]{4}0[A-Z0-9]{6}$")
 AADHAAR_LAST4_RE = re.compile(r"^[0-9]{4}$")
 
+
+def _employee_link(name):
+	# Relative URL — portable across host/port without depending on site_config host_name.
+	return f'<a href="/app/employee/{name}">{name}</a>'
+
 # Fields that must match across Employee records sharing the same user_id
 # (they describe the human, not the employment).
 PERSON_LEVEL_FIELDS = (
@@ -63,7 +68,7 @@ class EmployeeMaster(Employee):
 			frappe.throw(
 				_("User {0} is already mapped to Active Employee {1} in {2}.").format(
 					frappe.bold(self.user_id),
-					get_link_to_form("Employee", duplicate),
+					_employee_link(duplicate),
 					frappe.bold(self.company),
 				),
 				frappe.DuplicateEntryError,
@@ -107,8 +112,8 @@ def validate_person_data_consistency(doc, method=None):
 
 	if mismatches:
 		lines = [
-			_("{0} on Employee {1}: this record has {2!r}, other has {3!r}").format(
-				field, get_link_to_form("Employee", other_name), mine, theirs
+			_("{0} on Employee {1}: this record has {2}, other has {3}").format(
+				frappe.bold(field), _employee_link(other_name), frappe.bold(str(mine)), frappe.bold(str(theirs))
 			)
 			for other_name, field, mine, theirs in mismatches
 		]
@@ -137,7 +142,7 @@ def validate_single_primary_employer(doc, method=None):
 	if other:
 		frappe.throw(
 			_("Employee {0} is already marked Primary Employer for {1}. Only one Primary Employer per User at a time.").format(
-				get_link_to_form("Employee", other), frappe.bold(doc.user_id)
+				_employee_link(other), frappe.bold(doc.user_id)
 			),
 			title=_("Duplicate Primary Employer"),
 		)
