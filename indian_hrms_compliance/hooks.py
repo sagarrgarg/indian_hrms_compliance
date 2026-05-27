@@ -132,10 +132,10 @@ before_app_uninstall = "indian_hrms_compliance.setup.before_app_uninstall"
 # -----------
 # Permissions evaluated in scripted ways
 
-# permission_query_conditions = {
-# 	"Event": "frappe.desk.doctype.event.event.get_permission_query_conditions",
-# }
-#
+permission_query_conditions = {
+	"Employee Policy Acknowledgement": "indian_hrms_compliance.hr.doctype.employee_policy_acknowledgement.employee_policy_acknowledgement.get_permission_query_conditions",
+}
+
 # has_permission = {
 # 	"Event": "frappe.desk.doctype.event.event.has_permission",
 # }
