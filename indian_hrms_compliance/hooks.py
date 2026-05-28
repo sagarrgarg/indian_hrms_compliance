@@ -218,6 +218,9 @@ doc_events = {
 	},
 	"Project": {"validate": "indian_hrms_compliance.controllers.employee_boarding_controller.update_employee_boarding_status"},
 	"Task": {"on_update": "indian_hrms_compliance.controllers.employee_boarding_controller.update_task"},
+	"Job Requisition": {
+		"on_update": "indian_hrms_compliance.overrides.job_requisition_workflow.auto_create_opening_on_approval",
+	},
 }
 
 # Scheduled Tasks
