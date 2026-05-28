@@ -46,6 +46,7 @@ app_include_css = "indian_hrms_compliance.bundle.css"
 # include js in doctype views
 doctype_js = {
 	"Employee": "public/js/erpnext/employee.js",
+	"Job Offer": "public/js/erpnext/job_offer.js",
 	"Company": "public/js/erpnext/company.js",
 	"Department": "public/js/erpnext/department.js",
 	"Timesheet": "public/js/erpnext/timesheet.js",
