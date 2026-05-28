@@ -82,20 +82,22 @@ Mapping from `product_vision.md` and our conversations to concrete data needs:
 
 ## Phase 1 build scope (this flow)
 
-Four deliverables. Keeps Employee Master self-contained; Phase 2 (Pre-hire→Confirmation) builds on top.
+Originally four deliverables (A/B/C/D). **A and D dropped by user; C pulled into Phase 2 where it was actually needed.** Phase 1 effectively shipped as just B.
 
-### A. Employee Document tracking with expiry
+| # | Original scope | Status |
+|---|---|---|
+| ~~A~~ | Employee Document tracking with expiry | **Dropped** — not relevant |
+| **B** | HR Policy + Code of Conduct acknowledgement | ✅ Shipped (commit `95f93d8`) |
+| **C** | `confirmation_status` Custom Field on Employee | ✅ Shipped as Phase 2-B (commit `1fdc219`) |
+| ~~D~~ | Structured Family / Dependants | **Dropped** — not relevant |
 
-**Why**: KYC docs (PAN card scan, Aadhaar card scan, education certificates, contract scan, work permit, visa) need structured storage + expiry alerts. Only passport has expiry tracking today.
+The dropped items remain available in design history below for future reference, but are not on any active roadmap.
 
-**Shape**:
-- New child table doctype `Employee Document` attached to Employee
-- Fields: `document_type` (Link → new `Employee Document Type` master, e.g., "PAN Card", "Aadhaar Card", "Education Certificate"), `file` (Attach), `document_number` (Data, optional), `issue_date`, `expiry_date`, `verification_status` (Select: Pending / Verified / Rejected), `notes`
-- New doctype `Employee Document Type` (small master, seeded with: PAN Card, Aadhaar Card, Voter ID, Driving License, Passport, Education Certificate, Experience Certificate, Offer Letter, Appointment Letter, Contract, Visa, Work Permit, Medical Certificate, Resignation Letter, Relieving Letter, Form 16)
-- Section on Employee form: "Documents" with the child table
-- Scheduler (daily): scan all Employee Documents where `expiry_date` between today and today+30 days, create ToDo for the Employee + HR
+### ~~A. Employee Document tracking with expiry~~ — DROPPED
 
-**Effort**: ~1.5 days
+**Was**: KYC docs (PAN/Aadhaar/Education/Contract/Visa) tracked with structured `Employee Document` child table + `Employee Document Type` master + expiry scheduler. Only passport currently has expiry tracking in ERPNext.
+
+**Status**: dropped by user as not relevant for the current scope. If revisited later, see Phase 1 design history above for the proposed shape.
 
 ### B. HR Policy + Code of Conduct acknowledgement
 
@@ -111,30 +113,15 @@ Four deliverables. Keeps Employee Master self-contained; Phase 2 (Pre-hire→Con
 
 **Effort**: ~2 days
 
-### C. Confirmation Status field on Employee
+### C. Confirmation Status field on Employee — ✅ shipped as Phase 2-B
 
-**Why**: `scheduled_confirmation_date` and `final_confirmation_date` exist, but no status workflow. Phase 2 (Probation→Confirmation workflow) builds the review + letter; this just adds the field so Phase 2 has somewhere to land.
+Custom Field `confirmation_status` (Probation / Confirmed / Extended / Released) on Employee, inserted after `final_confirmation_date`. Backfilled from existing date fields. Lives in `setup.py` for fresh installs and `patches/v15_0/add_confirmation_status_field.py` for existing sites. See commit `1fdc219`.
 
-**Shape**:
-- Custom Field on Employee: `confirmation_status` (Select: ` ` blank / Probation / Confirmed / Extended / Released), default blank
-- Position: in Joining tab, after `final_confirmation_date`
-- No workflow yet — just the field; Phase 2 wires the workflow
-- Initial backfill patch: for existing Employees where `final_confirmation_date` is set and in the past → `Confirmed`; where `scheduled_confirmation_date` is set and in the future → `Probation`; else blank
+### ~~D. Structured Family / Dependants~~ — DROPPED
 
-**Effort**: 2 hours
+**Was**: replace `family_background` text field with structured `Employee Family Member` child table for ESI Form 1 dependants, Gratuity Form F nominees, PF Form 2 nominees, with share % validation. Same shape as the paused HRMS Person family member child.
 
-### D. Structured Family / Dependants
-
-**Why**: `family_background` is a text field today. Statutory returns need structured: ESI Form 1 dependants, Gratuity Form F nominee, PF nominee Form 2 — all need name + relationship + DOB + share %. Without structure, this is manual work each time.
-
-**Shape**:
-- New child table doctype `Employee Family Member` attached to Employee (Note: this is the same shape we sprinted-then-paused for HRMS Person — we already have the design)
-- Fields: `relationship` (Select: Spouse / Father / Mother / Son / Daughter / Sibling / Other), `full_name` (Data, mandatory), `date_of_birth` (Date), `aadhaar_last_4` (Data, 4), `dependent_for_esi` (Check), `pf_nominee` (Check), `pf_nominee_share_pct` (Float, depends on `pf_nominee`), `gratuity_nominee` (Check), `gratuity_nominee_share_pct` (Float, depends on `gratuity_nominee`)
-- Section on Employee form: "Family & Nominees" with the child table
-- Validator: sum of `pf_nominee_share_pct` for `pf_nominee=1` rows ≤ 100; same for gratuity
-- Keep `family_background` text field for unstructured notes — don't remove
-
-**Effort**: 1 day (we have the design from the paused Sprint 1)
+**Status**: dropped by user as not relevant for the current scope. If revisited later (e.g., when statutory returns need it), reuse the design from the stashed HRMS Person sprint.
 
 ---
 
@@ -156,28 +143,8 @@ Four deliverables. Keeps Employee Master self-contained; Phase 2 (Pre-hire→Con
 
 ---
 
-## Implementation order within Phase 1
+## Phase 1 status
 
-C → A → D → B
+Effectively complete. B was the only item that survived from the original 4-item plan; C was pulled into Phase 2 where it had a real consumer (the Probation Review workflow). A and D were dropped as not relevant to current scope.
 
-1. **C (confirmation_status field, 2h)** — cheapest, unblocks Phase 2 even if other Phase 1 items slip
-2. **A (Employee Document, 1.5d)** — self-contained, no dependencies, immediate value (HR can finally track contract expiries)
-3. **D (Family / Dependants, 1d)** — direct lift from paused Sprint 1 design, no surprises
-4. **B (HR Policy + Acknowledgement, 2d)** — biggest of the four, but builds on the foundation the others lay
-
-Total: ~5 days. Fits comfortably in the 1-week budget.
-
----
-
-## Open questions before build
-
-1. **Document Types seed list** — happy with the 16 I proposed, or want to start narrower (PAN/Aadhaar/Education/Contract/Offer/Appointment/Resignation/Relieving) and add as needed?
-2. **HR Policy content model** — `Text Editor` (HTML body inline) or `Attach` (PDF) or both (text for searchability + PDF for signed canonical)?
-3. **Policy acknowledgement enforcement** — block ESS access until pending acks are cleared, or just nag via dashboard tile + email? (First is strict, second is gentle.)
-4. **Family Member nominee shares** — enforce "must sum to 100% if anyone is nominated", or just "must not exceed 100%" (allowing partial nomination)?
-
-The defaults I'd ship if you don't override:
-1. 16 types as proposed
-2. Both — Text Editor for the body + optional Attach for the signed PDF
-3. Nag, don't block — strict-mode is a setting we can flip later
-4. ≤100% (allow partial), since real-world nomination forms often don't add to 100
+No open questions remain for Phase 1 — what shipped is in production-ready state on hrms.local.
