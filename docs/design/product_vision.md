@@ -209,6 +209,11 @@ Some user-facing flows have their backend shipped already but the surfacing UX i
 | `76f287a` | Statutory IDs (UAN/ESIC IP/Aadhaar last-4/NPS PRAN) + Primary Employer flag + format validators + cross-Employee consistency + at-most-one Primary rule |
 | `fb06461` | Validator message format: relative URLs (no `host_name` dependency) + `str()` instead of `repr()` |
 | `95f93d8` | HRMS Policy + Employee Policy Acknowledgement — generic policy distribution & acknowledgement framework (Code of Conduct, POSH, IT, Anti-Bribery, etc. all share the same shape). Backend complete; PWA surfacing deferred to Phase 7. |
+| `1fdc219` | Phase 2-B: `confirmation_status` Custom Field on Employee (Probation/Confirmed/Extended/Released) + backfill from existing date fields. |
+| `a8b1e1f` | Phase 2-C: Probation Review submittable doctype + Confirmation/Extension/Release letters via Appointment Letter with letter_type discriminator + scheduler reminders 30 days before confirmation due. Templates per-role left to HR (no seeded content). |
+| `6ea9c9b` | Phase 2-D: Job Requisition 3-stage approval workflow (Draft → Pending HR Review → Pending Final Approval → Approved) + auto-creates Job Opening on Approval. |
+| `2fa0725` | Phase 2-E: Internal mobility detection — Job Applicant auto-flagged + source Employee linked when email matches an Active Employee; PWA notification to source manager. |
+| `824405c` | Phase 2-F: Promote-to-Employee wizard — whitelisted endpoint + Desk dialog to create Employee from Accepted Job Offer with pre-fill, computes scheduled_confirmation_date from probation days. |
 
 ---
 
