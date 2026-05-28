@@ -250,6 +250,9 @@ doc_events = {
 	"Appraisal Cycle": {"after_insert": "indian_hrms_compliance.telemetry.on_milestone_insert"},
 	"Employee Onboarding": {"after_insert": "indian_hrms_compliance.telemetry.on_milestone_insert"},
 	"Salary Slip": {"on_submit": "indian_hrms_compliance.telemetry.on_milestone_submit"},
+	"Job Requisition": {
+		"on_update": "indian_hrms_compliance.overrides.job_requisition_workflow.auto_create_opening_on_approval",
+	},
 }
 
 # Scheduled Tasks
