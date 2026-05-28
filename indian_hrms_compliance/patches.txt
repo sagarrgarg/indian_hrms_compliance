@@ -57,3 +57,4 @@ indian_hrms_compliance.patches.v16_0.set_job_offer_in_employee
 indian_hrms_compliance.patches.v16_0.delete_old_salary_slip_print_formats
 indian_hrms_compliance.patches.v15_0.add_person_level_employee_fields #2026-05-26
 indian_hrms_compliance.patches.v15_0.add_confirmation_status_field #2026-05-28
+indian_hrms_compliance.patches.v15_0.add_letter_type_custom_fields #2026-05-28

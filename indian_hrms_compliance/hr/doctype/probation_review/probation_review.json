@@ -1,0 +1,235 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "naming_series:",
+ "creation": "2026-05-28 12:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "is_submittable": 1,
+ "field_order": [
+  "naming_series",
+  "employee_section",
+  "employee",
+  "employee_name",
+  "company",
+  "column_break_emp",
+  "review_date",
+  "reviewer",
+  "period_section",
+  "period_evaluated_from",
+  "column_break_period",
+  "period_evaluated_to",
+  "feedback_section",
+  "performance_rating",
+  "feedback",
+  "recommendation_section",
+  "recommendation",
+  "extension_days",
+  "new_scheduled_confirmation_date",
+  "column_break_reco",
+  "generate_confirmation_letter",
+  "confirmation_letter",
+  "amended_from"
+ ],
+ "fields": [
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Series",
+   "options": "HR-PRV-.YYYY.-.####",
+   "default": "HR-PRV-.YYYY.-.####",
+   "reqd": 1
+  },
+  {
+   "fieldname": "employee_section",
+   "fieldtype": "Section Break",
+   "label": "Employee"
+  },
+  {
+   "fieldname": "employee",
+   "fieldtype": "Link",
+   "label": "Employee",
+   "options": "Employee",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "employee_name",
+   "fieldtype": "Data",
+   "label": "Employee Name",
+   "fetch_from": "employee.employee_name",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Company",
+   "fetch_from": "employee.company",
+   "read_only": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "column_break_emp",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "review_date",
+   "fieldtype": "Date",
+   "label": "Review Date",
+   "reqd": 1,
+   "default": "Today",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "reviewer",
+   "fieldtype": "Link",
+   "label": "Reviewer",
+   "options": "User",
+   "default": "__user",
+   "description": "Defaults to current user. Usually the employee's reports_to."
+  },
+  {
+   "fieldname": "period_section",
+   "fieldtype": "Section Break",
+   "label": "Period Evaluated"
+  },
+  {
+   "fieldname": "period_evaluated_from",
+   "fieldtype": "Date",
+   "label": "From"
+  },
+  {
+   "fieldname": "column_break_period",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "period_evaluated_to",
+   "fieldtype": "Date",
+   "label": "To"
+  },
+  {
+   "fieldname": "feedback_section",
+   "fieldtype": "Section Break",
+   "label": "Assessment"
+  },
+  {
+   "fieldname": "performance_rating",
+   "fieldtype": "Select",
+   "label": "Performance Rating",
+   "options": "\nExcellent\nMeets Expectations\nNeeds Improvement\nBelow Expectations",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "feedback",
+   "fieldtype": "Text Editor",
+   "label": "Feedback"
+  },
+  {
+   "fieldname": "recommendation_section",
+   "fieldtype": "Section Break",
+   "label": "Recommendation"
+  },
+  {
+   "fieldname": "recommendation",
+   "fieldtype": "Select",
+   "label": "Recommendation",
+   "options": "\nConfirm\nExtend Probation\nRelease",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "extension_days",
+   "fieldtype": "Int",
+   "label": "Extend By (days)",
+   "depends_on": "eval:doc.recommendation==\"Extend Probation\"",
+   "mandatory_depends_on": "eval:doc.recommendation==\"Extend Probation\""
+  },
+  {
+   "fieldname": "new_scheduled_confirmation_date",
+   "fieldtype": "Date",
+   "label": "New Scheduled Confirmation Date",
+   "depends_on": "eval:doc.recommendation==\"Extend Probation\"",
+   "read_only": 1,
+   "description": "Computed from current scheduled_confirmation_date + extension_days on submit."
+  },
+  {
+   "fieldname": "column_break_reco",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "generate_confirmation_letter",
+   "fieldtype": "Check",
+   "label": "Generate Letter on Submit",
+   "default": "1",
+   "depends_on": "eval:in_list(['Confirm','Extend Probation','Release'], doc.recommendation)",
+   "description": "Auto-creates a Draft Appointment Letter (typed by recommendation) on submit. HR picks the template and finalises content."
+  },
+  {
+   "fieldname": "confirmation_letter",
+   "fieldtype": "Link",
+   "label": "Generated Letter",
+   "options": "Appointment Letter",
+   "read_only": 1
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "options": "Probation Review",
+   "no_copy": 1,
+   "print_hide": 1,
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-05-28 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "HR",
+ "name": "Probation Review",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR Manager",
+   "share": 1,
+   "submit": 1,
+   "cancel": 1,
+   "amend": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR User",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "read": 1,
+   "role": "Employee",
+   "if_owner": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "employee_name",
+ "track_changes": 1
+}
