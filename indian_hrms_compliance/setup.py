@@ -277,6 +277,18 @@ def get_custom_fields():
 				"options": "Cost Center",
 				"insert_after": "salary_cb",
 			},
+			{
+				"fieldname": "confirmation_status",
+				"fieldtype": "Select",
+				"label": _("Confirmation Status"),
+				"options": "\nProbation\nConfirmed\nExtended\nReleased",
+				"insert_after": "final_confirmation_date",
+				"default": "",
+				"description": _(
+					"Probation: within probation period. Confirmed: passed probation. "
+					"Extended: probation extended. Released: services terminated during probation."
+				),
+			},
 		],
 		"Project": [
 			{

@@ -38,3 +38,4 @@ indian_hrms_compliance.patches.v15_0.add_leave_type_permission_for_ess
 indian_hrms_compliance.patches.v15_0.remove_ess_user_type_limit
 indian_hrms_compliance.patches.v15_0.update_approver_custom_fields
 indian_hrms_compliance.patches.v15_0.add_person_level_employee_fields #2026-05-26
+indian_hrms_compliance.patches.v15_0.add_confirmation_status_field #2026-05-28
