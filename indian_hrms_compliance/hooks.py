@@ -221,6 +221,9 @@ doc_events = {
 	"Job Requisition": {
 		"on_update": "indian_hrms_compliance.overrides.job_requisition_workflow.auto_create_opening_on_approval",
 	},
+	"Job Applicant": {
+		"validate": "indian_hrms_compliance.overrides.job_applicant.detect_internal_applicant",
+	},
 }
 
 # Scheduled Tasks

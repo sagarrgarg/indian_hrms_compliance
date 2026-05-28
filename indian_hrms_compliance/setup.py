@@ -337,6 +337,31 @@ def get_custom_fields():
 				),
 			},
 		],
+		"Job Applicant": [
+			{
+				"fieldname": "is_internal_applicant",
+				"fieldtype": "Check",
+				"label": _("Internal Applicant"),
+				"default": "0",
+				"read_only": 1,
+				"insert_after": "employee_referral",
+				"in_list_view": 1,
+				"in_standard_filter": 1,
+				"description": _(
+					"Set automatically when email_id matches an Active Employee. "
+					"Internal applicants follow a different hiring workflow."
+				),
+			},
+			{
+				"fieldname": "source_employee",
+				"fieldtype": "Link",
+				"label": _("Source Employee"),
+				"options": "Employee",
+				"read_only": 1,
+				"insert_after": "is_internal_applicant",
+				"description": _("Existing Employee record matched by email_id."),
+			},
+		],
 		"Task": [
 			{
 				"fieldname": "total_expense_claim",
