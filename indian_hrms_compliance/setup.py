@@ -299,6 +299,44 @@ def get_custom_fields():
 				"insert_after": "total_costing_amount",
 			},
 		],
+		"Appointment Letter": [
+			{
+				"fieldname": "letter_type",
+				"fieldtype": "Select",
+				"label": _("Letter Type"),
+				"options": "Appointment\nConfirmation\nProbation Extension\nRelease\nOther",
+				"default": "Appointment",
+				"insert_after": "appointment_date",
+				"in_list_view": 1,
+				"in_standard_filter": 1,
+			},
+			{
+				"fieldname": "probation_review",
+				"fieldtype": "Link",
+				"label": _("Probation Review"),
+				"options": "Probation Review",
+				"insert_after": "letter_type",
+				"depends_on": "eval:in_list(['Confirmation','Probation Extension','Release'], doc.letter_type)",
+				"read_only": 1,
+			},
+		],
+		"Appointment Letter Template": [
+			{
+				"fieldname": "letter_type",
+				"fieldtype": "Select",
+				"label": _("Letter Type"),
+				"options": "Appointment\nConfirmation\nProbation Extension\nRelease\nOther",
+				"default": "Appointment",
+				"insert_after": "template_name",
+				"in_list_view": 1,
+				"in_standard_filter": 1,
+				"description": _(
+					"Tag the template by the letter it produces. Used to filter "
+					"template pickers (e.g., a Confirmation Letter sees only "
+					"templates with letter_type=Confirmation)."
+				),
+			},
+		],
 		"Task": [
 			{
 				"fieldname": "total_expense_claim",

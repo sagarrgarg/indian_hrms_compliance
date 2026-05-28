@@ -242,6 +242,7 @@ scheduler_events = {
 		"indian_hrms_compliance.hr.doctype.interview.interview.send_daily_feedback_reminder",
 		"indian_hrms_compliance.hr.doctype.shift_assignment.shift_assignment.mark_expired_shift_assignments_as_inactive",
 		"indian_hrms_compliance.hr.doctype.job_opening.job_opening.close_expired_job_openings",
+		"indian_hrms_compliance.hr.doctype.probation_review.probation_review.create_probation_review_reminders",
 	],
 	"daily_long": [
 		"indian_hrms_compliance.hr.doctype.leave_ledger_entry.leave_ledger_entry.process_expired_allocation",
