@@ -13,7 +13,7 @@
   "color",
   "col_break_identity",
   "status",
-  "kra_owner",
+  "owner_designation",
   "company",
   "scope_section",
   "is_global",
@@ -76,11 +76,12 @@
    "description": "Archived KRAs are hidden from default pickers but kept for historical references."
   },
   {
-   "fieldname": "kra_owner",
+   "fieldname": "owner_designation",
    "fieldtype": "Link",
-   "label": "KRA Owner",
-   "options": "User",
-   "description": "Person accountable for this KRA org-wide. Stewards the SOPs and KPIs under it."
+   "label": "Owner Designation",
+   "options": "Designation",
+   "in_standard_filter": 1,
+   "description": "The role accountable for this KRA. Survives personnel changes — when someone in this Designation leaves, the next person inherits accountability automatically. Active Employees holding this Designation are the people the system notifies / surfaces this KRA to."
   },
   {
    "fieldname": "company",
