@@ -77,6 +77,18 @@ class HRMSTask(NestedSet):
 # ---- module-level: assignment resolution + scheduler ----
 
 
+@frappe.whitelist()
+def get_my_employees():
+	"""Whitelisted helper: returns the list of Active Employee names linked
+	to the current session user. Used by the Goal list 'My Tasks Today'
+	quick-filter."""
+	return frappe.get_all(
+		"Employee",
+		filters={"user_id": frappe.session.user, "status": "Active"},
+		pluck="name",
+	)
+
+
 def resolve_assigned_employees(task):
 	"""Return list of Employee names matching the Task's scope (any-of semantics).
 
