@@ -81,6 +81,13 @@ class HRMSPolicy(Document):
 	def _notify_employee(self, employee, ack_doc):
 		if not employee.get("user_id"):
 			return
+
+		# Snapshot the message buffer so we can roll back anything downstream emits
+		# (e.g., Push Notification decryption errors, mail dispatch warnings).
+		# Without this, a broken site config in a sibling doctype bleeds into our
+		# Policy save and surfaces to the user as confusing popups.
+		msg_count_before = len(getattr(frappe.local, "message_log", []) or [])
+
 		try:
 			frappe.get_doc(
 				{
@@ -95,7 +102,13 @@ class HRMSPolicy(Document):
 				}
 			).insert(ignore_permissions=True)
 		except Exception:
-			# Don't block on notification failure — the Acknowledgement record itself is the source of truth.
+			# Don't block on notification failure — the Acknowledgement record is the source of truth.
+			# Suppress any messages our downstream chain may have buffered.
+			try:
+				if hasattr(frappe.local, "message_log") and frappe.local.message_log:
+					frappe.local.message_log = frappe.local.message_log[:msg_count_before]
+			except Exception:
+				pass
 			frappe.log_error(
 				title=f"HRMS Policy notification failed for {employee.name}",
 				message=frappe.get_traceback(),
