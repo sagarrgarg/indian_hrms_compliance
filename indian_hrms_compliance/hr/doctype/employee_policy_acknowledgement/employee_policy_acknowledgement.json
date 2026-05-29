@@ -19,6 +19,7 @@
   "status_section",
   "status",
   "due_date",
+  "last_reminder_sent_on",
   "column_break_status",
   "acknowledged_at",
   "acknowledged_via",
@@ -115,6 +116,13 @@
    "fieldtype": "Date",
    "label": "Due Date",
    "in_list_view": 1
+  },
+  {
+   "fieldname": "last_reminder_sent_on",
+   "fieldtype": "Date",
+   "label": "Last Overdue Reminder Sent On",
+   "read_only": 1,
+   "description": "Updated by the daily scheduler; prevents duplicate reminders within a day."
   },
   {
    "fieldname": "column_break_status",
