@@ -362,6 +362,26 @@ def get_custom_fields():
 				"description": _("Existing Employee record matched by email_id."),
 			},
 		],
+		"Appraisal": [
+			{
+				"fieldname": "kra_performance_section",
+				"fieldtype": "Section Break",
+				"label": _("KRA Performance from Task Instances (Auto)"),
+				"insert_after": "appraisal_kra",
+				"collapsible": 1,
+				"description": _(
+					"Computed from this Employee's Task Instances (Goal records "
+					"with goal_type='Task Instance') in the cycle period. Refreshed "
+					"on each save of this Appraisal."
+				),
+			},
+			{
+				"fieldname": "kra_performance_html",
+				"fieldtype": "HTML",
+				"label": _("KRA Performance HTML"),
+				"insert_after": "kra_performance_section",
+			},
+		],
 		"Goal": [
 			{
 				"fieldname": "goal_type",

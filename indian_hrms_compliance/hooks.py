@@ -228,6 +228,9 @@ doc_events = {
 	"Job Applicant": {
 		"validate": "indian_hrms_compliance.overrides.job_applicant.detect_internal_applicant",
 	},
+	"Appraisal": {
+		"validate": "indian_hrms_compliance.overrides.appraisal.populate_kra_performance",
+	},
 }
 
 # Scheduled Tasks

@@ -43,3 +43,4 @@ indian_hrms_compliance.patches.v15_0.add_letter_type_custom_fields #2026-05-28
 indian_hrms_compliance.patches.v15_0.setup_job_requisition_workflow #2026-05-28
 indian_hrms_compliance.patches.v15_0.add_internal_applicant_fields #2026-05-28
 indian_hrms_compliance.patches.v15_0.extend_goal_as_task_instance #2026-05-29
+indian_hrms_compliance.patches.v15_0.add_kra_performance_on_appraisal #2026-05-29
