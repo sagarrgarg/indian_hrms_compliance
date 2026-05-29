@@ -234,6 +234,22 @@
    "label": "Job Requisition",
    "link_to": "Job Requisition",
    "type": "DocType"
+  },
+  {
+   "color": "Blue",
+   "doc_view": "List",
+   "label": "HRMS Task",
+   "link_to": "HRMS Task",
+   "stats_filter": "{\"status\":\"Active\"}",
+   "type": "DocType"
+  },
+  {
+   "color": "Blue",
+   "doc_view": "List",
+   "label": "Task Instances (Goal)",
+   "link_to": "Goal",
+   "stats_filter": "{\"goal_type\":\"Task Instance\"}",
+   "type": "DocType"
   }
  ],
  "title": "HRMS Overview"

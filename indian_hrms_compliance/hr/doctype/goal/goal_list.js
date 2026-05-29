@@ -1,5 +1,5 @@
 frappe.listview_settings["Goal"] = {
-	add_fields: ["end_date", "status"],
+	add_fields: ["end_date", "status", "goal_type", "due_date", "task_template"],
 
 	get_indicator: function (doc) {
 		const status_color = {
@@ -9,6 +9,15 @@ frappe.listview_settings["Goal"] = {
 			Archived: "gray",
 			Closed: "red",
 		};
+		// Highlight overdue Task Instances in red
+		if (
+			doc.goal_type === "Task Instance" &&
+			doc.due_date &&
+			doc.due_date < frappe.datetime.get_today() &&
+			["Pending", "In Progress"].includes(doc.status)
+		) {
+			return [__("Overdue"), "red", "due_date,<,Today|status,in,Pending,In Progress|goal_type,=,Task Instance"];
+		}
 		return [__(doc.status), status_color[doc.status], "status,=," + doc.status];
 	},
 
@@ -44,6 +53,41 @@ frappe.listview_settings["Goal"] = {
 			listview.page.add_custom_menu_item(status_menu, __(option.present), () =>
 				this.trigger_update_status_dialog(option.past, listview),
 			);
+		});
+
+		// Quick filter pills for Task Instance use case
+		listview.page.add_menu_item(__("Show My Tasks (today + overdue)"), () => {
+			frappe.call({
+				method: "indian_hrms_compliance.hr.doctype.hrms_task.hrms_task.get_my_employees",
+				callback: (r) => {
+					const employees = (r && r.message) || [];
+					if (!employees.length) {
+						frappe.msgprint(__("You don't have an Active Employee record."));
+						return;
+					}
+					listview.filter_area.clear();
+					listview.filter_area.add([
+						[listview.doctype, "goal_type", "=", "Task Instance"],
+						[listview.doctype, "employee", "in", employees],
+						[listview.doctype, "status", "in", ["Pending", "In Progress"]],
+						[listview.doctype, "due_date", "<=", frappe.datetime.add_days(frappe.datetime.get_today(), 7)],
+					]);
+				},
+			});
+		});
+
+		listview.page.add_menu_item(__("Show Overdue Tasks"), () => {
+			listview.filter_area.clear();
+			listview.filter_area.add([
+				[listview.doctype, "goal_type", "=", "Task Instance"],
+				[listview.doctype, "status", "in", ["Pending", "In Progress"]],
+				[listview.doctype, "due_date", "<", frappe.datetime.get_today()],
+			]);
+		});
+
+		listview.page.add_menu_item(__("Hide Task Instances (SMART goals only)"), () => {
+			listview.filter_area.clear();
+			listview.filter_area.add([[listview.doctype, "goal_type", "=", "SMART"]]);
 		});
 	},
 
