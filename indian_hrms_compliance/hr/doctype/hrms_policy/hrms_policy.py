@@ -132,13 +132,22 @@ def send_overdue_policy_ack_reminders():
 	"""
 	today_d = getdate(today())
 
+	# NULL-safe overdue filter — same pattern as the Task version.
+	overdue_names = frappe.db.sql(
+		"""
+		SELECT name FROM `tabEmployee Policy Acknowledgement`
+		WHERE status = 'Pending'
+		  AND due_date < %s
+		  AND (last_reminder_sent_on IS NULL OR last_reminder_sent_on != %s)
+		""",
+		(today_d, today_d),
+		as_dict=False,
+	)
+	if not overdue_names:
+		return
 	overdue = frappe.get_all(
 		"Employee Policy Acknowledgement",
-		filters={
-			"status": "Pending",
-			"due_date": ("<", today_d),
-			"last_reminder_sent_on": ("!=", today_d),
-		},
+		filters={"name": ("in", [r[0] for r in overdue_names])},
 		fields=[
 			"name",
 			"employee",
@@ -149,7 +158,6 @@ def send_overdue_policy_ack_reminders():
 			"policy_version",
 			"due_date",
 		],
-		limit=0,
 	)
 	if not overdue:
 		return

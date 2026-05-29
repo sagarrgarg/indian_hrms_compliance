@@ -8,3 +8,4 @@ import "./utils/leave_utils";
 import "./utils/telemetry.js";
 import "./salary_slip_deductions_report_filters.js";
 import "./overdue_policy_popup.js";
+import "./overdue_task_popup.js";

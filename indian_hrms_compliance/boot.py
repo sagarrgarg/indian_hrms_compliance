@@ -14,6 +14,7 @@ def extend_bootinfo(bootinfo):
 	if not bootinfo.get("user") or bootinfo["user"].get("name") in ("Guest", "Administrator"):
 		bootinfo.setdefault("indian_hrms_compliance", {})
 		bootinfo["indian_hrms_compliance"]["overdue_policy_acks"] = []
+		bootinfo["indian_hrms_compliance"]["overdue_task_instances"] = []
 		return
 
 	user = bootinfo["user"]["name"]
@@ -25,6 +26,7 @@ def extend_bootinfo(bootinfo):
 	if not employees:
 		bootinfo.setdefault("indian_hrms_compliance", {})
 		bootinfo["indian_hrms_compliance"]["overdue_policy_acks"] = []
+		bootinfo["indian_hrms_compliance"]["overdue_task_instances"] = []
 		return
 
 	today_d = getdate(today())
@@ -53,3 +55,26 @@ def extend_bootinfo(bootinfo):
 
 	bootinfo.setdefault("indian_hrms_compliance", {})
 	bootinfo["indian_hrms_compliance"]["overdue_policy_acks"] = overdue
+
+	# Also: overdue Task Instances (Goals with goal_type='Task Instance').
+	overdue_tasks = frappe.get_all(
+		"Goal",
+		filters={
+			"goal_type": "Task Instance",
+			"employee": ("in", employees),
+			"status": ("in", ["Pending", "In Progress"]),
+			"due_date": ("<", today_d),
+		},
+		fields=[
+			"name",
+			"goal_name",
+			"task_template",
+			"kra",
+			"period_label",
+			"due_date",
+			"company",
+		],
+		order_by="due_date asc",
+		limit=50,
+	)
+	bootinfo["indian_hrms_compliance"]["overdue_task_instances"] = overdue_tasks
