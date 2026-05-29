@@ -137,6 +137,8 @@ permission_query_conditions = {
 	"Employee Policy Acknowledgement": "indian_hrms_compliance.hr.doctype.employee_policy_acknowledgement.employee_policy_acknowledgement.get_permission_query_conditions",
 }
 
+extend_bootinfo = "indian_hrms_compliance.boot.extend_bootinfo"
+
 # has_permission = {
 # 	"Event": "frappe.desk.doctype.event.event.has_permission",
 # }
@@ -250,6 +252,7 @@ scheduler_events = {
 		"indian_hrms_compliance.hr.doctype.shift_assignment.shift_assignment.mark_expired_shift_assignments_as_inactive",
 		"indian_hrms_compliance.hr.doctype.job_opening.job_opening.close_expired_job_openings",
 		"indian_hrms_compliance.hr.doctype.probation_review.probation_review.create_probation_review_reminders",
+		"indian_hrms_compliance.hr.doctype.hrms_policy.hrms_policy.send_overdue_policy_ack_reminders",
 	],
 	"daily_long": [
 		"indian_hrms_compliance.hr.doctype.leave_ledger_entry.leave_ledger_entry.process_expired_allocation",
