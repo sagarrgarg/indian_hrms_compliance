@@ -15,6 +15,11 @@
   "status",
   "kra_owner",
   "company",
+  "scope_section",
+  "is_global",
+  "col_break_scope",
+  "applies_to_department",
+  "applies_to_designation",
   "description_section",
   "description",
   "detailed_description",
@@ -84,6 +89,41 @@
    "options": "Company",
    "in_standard_filter": 1,
    "description": "Empty = applies across all Companies."
+  },
+  {
+   "fieldname": "scope_section",
+   "fieldtype": "Section Break",
+   "label": "Logical Scope (hints for KRA pickers)",
+   "collapsible": 1,
+   "description": "Optional curation hints. When 'Global' is ticked, this KRA shows up everywhere. When unticked, it shows up only for the chosen Department/Designation. Hints, not constraints — HR can still link any KRA to any Task/Goal."
+  },
+  {
+   "fieldname": "is_global",
+   "fieldtype": "Check",
+   "label": "Global (applies org-wide)",
+   "default": "1",
+   "in_standard_filter": 1,
+   "description": "When ticked, this KRA appears in every picker and report group. The default behaviour."
+  },
+  {
+   "fieldname": "col_break_scope",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "applies_to_department",
+   "fieldtype": "Link",
+   "label": "Applies to Department",
+   "options": "Department",
+   "depends_on": "eval:!doc.is_global",
+   "description": "Only used when not Global. Filters KRA pickers to employees in this Department."
+  },
+  {
+   "fieldname": "applies_to_designation",
+   "fieldtype": "Link",
+   "label": "Applies to Designation",
+   "options": "Designation",
+   "depends_on": "eval:!doc.is_global",
+   "description": "Only used when not Global. Filters KRA pickers to this Designation."
   },
   {
    "fieldname": "description_section",
