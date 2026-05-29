@@ -1,0 +1,477 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "naming_series:",
+ "creation": "2026-05-29 18:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 0,
+ "engine": "InnoDB",
+ "is_tree": 1,
+ "nsm_parent_field": "parent_task",
+ "field_order": [
+  "naming_series",
+  "identity_section",
+  "task_name",
+  "kra",
+  "task_kind",
+  "color",
+  "col_break_identity",
+  "status",
+  "effective_from",
+  "effective_to",
+  "task_owner",
+  "company",
+  "schedule_section",
+  "frequency",
+  "expected_count_per_period",
+  "col_break_schedule",
+  "weight",
+  "completion_section",
+  "completion_type",
+  "col_break_completion",
+  "requires_attachment",
+  "attachment_label",
+  "accepted_file_types",
+  "approval_section",
+  "requires_approval",
+  "approver_resolution",
+  "col_break_approval",
+  "approver_user",
+  "approver_role",
+  "measurement_section",
+  "measurement_unit",
+  "target_value",
+  "col_break_measurement",
+  "kpi_rollup_method",
+  "target_period",
+  "scope_section",
+  "applicable_to_all_active",
+  "col_break_scope",
+  "assigned_to_department",
+  "assigned_to_designation",
+  "assigned_to_branch",
+  "col_break_scope_2",
+  "assigned_to_grade",
+  "assigned_to_employment_type",
+  "assigned_to_employee_group",
+  "description_section",
+  "description",
+  "tree_section",
+  "is_group",
+  "parent_task",
+  "lft",
+  "rgt",
+  "old_parent"
+ ],
+ "fields": [
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Series",
+   "options": "HR-TASK-.YYYY.-.####",
+   "default": "HR-TASK-.YYYY.-.####",
+   "reqd": 1,
+   "no_copy": 1,
+   "print_hide": 1,
+   "set_only_once": 1
+  },
+  {
+   "fieldname": "identity_section",
+   "fieldtype": "Section Break",
+   "label": "Identity & Lifecycle"
+  },
+  {
+   "fieldname": "task_name",
+   "fieldtype": "Data",
+   "label": "Task Name",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_global_search": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "kra",
+   "fieldtype": "Link",
+   "label": "KRA",
+   "options": "KRA",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "description": "Top-level Key Result Area this task rolls up to."
+  },
+  {
+   "fieldname": "task_kind",
+   "fieldtype": "Select",
+   "label": "Task Kind",
+   "options": "Individual Task\nSOP Container\nKPI Metric",
+   "default": "Individual Task",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "description": "SOP Container groups child tasks; KPI Metric is a measurable outcome; Individual Task is a standalone action."
+  },
+  {
+   "fieldname": "color",
+   "fieldtype": "Color",
+   "label": "Color"
+  },
+  {
+   "fieldname": "col_break_identity",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "Draft\nActive\nPaused\nRetired",
+   "default": "Draft",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "description": "Only Active tasks are instantiated by the scheduler."
+  },
+  {
+   "fieldname": "effective_from",
+   "fieldtype": "Date",
+   "label": "Effective From",
+   "mandatory_depends_on": "eval:doc.status=='Active'",
+   "description": "Earliest date this task can be assigned. Required when status is Active."
+  },
+  {
+   "fieldname": "effective_to",
+   "fieldtype": "Date",
+   "label": "Effective To",
+   "description": "Optional. If set, scheduler stops instantiating after this date."
+  },
+  {
+   "fieldname": "task_owner",
+   "fieldtype": "Link",
+   "label": "Task Owner",
+   "options": "User",
+   "default": "__user",
+   "description": "HR steward responsible for maintaining this task."
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Company",
+   "description": "Empty means applies across all Companies."
+  },
+  {
+   "fieldname": "schedule_section",
+   "fieldtype": "Section Break",
+   "label": "Schedule & Weight"
+  },
+  {
+   "fieldname": "frequency",
+   "fieldtype": "Select",
+   "label": "Frequency",
+   "options": "One-time\nDaily\nWeekly\nMonthly\nQuarterly\nYearly\nOn-demand",
+   "reqd": 1,
+   "default": "Daily",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "expected_count_per_period",
+   "fieldtype": "Int",
+   "label": "Expected Count per Period",
+   "default": "1",
+   "depends_on": "eval:!in_list(['One-time','On-demand'], doc.frequency)",
+   "description": "How many times this task should be executed per period (e.g., 5 line inspections per day)."
+  },
+  {
+   "fieldname": "col_break_schedule",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "weight",
+   "fieldtype": "Float",
+   "label": "Weight",
+   "default": "1",
+   "description": "Relative scoring weight for KRA aggregation (0-100). Higher = bigger contribution to KRA score."
+  },
+  {
+   "fieldname": "completion_section",
+   "fieldtype": "Section Break",
+   "label": "How is it completed?"
+  },
+  {
+   "fieldname": "completion_type",
+   "fieldtype": "Select",
+   "label": "Completion Type",
+   "options": "Checkbox\nDocument Upload\nNumeric Entry\nForm\nApproval Only",
+   "default": "Checkbox",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "col_break_completion",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "requires_attachment",
+   "fieldtype": "Check",
+   "label": "Requires Attachment"
+  },
+  {
+   "fieldname": "attachment_label",
+   "fieldtype": "Data",
+   "label": "Attachment Label",
+   "depends_on": "eval:doc.requires_attachment",
+   "description": "Tells the employee what to upload, e.g. 'Defect log PDF'."
+  },
+  {
+   "fieldname": "accepted_file_types",
+   "fieldtype": "Data",
+   "label": "Accepted File Types",
+   "depends_on": "eval:doc.requires_attachment",
+   "description": "Comma-separated extensions e.g. pdf,jpg,png. Leave blank to accept anything."
+  },
+  {
+   "fieldname": "approval_section",
+   "fieldtype": "Section Break",
+   "label": "Approval Routing",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "requires_approval",
+   "fieldtype": "Check",
+   "label": "Requires Approval",
+   "description": "If unchecked, submitted instances are auto-approved."
+  },
+  {
+   "fieldname": "approver_resolution",
+   "fieldtype": "Select",
+   "label": "Approver Resolution",
+   "options": "Reports To\nSpecific User\nSpecific Role",
+   "default": "Reports To",
+   "depends_on": "eval:doc.requires_approval",
+   "description": "How to find the approver for each Task Instance."
+  },
+  {
+   "fieldname": "col_break_approval",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "approver_user",
+   "fieldtype": "Link",
+   "label": "Approver User",
+   "options": "User",
+   "depends_on": "eval:doc.requires_approval && doc.approver_resolution=='Specific User'",
+   "mandatory_depends_on": "eval:doc.requires_approval && doc.approver_resolution=='Specific User'"
+  },
+  {
+   "fieldname": "approver_role",
+   "fieldtype": "Link",
+   "label": "Approver Role",
+   "options": "Role",
+   "depends_on": "eval:doc.requires_approval && doc.approver_resolution=='Specific Role'",
+   "mandatory_depends_on": "eval:doc.requires_approval && doc.approver_resolution=='Specific Role'"
+  },
+  {
+   "fieldname": "measurement_section",
+   "fieldtype": "Section Break",
+   "label": "Measurement (for KPI Metrics)",
+   "collapsible": 1,
+   "depends_on": "eval:doc.completion_type=='Numeric Entry'"
+  },
+  {
+   "fieldname": "measurement_unit",
+   "fieldtype": "Data",
+   "label": "Measurement Unit",
+   "description": "e.g. count, %, kg, ₹, hours, defect rate"
+  },
+  {
+   "fieldname": "target_value",
+   "fieldtype": "Float",
+   "label": "Target Value",
+   "description": "What value counts as meeting the target."
+  },
+  {
+   "fieldname": "col_break_measurement",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "kpi_rollup_method",
+   "fieldtype": "Select",
+   "label": "KPI Rollup Method",
+   "options": "Sum\nAverage\nLatest\nMax\nMin",
+   "default": "Sum",
+   "description": "How values from multiple Task Instances aggregate into a single KPI score."
+  },
+  {
+   "fieldname": "target_period",
+   "fieldtype": "Select",
+   "label": "Target Period",
+   "options": "Per Period\nPer Year\nPer Quarter\nPer Month",
+   "default": "Per Period",
+   "description": "What period does the target_value apply to. 'Per Period' = per task frequency (daily target, weekly target, etc.)."
+  },
+  {
+   "fieldname": "scope_section",
+   "fieldtype": "Section Break",
+   "label": "Who does this task? (Assignment Scope)",
+   "description": "An Employee is assigned if they match ANY of the rules below. Tick 'All Active Employees' to override and apply to everyone."
+  },
+  {
+   "fieldname": "applicable_to_all_active",
+   "fieldtype": "Check",
+   "label": "Applicable to All Active Employees",
+   "default": "0",
+   "description": "If ticked, every Active Employee gets this task regardless of the rules below."
+  },
+  {
+   "fieldname": "col_break_scope",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "assigned_to_department",
+   "fieldtype": "Link",
+   "label": "Department",
+   "options": "Department",
+   "depends_on": "eval:!doc.applicable_to_all_active"
+  },
+  {
+   "fieldname": "assigned_to_designation",
+   "fieldtype": "Link",
+   "label": "Designation",
+   "options": "Designation",
+   "depends_on": "eval:!doc.applicable_to_all_active"
+  },
+  {
+   "fieldname": "assigned_to_branch",
+   "fieldtype": "Link",
+   "label": "Branch",
+   "options": "Branch",
+   "depends_on": "eval:!doc.applicable_to_all_active"
+  },
+  {
+   "fieldname": "col_break_scope_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "assigned_to_grade",
+   "fieldtype": "Link",
+   "label": "Employee Grade",
+   "options": "Employee Grade",
+   "depends_on": "eval:!doc.applicable_to_all_active"
+  },
+  {
+   "fieldname": "assigned_to_employment_type",
+   "fieldtype": "Link",
+   "label": "Employment Type",
+   "options": "Employment Type",
+   "depends_on": "eval:!doc.applicable_to_all_active"
+  },
+  {
+   "fieldname": "assigned_to_employee_group",
+   "fieldtype": "Link",
+   "label": "Employee Group",
+   "options": "Employee Group",
+   "depends_on": "eval:!doc.applicable_to_all_active",
+   "description": "Reuse an existing Employee Group, or create one for ad-hoc cohorts (POSH IC, Night Shift, Audit Team, etc)."
+  },
+  {
+   "fieldname": "description_section",
+   "fieldtype": "Section Break",
+   "label": "Description & Instructions",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Text Editor",
+   "label": "Description"
+  },
+  {
+   "fieldname": "tree_section",
+   "fieldtype": "Section Break",
+   "label": "Hierarchy",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "is_group",
+   "fieldtype": "Check",
+   "label": "Is Group (SOP Container)",
+   "description": "Tick to mark this as an SOP container with child tasks below."
+  },
+  {
+   "fieldname": "parent_task",
+   "fieldtype": "Link",
+   "label": "Parent Task",
+   "options": "HRMS Task",
+   "ignore_user_permissions": 1
+  },
+  {
+   "fieldname": "lft",
+   "fieldtype": "Int",
+   "label": "lft",
+   "hidden": 1,
+   "no_copy": 1,
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "rgt",
+   "fieldtype": "Int",
+   "label": "rgt",
+   "hidden": 1,
+   "no_copy": 1,
+   "print_hide": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "old_parent",
+   "fieldtype": "Link",
+   "label": "Old Parent",
+   "options": "HRMS Task",
+   "hidden": 1,
+   "no_copy": 1,
+   "print_hide": 1,
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-05-29 18:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "HR",
+ "name": "HRMS Task",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR User",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "read": 1,
+   "role": "Employee"
+  }
+ ],
+ "search_fields": "task_name,kra,frequency,status",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "task_name",
+ "track_changes": 1
+}
