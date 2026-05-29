@@ -214,6 +214,7 @@ Some user-facing flows have their backend shipped already but the surfacing UX i
 | `6ea9c9b` | Phase 2-D: Job Requisition 3-stage approval workflow (Draft → Pending HR Review → Pending Final Approval → Approved) + auto-creates Job Opening on Approval. |
 | `2fa0725` | Phase 2-E: Internal mobility detection — Job Applicant auto-flagged + source Employee linked when email matches an Active Employee; PWA notification to source manager. |
 | `824405c` | Phase 2-F: Promote-to-Employee wizard — whitelisted endpoint + Desk dialog to create Employee from Accepted Job Offer with pre-fill, computes scheduled_confirmation_date from probation days. |
+| Phase 3 series | **Task framework** — Phase 3 v2 reuse-first build, ~10 commits: HRMS Task template doctype (tree, scope, schedule, completion semantics, approval routing); Goal extended with 15 Custom Fields to serve as Task Instance (per-Employee per-period occurrence); scheduler instantiates Daily/Weekly/Monthly/Quarterly/Yearly; overdue detection + HR digest email + Desk popup; My Tasks Today list view; Task Compliance Script Report + dashboard cards; Appraisal auto-fed KRA Performance section. The defining product feature — measurable accountability flows into appraisal via accumulated execution. |
 
 ---
 
