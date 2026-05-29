@@ -40,12 +40,17 @@ frappe.query_reports["Task Compliance"] = {
 	formatter: function (value, row, column, data, default_formatter) {
 		value = default_formatter(value, row, column, data);
 		if (column.fieldname === "compliance_pct" && data) {
+			// Thresholds come from HR Settings — surfaced on each row by the
+			// Python side as _warn_pct / _crit_pct. >= warn = green,
+			// >= crit = orange, < crit = red. Defaults match HR Settings defaults.
+			const warn = data._warn_pct != null ? data._warn_pct : 80;
+			const crit = data._crit_pct != null ? data._crit_pct : 50;
 			let color = "var(--text-on-red)";
 			let bg = "var(--bg-red)";
-			if (data.compliance_pct >= 90) {
+			if (data.compliance_pct >= warn) {
 				color = "var(--text-on-green)";
 				bg = "var(--bg-green)";
-			} else if (data.compliance_pct >= 70) {
+			} else if (data.compliance_pct >= crit) {
 				color = "var(--text-on-orange)";
 				bg = "var(--bg-orange)";
 			}

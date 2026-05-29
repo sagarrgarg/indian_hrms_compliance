@@ -35,7 +35,13 @@ class HRMSPolicy(Document):
 		"""For each applicable Active Employee without an existing acknowledgement
 		for this policy version, create a Pending record and notify."""
 		employees = self._get_applicable_employees()
-		due = add_days(self.effective_date, self.acknowledgement_due_days or 0)
+		# Fall back to HR Settings default if this Policy didn't set a value.
+		due_days = self.acknowledgement_due_days
+		if due_days is None:
+			due_days = (
+				frappe.db.get_single_value("HR Settings", "default_policy_ack_due_days") or 7
+			)
+		due = add_days(self.effective_date, due_days or 0)
 		signed_text = _(
 			"I acknowledge that I have read and understood the policy '{0}' version {1} "
 			"effective {2}, and agree to abide by it."
@@ -184,8 +190,13 @@ def send_overdue_policy_ack_reminders():
 			update_modified=False,
 		)
 
-	# (b) Digest email to HR Managers
-	hr_users = frappe.get_all("Has Role", filters={"role": "HR Manager"}, pluck="parent")
+	# (b) Digest email to HR — gated by HR Settings
+	if not int(frappe.db.get_single_value("HR Settings", "send_overdue_policy_hr_digest") or 0):
+		return
+	recipients_role = (
+		frappe.db.get_single_value("HR Settings", "policy_overdue_recipients_role") or "HR Manager"
+	)
+	hr_users = frappe.get_all("Has Role", filters={"role": recipients_role}, pluck="parent")
 	hr_users = [u for u in hr_users if u and u not in ("Administrator", "Guest")]
 
 	if not hr_users:

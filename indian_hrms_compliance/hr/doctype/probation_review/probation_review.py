@@ -133,13 +133,21 @@ class ProbationReview(Document):
 
 def create_probation_review_reminders():
 	"""Scheduler (daily): for Employees in Probation whose
-	scheduled_confirmation_date is within the next 30 days, create a ToDo for
-	the reports_to manager + HR users, unless a submitted Probation Review
-	already exists or a reminder ToDo is already open."""
+	scheduled_confirmation_date falls within the lookahead window from today,
+	create a ToDo for the reports_to manager + HR users, unless a submitted
+	Probation Review already exists or a reminder ToDo is already open.
+
+	The lookahead window is HR Settings.probation_review_reminder_window_days
+	(default 30)."""
 	from frappe.utils import today
 
 	today_d = getdate(today())
-	cutoff = add_days(today_d, 30)
+	window = int(
+		frappe.db.get_single_value("HR Settings", "probation_review_reminder_window_days") or 30
+	)
+	if window <= 0:
+		window = 30
+	cutoff = add_days(today_d, window)
 
 	employees = frappe.get_all(
 		"Employee",

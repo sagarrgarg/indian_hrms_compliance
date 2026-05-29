@@ -18,7 +18,15 @@ def populate_kra_performance(doc, method=None):
 	KPI achievement % per Task that has a target_value.
 
 	Output is a single read-only HTML field — the Appraisal scoring
-	logic remains HR's call; this just surfaces the underlying evidence."""
+	logic remains HR's call; this just surfaces the underlying evidence.
+
+	Gated by HR Settings.appraisal_auto_populate_kra_performance: when off,
+	the field is left untouched so HR can manage it manually for special
+	appraisal cycles."""
+	if not int(
+		frappe.db.get_single_value("HR Settings", "appraisal_auto_populate_kra_performance") or 0
+	):
+		return
 	if not (doc.employee and doc.appraisal_cycle):
 		doc.kra_performance_html = (
 			"<p style='color:#888'>Set Employee and Appraisal Cycle to see KRA Performance.</p>"
