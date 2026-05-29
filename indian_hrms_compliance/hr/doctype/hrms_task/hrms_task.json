@@ -155,7 +155,9 @@
    "fieldtype": "Link",
    "label": "Company",
    "options": "Company",
-   "description": "Empty means applies across all Companies."
+   "reqd": 1,
+   "in_standard_filter": 1,
+   "description": "Each Task lives in one Company. Tasks are not shared across Companies."
   },
   {
    "fieldname": "schedule_section",

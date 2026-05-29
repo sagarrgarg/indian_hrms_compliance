@@ -92,14 +92,23 @@ def get_my_employees():
 def resolve_assigned_employees(task):
 	"""Return list of Employee names matching the Task's scope (any-of semantics).
 
-	If applicable_to_all_active: all Active employees (optionally Company-scoped).
-	Otherwise: union across populated scope dimensions, intersected with Active
-	(and optionally Company)."""
+	Task.company is required — final result is always intersected with that
+	Company's Active Employees. Tasks never cross Company boundaries."""
+	if not task.company:
+		return []
+
+	company_active = set(
+		frappe.get_all(
+			"Employee",
+			filters={"company": task.company, "status": "Active"},
+			pluck="name",
+		)
+	)
+	if not company_active:
+		return []
+
 	if task.applicable_to_all_active:
-		filters = {"status": "Active"}
-		if task.company:
-			filters["company"] = task.company
-		return frappe.get_all("Employee", filters=filters, pluck="name")
+		return list(company_active)
 
 	employees = set()
 	for fieldname, emp_field in (
@@ -134,17 +143,8 @@ def resolve_assigned_employees(task):
 				)
 			)
 
-	if task.company:
-		company_emps = set(
-			frappe.get_all(
-				"Employee",
-				filters={"company": task.company, "status": "Active"},
-				pluck="name",
-			)
-		)
-		employees &= company_emps
-
-	return list(employees)
+	# Always intersect with the Task's Company — Tasks never cross Co boundaries.
+	return list(employees & company_active)
 
 
 def compute_period_for_today(frequency, today_d=None):

@@ -1,7 +1,7 @@
 {
  "actions": [],
  "allow_rename": 0,
- "autoname": "format:{policy_name} - {version}",
+ "autoname": "format:{company}/{policy_name}/{version}",
  "creation": "2026-05-27 22:00:00.000000",
  "doctype": "DocType",
  "editable_grid": 1,
@@ -13,6 +13,7 @@
   "version",
   "status",
   "column_break_meta",
+  "company",
   "effective_date",
   "requires_acknowledgement",
   "acknowledgement_due_days",
@@ -20,9 +21,6 @@
   "content_section",
   "content_html",
   "attachment",
-  "applicability_section",
-  "applicable_to_all",
-  "applicable_companies",
   "versioning_section",
   "superseded_by",
   "superseded_date"
@@ -118,23 +116,14 @@
    "description": "Optional signed PDF version (auditable)."
   },
   {
-   "fieldname": "applicability_section",
-   "fieldtype": "Section Break",
-   "label": "Applicability"
-  },
-  {
-   "fieldname": "applicable_to_all",
-   "fieldtype": "Check",
-   "label": "Applicable to All Active Employees",
-   "default": "1"
-  },
-  {
-   "fieldname": "applicable_companies",
-   "fieldtype": "Table",
-   "label": "Applicable Companies",
-   "options": "HRMS Policy Company Filter",
-   "depends_on": "eval:!doc.applicable_to_all",
-   "description": "Limit applicability to selected Companies."
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Company",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "description": "Each Company has its own Policy library — Policies are not shared across Companies. For multi-Co groups, clone per-Company as needed."
   },
   {
    "fieldname": "versioning_section",
