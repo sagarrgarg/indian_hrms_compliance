@@ -135,6 +135,7 @@ before_app_uninstall = "indian_hrms_compliance.setup.before_app_uninstall"
 
 permission_query_conditions = {
 	"Employee Policy Acknowledgement": "indian_hrms_compliance.hr.doctype.employee_policy_acknowledgement.employee_policy_acknowledgement.get_permission_query_conditions",
+	"Goal": "indian_hrms_compliance.overrides.goal.get_permission_query_conditions",
 }
 
 extend_bootinfo = "indian_hrms_compliance.boot.extend_bootinfo"
