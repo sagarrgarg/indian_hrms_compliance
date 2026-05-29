@@ -6,6 +6,7 @@
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
+  "general_tab",
   "employee_settings",
   "emp_created_by",
   "standard_working_hours",
@@ -53,7 +54,32 @@
   "allow_employee_checkin_from_mobile_app",
   "allow_geolocation_tracking",
   "unlink_payment_section",
-  "unlink_payment_on_cancellation_of_employee_advance"
+  "unlink_payment_on_cancellation_of_employee_advance",
+  "performance_tab",
+  "tasks_section",
+  "task_scheduler_lookahead_days",
+  "auto_archive_completed_task_instances_after_days",
+  "column_break_perf_1",
+  "show_overdue_task_popup_on_login",
+  "send_overdue_task_hr_digest",
+  "task_overdue_recipients_role",
+  "task_compliance_thresholds_section",
+  "task_compliance_warning_threshold_pct",
+  "column_break_perf_2",
+  "task_compliance_critical_threshold_pct",
+  "appraisal_section",
+  "appraisal_auto_populate_kra_performance",
+  "policies_tab",
+  "policy_acknowledgement_section",
+  "default_policy_ack_due_days",
+  "show_overdue_policy_popup_on_login",
+  "column_break_pol_1",
+  "send_overdue_policy_hr_digest",
+  "policy_overdue_recipients_role",
+  "probation_tab",
+  "probation_defaults_section",
+  "default_probation_period_days",
+  "probation_review_reminder_window_days"
  ],
  "fields": [
   {
@@ -345,13 +371,185 @@
    "fieldname": "prevent_self_expense_approval",
    "fieldtype": "Check",
    "label": "Prevent self approval for expense claims even if user has permissions"
+  },
+
+  {
+   "fieldname": "general_tab",
+   "fieldtype": "Tab Break",
+   "label": "General"
+  },
+
+  {
+   "fieldname": "performance_tab",
+   "fieldtype": "Tab Break",
+   "label": "Performance & Tasks"
+  },
+  {
+   "fieldname": "tasks_section",
+   "fieldtype": "Section Break",
+   "label": "Task Scheduler & Lifecycle",
+   "description": "Controls how HRMS Task templates instantiate daily Task Instances (Goals with goal_type='Task Instance') and how completed instances are archived."
+  },
+  {
+   "default": "1",
+   "fieldname": "task_scheduler_lookahead_days",
+   "fieldtype": "Int",
+   "label": "Task Scheduler Lookahead (days)",
+   "non_negative": 1,
+   "description": "How many days in advance the daily scheduler should pre-create Task Instances. 0 = today only; 1 = today + tomorrow. Default 1."
+  },
+  {
+   "default": "90",
+   "fieldname": "auto_archive_completed_task_instances_after_days",
+   "fieldtype": "Int",
+   "label": "Auto-archive Completed Task Instances After (days)",
+   "non_negative": 1,
+   "description": "Completed Task Instances older than this many days are moved to 'Archived' status by the daily housekeeping scheduler. 0 disables archival."
+  },
+  {
+   "fieldname": "column_break_perf_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "fieldname": "show_overdue_task_popup_on_login",
+   "fieldtype": "Check",
+   "label": "Show Overdue Task Popup on Login",
+   "description": "When enabled, employees with overdue Task Instances see a Desk popup at app_ready."
+  },
+  {
+   "default": "1",
+   "fieldname": "send_overdue_task_hr_digest",
+   "fieldtype": "Check",
+   "label": "Send Overdue Task HR Digest (daily)",
+   "description": "When enabled, the daily overdue-task scheduler emails a per-Company digest to users holding the role below."
+  },
+  {
+   "default": "HR Manager",
+   "depends_on": "send_overdue_task_hr_digest",
+   "fieldname": "task_overdue_recipients_role",
+   "fieldtype": "Link",
+   "label": "Task Overdue Digest Recipients Role",
+   "options": "Role",
+   "description": "Users holding this role receive the daily overdue-task digest. Default: HR Manager."
+  },
+  {
+   "fieldname": "task_compliance_thresholds_section",
+   "fieldtype": "Section Break",
+   "label": "Task Compliance Report Thresholds",
+   "description": "Colour thresholds for the Task Compliance report. Compliance % at or above 'Warning' shows green; between 'Critical' and 'Warning' shows yellow; below 'Critical' shows red."
+  },
+  {
+   "default": "80",
+   "fieldname": "task_compliance_warning_threshold_pct",
+   "fieldtype": "Percent",
+   "label": "Warning Threshold (%)",
+   "non_negative": 1
+  },
+  {
+   "fieldname": "column_break_perf_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "50",
+   "fieldname": "task_compliance_critical_threshold_pct",
+   "fieldtype": "Percent",
+   "label": "Critical Threshold (%)",
+   "non_negative": 1
+  },
+  {
+   "fieldname": "appraisal_section",
+   "fieldtype": "Section Break",
+   "label": "Appraisal Auto-feed"
+  },
+  {
+   "default": "1",
+   "fieldname": "appraisal_auto_populate_kra_performance",
+   "fieldtype": "Check",
+   "label": "Auto-populate KRA Performance on Appraisal Save",
+   "description": "When enabled, the Appraisal form's KRA Performance HTML is recomputed on validate from the Employee's Task Instance accumulation for the Appraisal Cycle window. Disable for appraisal cycles where you want manual override only."
+  },
+
+  {
+   "fieldname": "policies_tab",
+   "fieldtype": "Tab Break",
+   "label": "Policies & Acknowledgements"
+  },
+  {
+   "fieldname": "policy_acknowledgement_section",
+   "fieldtype": "Section Break",
+   "label": "Policy Acknowledgement Defaults",
+   "description": "Defaults and notification behaviour for HRMS Policy / Employee Policy Acknowledgement."
+  },
+  {
+   "default": "7",
+   "fieldname": "default_policy_ack_due_days",
+   "fieldtype": "Int",
+   "label": "Default Acknowledgement Due (days)",
+   "non_negative": 1,
+   "description": "Used as a fallback when a Policy doesn't specify Acknowledgement Due (days). Default 7."
+  },
+  {
+   "default": "1",
+   "fieldname": "show_overdue_policy_popup_on_login",
+   "fieldtype": "Check",
+   "label": "Show Overdue Policy Popup on Login",
+   "description": "When enabled, employees with overdue policy acknowledgements see a Desk popup at app_ready."
+  },
+  {
+   "fieldname": "column_break_pol_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "fieldname": "send_overdue_policy_hr_digest",
+   "fieldtype": "Check",
+   "label": "Send Overdue Policy HR Digest (daily)",
+   "description": "When enabled, the daily overdue-policy scheduler emails a per-Company digest to users holding the role below."
+  },
+  {
+   "default": "HR Manager",
+   "depends_on": "send_overdue_policy_hr_digest",
+   "fieldname": "policy_overdue_recipients_role",
+   "fieldtype": "Link",
+   "label": "Policy Overdue Digest Recipients Role",
+   "options": "Role",
+   "description": "Users holding this role receive the daily overdue-policy digest. Default: HR Manager."
+  },
+
+  {
+   "fieldname": "probation_tab",
+   "fieldtype": "Tab Break",
+   "label": "Probation & Confirmation"
+  },
+  {
+   "fieldname": "probation_defaults_section",
+   "fieldtype": "Section Break",
+   "label": "Probation Defaults",
+   "description": "Defaults applied when an Employee is created on Probation, and the lookahead window for daily Probation Review reminder ToDos."
+  },
+  {
+   "default": "180",
+   "fieldname": "default_probation_period_days",
+   "fieldtype": "Int",
+   "label": "Default Probation Period (days)",
+   "non_negative": 1,
+   "description": "When a new Employee is created with confirmation_status='Probation' and no Scheduled Confirmation Date, it is auto-set to date_of_joining + this many days. Typical: 180 (6 months)."
+  },
+  {
+   "default": "30",
+   "fieldname": "probation_review_reminder_window_days",
+   "fieldtype": "Int",
+   "label": "Probation Review Reminder Window (days)",
+   "non_negative": 1,
+   "description": "Daily scheduler creates Probation Review reminder ToDos for Employees whose Scheduled Confirmation Date falls within this many days from today. Default 30."
   }
  ],
  "icon": "fa fa-cog",
  "idx": 1,
  "issingle": 1,
  "links": [],
- "modified": "2025-07-28 10:37:35.977951",
+ "modified": "2026-05-29 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "HR",
  "name": "HR Settings",

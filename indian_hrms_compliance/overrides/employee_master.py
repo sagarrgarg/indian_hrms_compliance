@@ -148,6 +148,28 @@ def validate_single_primary_employer(doc, method=None):
 		)
 
 
+def auto_set_probation_schedule(doc, method=None):
+	"""On Employee validate, if confirmation_status is 'Probation' and the
+	Scheduled Confirmation Date is empty, fill it from
+	date_of_joining + HR Settings.default_probation_period_days.
+
+	No-ops when scheduled_confirmation_date is already set (HR override),
+	when confirmation_status isn't Probation, or when date_of_joining is missing.
+	"""
+	if doc.get("confirmation_status") != "Probation":
+		return
+	if doc.get("scheduled_confirmation_date"):
+		return
+	if not doc.get("date_of_joining"):
+		return
+	days = frappe.db.get_single_value("HR Settings", "default_probation_period_days")
+	if not days or int(days) <= 0:
+		return
+	from frappe.utils import add_days
+
+	doc.scheduled_confirmation_date = add_days(getdate(doc.date_of_joining), int(days))
+
+
 def validate_onboarding_process(doc, method=None):
 	"""Validates Employee Creation for linked Employee Onboarding"""
 	if not doc.job_applicant:

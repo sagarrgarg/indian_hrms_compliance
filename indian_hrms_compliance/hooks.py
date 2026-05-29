@@ -211,6 +211,7 @@ doc_events = {
 			"indian_hrms_compliance.overrides.employee_master.validate_statutory_id_formats",
 			"indian_hrms_compliance.overrides.employee_master.validate_person_data_consistency",
 			"indian_hrms_compliance.overrides.employee_master.validate_single_primary_employer",
+			"indian_hrms_compliance.overrides.employee_master.auto_set_probation_schedule",
 		],
 		"on_update": [
 			"indian_hrms_compliance.overrides.employee_master.update_approver_role",
@@ -259,6 +260,7 @@ scheduler_events = {
 		"indian_hrms_compliance.hr.doctype.hrms_policy.hrms_policy.send_overdue_policy_ack_reminders",
 		"indian_hrms_compliance.hr.doctype.hrms_task.hrms_task.instantiate_due_tasks",
 		"indian_hrms_compliance.hr.doctype.hrms_task.hrms_task.send_overdue_task_reminders",
+		"indian_hrms_compliance.hr.doctype.hrms_task.hrms_task.archive_old_completed_task_instances",
 	],
 	"daily_long": [
 		"indian_hrms_compliance.hr.doctype.leave_ledger_entry.leave_ledger_entry.process_expired_allocation",

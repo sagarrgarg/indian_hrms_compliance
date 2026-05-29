@@ -208,20 +208,40 @@ def compute_period_for_today(frequency, today_d=None):
 
 def instantiate_due_tasks(target_date=None):
 	"""Scheduler (daily): for each Active leaf HRMS Task whose frequency ticks
-	today, create a Goal record (goal_type='Task Instance') per assigned
-	Employee. Idempotent — skips (task, employee, period_label) combinations
-	that already exist.
+	in the lookahead window, create a Goal record (goal_type='Task Instance')
+	per assigned Employee. Idempotent — skips (task, employee, period_label)
+	combinations that already exist.
+
+	Lookahead is read from HR Settings.task_scheduler_lookahead_days (default 1):
+	the scheduler runs `today` through `today + lookahead` so HR can pre-publish
+	tomorrow's checklist tonight, etc.
 
 	target_date is for testing — defaults to today.
 	"""
-	today_d = getdate(target_date or today())
+	base_date = getdate(target_date or today())
+	lookahead = int(frappe.db.get_single_value("HR Settings", "task_scheduler_lookahead_days") or 1)
+	# Clamp — pathological values shouldn't run away
+	if lookahead < 0:
+		lookahead = 0
+	if lookahead > 14:
+		lookahead = 14
 
+	created_total = 0
+	for offset in range(lookahead + 1):
+		created_total += _instantiate_for_date(add_days(base_date, offset))
+
+	if created_total:
+		frappe.db.commit()
+	return created_total
+
+
+def _instantiate_for_date(target_d):
 	tasks = frappe.get_all(
 		"HRMS Task",
 		filters={
 			"status": "Active",
 			"is_group": 0,  # only leaf tasks get instantiated
-			"effective_from": ("<=", today_d),
+			"effective_from": ("<=", target_d),
 		},
 		fields=[
 			"name",
@@ -244,12 +264,12 @@ def instantiate_due_tasks(target_date=None):
 		],
 	)
 
-	created_total = 0
+	created = 0
 	for task in tasks:
-		if task.effective_to and getdate(task.effective_to) < today_d:
+		if task.effective_to and getdate(task.effective_to) < target_d:
 			continue
 
-		period_info = compute_period_for_today(task.frequency, today_d)
+		period_info = compute_period_for_today(task.frequency, target_d)
 		if not period_info:
 			continue
 
@@ -267,16 +287,13 @@ def instantiate_due_tasks(target_date=None):
 				continue
 			try:
 				_create_task_instance(task, emp_name, period_info)
-				created_total += 1
+				created += 1
 			except Exception:
 				frappe.log_error(
 					title=f"Task Instance creation failed for {task.name}/{emp_name}",
 					message=frappe.get_traceback(),
 				)
-
-	if created_total:
-		frappe.db.commit()
-	return created_total
+	return created
 
 
 def _create_task_instance(task, employee, period_info):
@@ -412,8 +429,13 @@ def send_overdue_task_reminders():
 			"Goal", g.name, "last_reminder_sent_on", today_d, update_modified=False
 		)
 
-	# (b) HR Manager digest email grouped by Company + KRA
-	hr_users = frappe.get_all("Has Role", filters={"role": "HR Manager"}, pluck="parent")
+	# (b) HR digest email grouped by Company + KRA — gated by HR Settings
+	if not int(frappe.db.get_single_value("HR Settings", "send_overdue_task_hr_digest") or 0):
+		return
+	recipients_role = (
+		frappe.db.get_single_value("HR Settings", "task_overdue_recipients_role") or "HR Manager"
+	)
+	hr_users = frappe.get_all("Has Role", filters={"role": recipients_role}, pluck="parent")
 	hr_users = [u for u in hr_users if u and u not in ("Administrator", "Guest")]
 	if not hr_users:
 		return
@@ -464,3 +486,39 @@ def send_overdue_task_reminders():
 		)
 	except Exception:
 		frappe.log_error(title="Task Instance overdue digest email failed", message=frappe.get_traceback())
+
+
+def archive_old_completed_task_instances():
+	"""Scheduler (daily): flip Task Instances (Goals with goal_type='Task Instance')
+	that have been in status='Completed' longer than
+	HR Settings.auto_archive_completed_task_instances_after_days to 'Archived'.
+
+	Keeps the active working set small without losing audit history. Setting the
+	threshold to 0 disables archival.
+	"""
+	days = int(
+		frappe.db.get_single_value("HR Settings", "auto_archive_completed_task_instances_after_days") or 0
+	)
+	if days <= 0:
+		return 0
+	cutoff = add_days(getdate(today()), -days)
+	# Use raw UPDATE — much cheaper than loading docs; we don't need on_update hooks.
+	res = frappe.db.sql(
+		"""
+		UPDATE `tabGoal`
+		SET status = 'Archived', modified = %s, modified_by = %s
+		WHERE goal_type = 'Task Instance'
+		  AND status = 'Completed'
+		  AND modified < %s
+		""",
+		(today(), "Administrator", cutoff),
+	)
+	frappe.db.commit()
+	# rowcount isn't reliably exposed across all drivers; recompute via SELECT for the return value.
+	return frappe.db.sql(
+		"""
+		SELECT COUNT(*) FROM `tabGoal`
+		WHERE goal_type = 'Task Instance' AND status = 'Archived' AND modified >= %s
+		""",
+		(today(),),
+	)[0][0]

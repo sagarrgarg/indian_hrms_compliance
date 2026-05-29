@@ -59,6 +59,15 @@ def _get_data(filters):
 	from_date = filters.get("from_date") or add_days(getdate(today()), -30)
 	to_date = filters.get("to_date") or getdate(today())
 
+	# Thresholds drive the colour formatter in task_compliance.js — surface them
+	# per-row so the JS doesn't need its own frappe.call.
+	warn_pct = float(
+		frappe.db.get_single_value("HR Settings", "task_compliance_warning_threshold_pct") or 80
+	)
+	crit_pct = float(
+		frappe.db.get_single_value("HR Settings", "task_compliance_critical_threshold_pct") or 50
+	)
+
 	conditions = ["goal_type = 'Task Instance'"]
 	params = {"from_date": from_date, "to_date": to_date}
 	conditions.append("(due_date BETWEEN %(from_date)s AND %(to_date)s)")
@@ -98,5 +107,7 @@ def _get_data(filters):
 		r["compliance_pct"] = (
 			(r["completed"] / r["total"] * 100.0) if r["total"] else 0.0
 		)
+		r["_warn_pct"] = warn_pct
+		r["_crit_pct"] = crit_pct
 
 	return rows
