@@ -337,3 +337,118 @@ def _safe_pwa_notification(to_user, message, ref_type, ref_name):
 		except Exception:
 			pass
 		frappe.log_error(title="Task Instance notification failed", message=frappe.get_traceback())
+
+
+def send_overdue_task_reminders():
+	"""Scheduler (daily): for each Task Instance (Goal where goal_type='Task
+	Instance') whose status is Pending and due_date is past and that hasn't
+	been reminded today: PWA Notification to the Employee + HR Manager digest
+	email grouped by Company.
+
+	Mirrors the HRMS Policy overdue pattern. Idempotent via last_reminder_sent_on.
+	"""
+	from collections import defaultdict
+
+	today_d = getdate(today())
+
+	# NULL-safe overdue filter: rows where last_reminder_sent_on is NULL OR != today.
+	# get_all's filters dict ANDs items; equality vs NULL needs explicit OR via raw SQL.
+	overdue_names = frappe.db.sql(
+		"""
+		SELECT name FROM `tabGoal`
+		WHERE goal_type = 'Task Instance'
+		  AND status IN ('Pending', 'In Progress')
+		  AND due_date < %s
+		  AND (last_reminder_sent_on IS NULL OR last_reminder_sent_on != %s)
+		""",
+		(today_d, today_d),
+		as_dict=False,
+	)
+	if not overdue_names:
+		return
+	overdue = frappe.get_all(
+		"Goal",
+		filters={"name": ("in", [r[0] for r in overdue_names])},
+		fields=[
+			"name",
+			"employee",
+			"employee_name",
+			"company",
+			"task_template",
+			"goal_name",
+			"period_label",
+			"due_date",
+			"kra",
+		],
+	)
+	if not overdue:
+		return
+
+	# (a) Per-Employee PWA Notification + stamp reminder
+	for g in overdue:
+		emp_user = frappe.db.get_value("Employee", g.employee, "user_id")
+		if emp_user:
+			_safe_pwa_notification(
+				to_user=emp_user,
+				message=_("Overdue task: {0} — was due on {1}.").format(
+					g.goal_name, g.due_date
+				),
+				ref_type="Goal",
+				ref_name=g.name,
+			)
+		frappe.db.set_value(
+			"Goal", g.name, "last_reminder_sent_on", today_d, update_modified=False
+		)
+
+	# (b) HR Manager digest email grouped by Company + KRA
+	hr_users = frappe.get_all("Has Role", filters={"role": "HR Manager"}, pluck="parent")
+	hr_users = [u for u in hr_users if u and u not in ("Administrator", "Guest")]
+	if not hr_users:
+		return
+
+	by_company = defaultdict(list)
+	for g in overdue:
+		by_company[g.company].append(g)
+
+	rows_html = []
+	for company, items in by_company.items():
+		rows_html.append(
+			f"<h4 style='margin-top:16px'>{frappe.utils.escape_html(company or '(no company)')}</h4>"
+		)
+		rows_html.append(
+			"<table border='1' cellpadding='6' cellspacing='0' "
+			"style='border-collapse:collapse;font-size:13px'>"
+			"<tr><th>Employee</th><th>Task</th><th>KRA</th><th>Period</th>"
+			"<th>Due</th><th>Days Overdue</th></tr>"
+		)
+		for g in sorted(items, key=lambda a: a.due_date):
+			days_late = (today_d - getdate(g.due_date)).days
+			rows_html.append(
+				f"<tr>"
+				f"<td>{frappe.utils.escape_html(g.employee_name or g.employee)}</td>"
+				f"<td>{frappe.utils.escape_html(g.goal_name or '')}</td>"
+				f"<td>{frappe.utils.escape_html(g.kra or '')}</td>"
+				f"<td>{frappe.utils.escape_html(g.period_label or '')}</td>"
+				f"<td>{g.due_date}</td>"
+				f"<td style='color:#c0392b'><strong>{days_late}</strong></td>"
+				f"</tr>"
+			)
+		rows_html.append("</table>")
+
+	body = (
+		f"<p>{len(overdue)} task instance(s) are overdue across "
+		f"{len(by_company)} company(ies) as of {today_d}.</p>"
+		+ "".join(rows_html)
+		+ "<p style='margin-top:16px;font-size:12px;color:#777'>"
+		"Automated daily digest from indian_hrms_compliance.</p>"
+	)
+
+	try:
+		frappe.sendmail(
+			recipients=hr_users,
+			subject=f"[HRMS] Overdue Task Instances — {len(overdue)} pending",
+			message=body,
+			now=False,
+		)
+	except Exception:
+		frappe.log_error(title="Task Instance overdue digest email failed", message=frappe.get_traceback())
