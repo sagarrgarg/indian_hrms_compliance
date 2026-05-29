@@ -68,15 +68,13 @@ class HRMSPolicy(Document):
 			)
 
 	def _get_applicable_employees(self):
-		filters = {"status": "Active"}
-		if not self.applicable_to_all:
-			companies = [row.company for row in (self.applicable_companies or [])]
-			if not companies:
-				return []
-			filters["company"] = ("in", companies)
+		"""Active Employees of this Policy's Company. Each Policy is
+		Company-scoped — Policies never cross Company boundaries."""
+		if not self.company:
+			return []
 		return frappe.get_all(
 			"Employee",
-			filters=filters,
+			filters={"status": "Active", "company": self.company},
 			fields=["name", "employee_name", "company", "user_id"],
 		)
 
