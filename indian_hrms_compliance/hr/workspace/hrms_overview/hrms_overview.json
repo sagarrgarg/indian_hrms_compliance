@@ -1,0 +1,240 @@
+{
+ "charts": [
+  {
+   "chart_name": "Hiring vs Attrition Count",
+   "label": "Hiring vs Attrition Count"
+  },
+  {
+   "chart_name": "Employees by Confirmation Status",
+   "label": "Employees by Confirmation Status"
+  },
+  {
+   "chart_name": "Policy Acknowledgement Status",
+   "label": "Policy Acknowledgement Status"
+  },
+  {
+   "chart_name": "Job Requisition Pipeline",
+   "label": "Job Requisition Pipeline"
+  },
+  {
+   "chart_name": "Headcount by Company",
+   "label": "Headcount by Company"
+  }
+ ],
+ "content": "[{\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Compliance & Probation</b></span>\",\"col\":12}},{\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Employees in Probation\",\"col\":3}},{\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Pending Policy Acknowledgements\",\"col\":3}},{\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Open Job Requisitions\",\"col\":3}},{\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Internal Applicants (Last 30 Days)\",\"col\":3}},{\"type\":\"spacer\",\"data\":{\"col\":12}},{\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Headcount & Growth</b></span>\",\"col\":12}},{\"type\":\"chart\",\"data\":{\"chart_name\":\"Hiring vs Attrition Count\",\"col\":8}},{\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Total Employees\",\"col\":4}},{\"type\":\"spacer\",\"data\":{\"col\":12}},{\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Confirmation & Policy Breakdown</b></span>\",\"col\":12}},{\"type\":\"chart\",\"data\":{\"chart_name\":\"Employees by Confirmation Status\",\"col\":6}},{\"type\":\"chart\",\"data\":{\"chart_name\":\"Policy Acknowledgement Status\",\"col\":6}},{\"type\":\"spacer\",\"data\":{\"col\":12}},{\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Recruitment & Companies</b></span>\",\"col\":12}},{\"type\":\"chart\",\"data\":{\"chart_name\":\"Job Requisition Pipeline\",\"col\":6}},{\"type\":\"chart\",\"data\":{\"chart_name\":\"Headcount by Company\",\"col\":6}},{\"type\":\"spacer\",\"data\":{\"col\":12}},{\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Quick Actions</b></span>\",\"col\":12}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Employee\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"HRMS Policy\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Probation Review\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Job Requisition\",\"col\":3}}]",
+ "creation": "2026-05-29 10:00:00.000000",
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "for_user": "",
+ "hide_custom": 0,
+ "icon": "hr",
+ "idx": 0,
+ "label": "HRMS Overview",
+ "links": [
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Compliance",
+   "link_count": 4,
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "HRMS Policy",
+   "link_count": 0,
+   "link_to": "HRMS Policy",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Employee Policy Acknowledgement",
+   "link_count": 0,
+   "link_to": "Employee Policy Acknowledgement",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Probation Review",
+   "link_count": 0,
+   "link_to": "Probation Review",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Appointment Letter",
+   "link_count": 0,
+   "link_to": "Appointment Letter",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Recruitment",
+   "link_count": 4,
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Job Requisition",
+   "link_count": 0,
+   "link_to": "Job Requisition",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Job Opening",
+   "link_count": 0,
+   "link_to": "Job Opening",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Job Applicant",
+   "link_count": 0,
+   "link_to": "Job Applicant",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Job Offer",
+   "link_count": 0,
+   "link_to": "Job Offer",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Employee",
+   "link_count": 2,
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Employee",
+   "link_count": 0,
+   "link_to": "Employee",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Employee Onboarding",
+   "link_count": 0,
+   "link_to": "Employee Onboarding",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  }
+ ],
+ "modified": "2026-05-29 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "HR",
+ "name": "HRMS Overview",
+ "number_cards": [
+  {
+   "label": "Employees in Probation",
+   "number_card_name": "Employees in Probation"
+  },
+  {
+   "label": "Pending Policy Acknowledgements",
+   "number_card_name": "Pending Policy Acknowledgements"
+  },
+  {
+   "label": "Open Job Requisitions",
+   "number_card_name": "Open Job Requisitions"
+  },
+  {
+   "label": "Internal Applicants (Last 30 Days)",
+   "number_card_name": "Internal Applicants (Last 30 Days)"
+  },
+  {
+   "label": "Confirmed (Last 90 Days)",
+   "number_card_name": "Confirmed (Last 90 Days)"
+  },
+  {
+   "label": "Total Employees",
+   "number_card_name": "Total Employees"
+  }
+ ],
+ "owner": "Administrator",
+ "parent_page": "",
+ "pin_to_bottom": 0,
+ "pin_to_top": 0,
+ "public": 1,
+ "restrict_to_domain": "",
+ "roles": [],
+ "sequence_id": 60.0,
+ "shortcuts": [
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Employee",
+   "link_to": "Employee",
+   "stats_filter": "{\"status\":\"Active\"}",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "HRMS Policy",
+   "link_to": "HRMS Policy",
+   "stats_filter": "{\"status\":\"Active\"}",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Probation Review",
+   "link_to": "Probation Review",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Job Requisition",
+   "link_to": "Job Requisition",
+   "type": "DocType"
+  }
+ ],
+ "title": "HRMS Overview"
+}

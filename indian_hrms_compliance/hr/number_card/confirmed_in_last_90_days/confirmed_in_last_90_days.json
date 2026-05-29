@@ -1,0 +1,20 @@
+{
+ "creation": "2026-05-29 10:00:00.000000",
+ "docstatus": 0,
+ "doctype": "Number Card",
+ "document_type": "Employee",
+ "filters_json": "[[\"Employee\",\"confirmation_status\",\"=\",\"Confirmed\"],[\"Employee\",\"final_confirmation_date\",\"Timespan\",\"last quarter\"]]",
+ "function": "Count",
+ "idx": 0,
+ "is_public": 1,
+ "is_standard": 1,
+ "label": "Confirmed (Last 90 Days)",
+ "modified": "2026-05-29 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "HR",
+ "name": "Confirmed (Last 90 Days)",
+ "owner": "Administrator",
+ "show_percentage_stats": 1,
+ "stats_time_interval": "Quarterly",
+ "type": "Document Type"
+}
