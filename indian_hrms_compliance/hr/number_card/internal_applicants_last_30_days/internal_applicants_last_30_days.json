@@ -1,0 +1,20 @@
+{
+ "creation": "2026-05-29 10:00:00.000000",
+ "docstatus": 0,
+ "doctype": "Number Card",
+ "document_type": "Job Applicant",
+ "filters_json": "[[\"Job Applicant\",\"is_internal_applicant\",\"=\",1],[\"Job Applicant\",\"creation\",\"Timespan\",\"last month\"]]",
+ "function": "Count",
+ "idx": 0,
+ "is_public": 1,
+ "is_standard": 1,
+ "label": "Internal Applicants (Last 30 Days)",
+ "modified": "2026-05-29 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "HR",
+ "name": "Internal Applicants (Last 30 Days)",
+ "owner": "Administrator",
+ "show_percentage_stats": 1,
+ "stats_time_interval": "Monthly",
+ "type": "Document Type"
+}
