@@ -21,7 +21,7 @@
    "label": "Headcount by Company"
   }
  ],
- "content": "[{\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Compliance & Probation</b></span>\",\"col\":12}},{\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Employees in Probation\",\"col\":3}},{\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Pending Policy Acknowledgements\",\"col\":3}},{\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Open Job Requisitions\",\"col\":3}},{\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Internal Applicants (Last 30 Days)\",\"col\":3}},{\"type\":\"spacer\",\"data\":{\"col\":12}},{\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Headcount & Growth</b></span>\",\"col\":12}},{\"type\":\"chart\",\"data\":{\"chart_name\":\"Hiring vs Attrition Count\",\"col\":8}},{\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Total Employees\",\"col\":4}},{\"type\":\"spacer\",\"data\":{\"col\":12}},{\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Confirmation & Policy Breakdown</b></span>\",\"col\":12}},{\"type\":\"chart\",\"data\":{\"chart_name\":\"Employees by Confirmation Status\",\"col\":6}},{\"type\":\"chart\",\"data\":{\"chart_name\":\"Policy Acknowledgement Status\",\"col\":6}},{\"type\":\"spacer\",\"data\":{\"col\":12}},{\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Recruitment & Companies</b></span>\",\"col\":12}},{\"type\":\"chart\",\"data\":{\"chart_name\":\"Job Requisition Pipeline\",\"col\":6}},{\"type\":\"chart\",\"data\":{\"chart_name\":\"Headcount by Company\",\"col\":6}},{\"type\":\"spacer\",\"data\":{\"col\":12}},{\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Quick Actions</b></span>\",\"col\":12}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Employee\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"HRMS Policy\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Probation Review\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Job Requisition\",\"col\":3}}]",
+ "content": "[{\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Compliance & Probation</b></span>\",\"col\":12}},{\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Employees in Probation\",\"col\":3}},{\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Pending Policy Acknowledgements\",\"col\":3}},{\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Open Job Requisitions\",\"col\":3}},{\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Internal Applicants (Last 30 Days)\",\"col\":3}},{\"type\":\"spacer\",\"data\":{\"col\":12}},{\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Task Execution (live)</b></span>\",\"col\":12}},{\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Overdue Task Instances\",\"col\":4}},{\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Tasks Completed This Month\",\"col\":4}},{\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Task Instances Created This Month\",\"col\":4}},{\"type\":\"spacer\",\"data\":{\"col\":12}},{\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Headcount & Growth</b></span>\",\"col\":12}},{\"type\":\"chart\",\"data\":{\"chart_name\":\"Hiring vs Attrition Count\",\"col\":8}},{\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Total Employees\",\"col\":4}},{\"type\":\"spacer\",\"data\":{\"col\":12}},{\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Confirmation & Policy Breakdown</b></span>\",\"col\":12}},{\"type\":\"chart\",\"data\":{\"chart_name\":\"Employees by Confirmation Status\",\"col\":6}},{\"type\":\"chart\",\"data\":{\"chart_name\":\"Policy Acknowledgement Status\",\"col\":6}},{\"type\":\"spacer\",\"data\":{\"col\":12}},{\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Recruitment & Companies</b></span>\",\"col\":12}},{\"type\":\"chart\",\"data\":{\"chart_name\":\"Job Requisition Pipeline\",\"col\":6}},{\"type\":\"chart\",\"data\":{\"chart_name\":\"Headcount by Company\",\"col\":6}},{\"type\":\"spacer\",\"data\":{\"col\":12}},{\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Quick Actions</b></span>\",\"col\":12}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Employee\",\"col\":2}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"HRMS Policy\",\"col\":2}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Probation Review\",\"col\":2}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Job Requisition\",\"col\":2}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"HRMS Task\",\"col\":2}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Task Instances (Goal)\",\"col\":2}}]",
  "creation": "2026-05-29 10:00:00.000000",
  "docstatus": 0,
  "doctype": "Workspace",
@@ -194,6 +194,18 @@
   {
    "label": "Total Employees",
    "number_card_name": "Total Employees"
+  },
+  {
+   "label": "Overdue Task Instances",
+   "number_card_name": "Overdue Task Instances"
+  },
+  {
+   "label": "Tasks Completed This Month",
+   "number_card_name": "Tasks Completed This Month"
+  },
+  {
+   "label": "Task Instances Created This Month",
+   "number_card_name": "Task Instances Created This Month"
   }
  ],
  "owner": "Administrator",
