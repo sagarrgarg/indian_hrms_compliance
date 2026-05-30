@@ -1,0 +1,260 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "format:CF-{company}-{return_type}-{period_label}",
+ "creation": "2026-06-02 09:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 0,
+ "engine": "InnoDB",
+ "field_order": [
+  "identity_section",
+  "company",
+  "return_type",
+  "state",
+  "column_break_id",
+  "period_label",
+  "period_start",
+  "period_end",
+  "due_date",
+  "filing_status",
+  "filing_section",
+  "linked_filing_doctype",
+  "linked_filing_name",
+  "filed_on",
+  "acknowledgement_number",
+  "column_break_filing",
+  "amount_filed",
+  "penalty_section",
+  "days_late",
+  "penalty_amount",
+  "penalty_basis",
+  "penalty_paid",
+  "assignment_section",
+  "responsible_person",
+  "last_reminder_sent_on",
+  "escalated",
+  "notes_section",
+  "notes"
+ ],
+ "fields": [
+  {
+   "fieldname": "identity_section",
+   "fieldtype": "Section Break",
+   "label": "Filing Identity"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "options": "Company",
+   "label": "Company",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "default": ":Company"
+  },
+  {
+   "fieldname": "return_type",
+   "fieldtype": "Select",
+   "label": "Return Type",
+   "options": "PF ECR\nESI Monthly\nESI Half-Yearly\nTDS Form 24Q\nTDS Form 138\nForm 16\nProfessional Tax\nLWF\nBonus Form D\nPOSH Annual Report\nS&E Annual Return\nOther",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "state",
+   "fieldtype": "Link",
+   "options": "Indian State",
+   "label": "State",
+   "in_standard_filter": 1,
+   "description": "Required for state-specific returns (PT / LWF / S&E). Ignored for federal returns."
+  },
+  {
+   "fieldname": "column_break_id",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "period_label",
+   "fieldtype": "Data",
+   "label": "Period Label",
+   "in_list_view": 1,
+   "description": "Display label, e.g. 'May 2026' / 'Apr-Sep 2026' / 'Q1 FY 2026-27' / 'FY 2026-27'."
+  },
+  {
+   "fieldname": "period_start",
+   "fieldtype": "Date",
+   "label": "Period Start",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "period_end",
+   "fieldtype": "Date",
+   "label": "Period End",
+   "reqd": 1
+  },
+  {
+   "fieldname": "due_date",
+   "fieldtype": "Date",
+   "label": "Due Date",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "default": "Pending",
+   "fieldname": "filing_status",
+   "fieldtype": "Select",
+   "label": "Filing Status",
+   "options": "Pending\nIn Progress\nFiled\nLate Filed\nWaived\nNot Applicable",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "filing_section",
+   "fieldtype": "Section Break",
+   "label": "Filing"
+  },
+  {
+   "fieldname": "linked_filing_doctype",
+   "fieldtype": "Link",
+   "options": "DocType",
+   "label": "Linked Filing DocType",
+   "read_only": 1,
+   "description": "Back-reference to the actual filing doctype (e.g., PF ECR Filing)."
+  },
+  {
+   "fieldname": "linked_filing_name",
+   "fieldtype": "Dynamic Link",
+   "options": "linked_filing_doctype",
+   "label": "Linked Filing",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "filed_on",
+   "fieldtype": "Date",
+   "label": "Filed On"
+  },
+  {
+   "fieldname": "acknowledgement_number",
+   "fieldtype": "Data",
+   "label": "Acknowledgement Number",
+   "description": "Portal challan / ack number captured after filing."
+  },
+  {
+   "fieldname": "column_break_filing",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "amount_filed",
+   "fieldtype": "Currency",
+   "label": "Amount Filed",
+   "description": "Challan or tax amount filed for this period."
+  },
+  {
+   "fieldname": "penalty_section",
+   "fieldtype": "Section Break",
+   "label": "Penalty",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "days_late",
+   "fieldtype": "Int",
+   "label": "Days Late",
+   "read_only": 1,
+   "description": "Auto-computed when filing_status = Late Filed."
+  },
+  {
+   "fieldname": "penalty_amount",
+   "fieldtype": "Currency",
+   "label": "Penalty Amount",
+   "read_only": 1
+  },
+  {
+   "fieldname": "penalty_basis",
+   "fieldtype": "Small Text",
+   "label": "Penalty Basis",
+   "read_only": 1,
+   "description": "Free-text explanation, e.g. 'PF: 12% p.a. interest on Rs 50,000 for 5 days'."
+  },
+  {
+   "default": "0",
+   "fieldname": "penalty_paid",
+   "fieldtype": "Check",
+   "label": "Penalty Paid"
+  },
+  {
+   "fieldname": "assignment_section",
+   "fieldtype": "Section Break",
+   "label": "Assignment",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "responsible_person",
+   "fieldtype": "Link",
+   "options": "User",
+   "label": "Responsible Person",
+   "description": "Who is accountable for filing this return."
+  },
+  {
+   "fieldname": "last_reminder_sent_on",
+   "fieldtype": "Date",
+   "label": "Last Reminder Sent On",
+   "no_copy": 1,
+   "hidden": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "escalated",
+   "fieldtype": "Check",
+   "label": "Escalated"
+  },
+  {
+   "fieldname": "notes_section",
+   "fieldtype": "Section Break",
+   "label": "Notes",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Long Text",
+   "label": "Notes"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "is_submittable": 0,
+ "links": [],
+ "modified": "2026-06-02 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "HR",
+ "name": "Compliance Filing",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR User",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "due_date",
+ "sort_order": "ASC",
+ "states": [],
+ "title_field": "period_label",
+ "track_changes": 1
+}

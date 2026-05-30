@@ -1,0 +1,202 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "format:CRD-{company}-{return_type}-{state}",
+ "creation": "2026-06-02 09:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 0,
+ "engine": "InnoDB",
+ "field_order": [
+  "identity_section",
+  "company",
+  "return_type",
+  "state",
+  "applicable",
+  "column_break_id",
+  "frequency",
+  "due_offset_days",
+  "due_offset_from",
+  "responsible_person",
+  "filing_section",
+  "linked_filing_doctype",
+  "column_break_filing",
+  "penalty_rate_pct",
+  "penalty_per_day",
+  "penalty_basis_description",
+  "validity_section",
+  "effective_from",
+  "effective_to",
+  "notes_section",
+  "notes"
+ ],
+ "fields": [
+  {
+   "fieldname": "identity_section",
+   "fieldtype": "Section Break",
+   "label": "Definition"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "options": "Company",
+   "label": "Company",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "default": ":Company"
+  },
+  {
+   "fieldname": "return_type",
+   "fieldtype": "Select",
+   "label": "Return Type",
+   "options": "PF ECR\nESI Monthly\nESI Half-Yearly\nTDS Form 24Q\nTDS Form 138\nForm 16\nProfessional Tax\nLWF\nBonus Form D\nPOSH Annual Report\nS&E Annual Return\nOther",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "state",
+   "fieldtype": "Link",
+   "options": "Indian State",
+   "label": "State",
+   "in_standard_filter": 1,
+   "description": "Required for state-specific returns. Leave blank for federal returns."
+  },
+  {
+   "default": "1",
+   "fieldname": "applicable",
+   "fieldtype": "Check",
+   "label": "Applicable",
+   "in_list_view": 1,
+   "description": "When unchecked, no Compliance Filing rows are auto-generated."
+  },
+  {
+   "fieldname": "column_break_id",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "frequency",
+   "fieldtype": "Select",
+   "label": "Frequency",
+   "options": "Monthly\nQuarterly\nHalf-yearly\nAnnual\nOne-time",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "due_offset_days",
+   "fieldtype": "Int",
+   "label": "Due Offset (Days)",
+   "description": "Days from the offset anchor to the due date. E.g., PF ECR = 15 (from period_end)."
+  },
+  {
+   "default": "Period End",
+   "fieldname": "due_offset_from",
+   "fieldtype": "Select",
+   "label": "Due Offset From",
+   "options": "Period End\nPeriod Start\nFiscal Year End\nCalendar Year End"
+  },
+  {
+   "fieldname": "responsible_person",
+   "fieldtype": "Link",
+   "options": "User",
+   "label": "Default Responsible Person",
+   "description": "Pre-fills on each Compliance Filing row generated from this definition."
+  },
+  {
+   "fieldname": "filing_section",
+   "fieldtype": "Section Break",
+   "label": "Filing & Penalty"
+  },
+  {
+   "fieldname": "linked_filing_doctype",
+   "fieldtype": "Link",
+   "options": "DocType",
+   "label": "Linked Filing DocType",
+   "in_list_view": 1,
+   "description": "Which doctype IS the underlying filing (e.g., PF ECR Filing). Used by auto-link doc_events."
+  },
+  {
+   "fieldname": "column_break_filing",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "penalty_rate_pct",
+   "fieldtype": "Percent",
+   "label": "Penalty Rate (% per annum)",
+   "description": "For interest-based penalties (PF/ESI 12%; PT KA 1.25% p.m. = 15% p.a.)."
+  },
+  {
+   "fieldname": "penalty_per_day",
+   "fieldtype": "Currency",
+   "label": "Penalty Per Day",
+   "description": "For daily-fee penalties (TDS 24Q S.234E = Rs 200/day, capped at TDS amount)."
+  },
+  {
+   "fieldname": "penalty_basis_description",
+   "fieldtype": "Small Text",
+   "label": "Penalty Basis Description"
+  },
+  {
+   "fieldname": "validity_section",
+   "fieldtype": "Section Break",
+   "label": "Validity",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "effective_from",
+   "fieldtype": "Date",
+   "label": "Effective From",
+   "default": "Today"
+  },
+  {
+   "fieldname": "effective_to",
+   "fieldtype": "Date",
+   "label": "Effective To"
+  },
+  {
+   "fieldname": "notes_section",
+   "fieldtype": "Section Break",
+   "label": "Notes",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Long Text",
+   "label": "Notes"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "is_submittable": 0,
+ "links": [],
+ "modified": "2026-06-02 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "HR",
+ "name": "Compliance Return Definition",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR User",
+   "share": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "return_type",
+ "track_changes": 1
+}
