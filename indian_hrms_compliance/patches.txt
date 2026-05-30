@@ -73,3 +73,8 @@ indian_hrms_compliance.patches.v15_0.setup_standing_orders_workflow #2026-06-03
 indian_hrms_compliance.patches.v15_0.add_labour_code_employee_fields #2026-06-03
 indian_hrms_compliance.patches.v15_0.add_labour_code_hr_settings #2026-06-03
 indian_hrms_compliance.patches.v15_0.seed_labour_code_defaults #2026-06-03
+indian_hrms_compliance.patches.v15_0.dpdp_add_doctypes_seed #2026-06-03
+indian_hrms_compliance.patches.v15_0.dpdp_setup_data_erasure_workflow #2026-06-03
+indian_hrms_compliance.patches.v15_0.dpdp_add_hr_settings #2026-06-03
+indian_hrms_compliance.patches.v15_0.dpdp_seed_defaults #2026-06-03
+indian_hrms_compliance.patches.v15_0.dpdp_seed_data_retention_rules #2026-06-03

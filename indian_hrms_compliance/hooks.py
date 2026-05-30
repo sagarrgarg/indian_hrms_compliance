@@ -73,6 +73,11 @@ doctype_js = {
 # Appended outside the dict literal to avoid clobbering the Company entry from
 # erpnext/company.js if a downstream patch also touches it.
 doctype_js["Company"] = ["public/js/erpnext/company.js", "public/js/labour_code_company_check.js"]
+
+# Phase 6D — DPDP form scripts (append-only).
+doctype_js["Data Consent"] = "public/js/data_consent.js"
+doctype_js["Data Erasure Request"] = "public/js/data_erasure_request.js"
+doctype_js["DPDP Compliance Profile"] = "public/js/dpdp_compliance_profile.js"
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
 # doctype_calendar_js = {"doctype" : "public/js/doctype_calendar.js"}
@@ -353,6 +358,43 @@ scheduler_events = {
 		"indian_hrms_compliance.overrides.labour_code_applicability.monthly_labour_code_compliance_check",
 	],
 }
+
+# Phase 6D — DPDP wiring (append-only).
+#
+# doc_events on_load hooks for sensitive doctypes — the access logger
+# decides which fields on each doctype trigger an audit row. Appended
+# outside the doc_events dict literal so we don't merge-collide with
+# existing entries (Employee already has 6 validate hooks).
+_dpdp_on_load = "indian_hrms_compliance.overrides.dpdp_access_logger.log_form_load_access"
+for _dt in (
+	"Employee",
+	"Salary Slip",
+	"Form 16",
+	"Salary Structure Assignment",
+	"Employee Tax Exemption Declaration",
+	"Employee Tax Exemption Proof Submission",
+	"POSH Complaint",
+):
+	_entry = doc_events.setdefault(_dt, {})
+	_existing = _entry.get("on_load")
+	if _existing is None:
+		_entry["on_load"] = _dpdp_on_load
+	elif isinstance(_existing, list):
+		if _dpdp_on_load not in _existing:
+			_existing.append(_dpdp_on_load)
+	elif isinstance(_existing, str):
+		if _existing != _dpdp_on_load:
+			_entry["on_load"] = [_existing, _dpdp_on_load]
+del _dt, _entry, _existing
+
+# Weekly: DPDP retention purge.
+scheduler_events.setdefault("weekly", []).append(
+	"indian_hrms_compliance.overrides.dpdp_purge_scheduler.run_data_retention_purge"
+)
+# Monthly: DPDP SDF readiness reminder.
+scheduler_events.setdefault("monthly", []).append(
+	"indian_hrms_compliance.overrides.dpdp_sdf_checklist.send_sdf_readiness_reminder"
+)
 
 advance_payment_doctypes = ["Leave Encashment", "Gratuity", "Employee Advance"]
 
