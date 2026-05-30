@@ -1,0 +1,314 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "format:OSH26-{company}-{fiscal_year}",
+ "creation": "2026-06-03 10:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 0,
+ "engine": "InnoDB",
+ "field_order": [
+  "identity_section",
+  "company",
+  "fiscal_year",
+  "form_name",
+  "column_break_meta",
+  "establishment_type",
+  "establishment_registration_number",
+  "filing_status",
+  "generated_on",
+  "filed_on",
+  "ack_number",
+  "workforce_section",
+  "total_workers_male",
+  "total_workers_female",
+  "total_workers_others",
+  "total_workers",
+  "contract_workers_count",
+  "column_break_wf",
+  "average_daily_workers",
+  "average_monthly_overtime_hours",
+  "safety_section",
+  "safety_committee_constituted",
+  "safety_committee_size",
+  "safety_meetings_held",
+  "accidents_section",
+  "fatal_accidents",
+  "non_fatal_accidents_lost_time",
+  "non_fatal_accidents_minor",
+  "total_man_days_lost_to_accidents",
+  "compensation_paid",
+  "column_break_acc",
+  "training_section",
+  "safety_trainings_conducted",
+  "workers_trained",
+  "medical_examinations_conducted",
+  "file_section",
+  "attached_pdf",
+  "exceptions",
+  "notes"
+ ],
+ "fields": [
+  {
+   "fieldname": "identity_section",
+   "fieldtype": "Section Break",
+   "label": "Identity"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "options": "Company",
+   "label": "Company",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "fiscal_year",
+   "fieldtype": "Link",
+   "options": "Fiscal Year",
+   "label": "Fiscal Year",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "default": "Form 26 (OSH&WC Code)",
+   "fieldname": "form_name",
+   "fieldtype": "Data",
+   "label": "Form Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_meta",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "establishment_type",
+   "fieldtype": "Select",
+   "label": "Establishment Type",
+   "options": "Factory\nMine\nPlantation\nOther Establishment",
+   "reqd": 1
+  },
+  {
+   "fieldname": "establishment_registration_number",
+   "fieldtype": "Data",
+   "label": "Establishment Registration Number"
+  },
+  {
+   "default": "Draft",
+   "fieldname": "filing_status",
+   "fieldtype": "Select",
+   "label": "Filing Status",
+   "options": "Draft\nGenerated\nFiled\nCancelled",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "generated_on",
+   "fieldtype": "Datetime",
+   "label": "Generated On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "filed_on",
+   "fieldtype": "Date",
+   "label": "Filed On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ack_number",
+   "fieldtype": "Data",
+   "label": "Acknowledgement Number"
+  },
+  {
+   "fieldname": "workforce_section",
+   "fieldtype": "Section Break",
+   "label": "Workforce"
+  },
+  {
+   "default": "0",
+   "fieldname": "total_workers_male",
+   "fieldtype": "Int",
+   "label": "Total Workers (Male)"
+  },
+  {
+   "default": "0",
+   "fieldname": "total_workers_female",
+   "fieldtype": "Int",
+   "label": "Total Workers (Female)"
+  },
+  {
+   "default": "0",
+   "fieldname": "total_workers_others",
+   "fieldtype": "Int",
+   "label": "Total Workers (Others)"
+  },
+  {
+   "fieldname": "total_workers",
+   "fieldtype": "Int",
+   "label": "Total Workers",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "contract_workers_count",
+   "fieldtype": "Int",
+   "label": "Contract Workers"
+  },
+  {
+   "fieldname": "column_break_wf",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "average_daily_workers",
+   "fieldtype": "Int",
+   "label": "Average Daily Workers"
+  },
+  {
+   "default": "0",
+   "fieldname": "average_monthly_overtime_hours",
+   "fieldtype": "Float",
+   "label": "Average Monthly Overtime Hours"
+  },
+  {
+   "fieldname": "safety_section",
+   "fieldtype": "Section Break",
+   "label": "Safety Committee (OSH Sec 96)"
+  },
+  {
+   "default": "0",
+   "fieldname": "safety_committee_constituted",
+   "fieldtype": "Check",
+   "label": "Safety Committee Constituted"
+  },
+  {
+   "default": "0",
+   "fieldname": "safety_committee_size",
+   "fieldtype": "Int",
+   "label": "Safety Committee Size"
+  },
+  {
+   "default": "0",
+   "fieldname": "safety_meetings_held",
+   "fieldtype": "Int",
+   "label": "Safety Meetings Held"
+  },
+  {
+   "fieldname": "accidents_section",
+   "fieldtype": "Section Break",
+   "label": "Accidents"
+  },
+  {
+   "default": "0",
+   "fieldname": "fatal_accidents",
+   "fieldtype": "Int",
+   "label": "Fatal Accidents"
+  },
+  {
+   "default": "0",
+   "fieldname": "non_fatal_accidents_lost_time",
+   "fieldtype": "Int",
+   "label": "Non-Fatal Accidents (Lost-Time)"
+  },
+  {
+   "default": "0",
+   "fieldname": "non_fatal_accidents_minor",
+   "fieldtype": "Int",
+   "label": "Non-Fatal Accidents (Minor)"
+  },
+  {
+   "default": "0",
+   "fieldname": "total_man_days_lost_to_accidents",
+   "fieldtype": "Int",
+   "label": "Total Man-Days Lost"
+  },
+  {
+   "fieldname": "compensation_paid",
+   "fieldtype": "Currency",
+   "label": "Compensation Paid"
+  },
+  {
+   "fieldname": "column_break_acc",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "training_section",
+   "fieldtype": "Section Break",
+   "label": "Training & Health"
+  },
+  {
+   "default": "0",
+   "fieldname": "safety_trainings_conducted",
+   "fieldtype": "Int",
+   "label": "Safety Trainings Conducted"
+  },
+  {
+   "default": "0",
+   "fieldname": "workers_trained",
+   "fieldtype": "Int",
+   "label": "Workers Trained"
+  },
+  {
+   "default": "0",
+   "fieldname": "medical_examinations_conducted",
+   "fieldtype": "Int",
+   "label": "Medical Examinations Conducted"
+  },
+  {
+   "fieldname": "file_section",
+   "fieldtype": "Section Break",
+   "label": "File"
+  },
+  {
+   "fieldname": "attached_pdf",
+   "fieldtype": "Attach",
+   "label": "Attached PDF"
+  },
+  {
+   "fieldname": "exceptions",
+   "fieldtype": "Long Text",
+   "label": "Exceptions / Warnings",
+   "read_only": 1
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Long Text",
+   "label": "Notes"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-06-03 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "HR",
+ "name": "OSH Annual Return Form 26",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR User",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

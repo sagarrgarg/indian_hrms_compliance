@@ -1,0 +1,95 @@
+{
+ "actions": [],
+ "creation": "2026-06-03 10:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "istable": 1,
+ "field_order": [
+  "employee",
+  "employee_name",
+  "role",
+  "representing_side",
+  "gender",
+  "term_start",
+  "term_end",
+  "is_active"
+ ],
+ "fields": [
+  {
+   "fieldname": "employee",
+   "fieldtype": "Link",
+   "options": "Employee",
+   "label": "Employee",
+   "in_list_view": 1,
+   "columns": 2,
+   "reqd": 1
+  },
+  {
+   "fetch_from": "employee.employee_name",
+   "fieldname": "employee_name",
+   "fieldtype": "Data",
+   "label": "Employee Name",
+   "read_only": 1,
+   "in_list_view": 1,
+   "columns": 2
+  },
+  {
+   "fieldname": "role",
+   "fieldtype": "Select",
+   "label": "Role",
+   "options": "Chairperson\nMember\nSecretary",
+   "in_list_view": 1,
+   "reqd": 1,
+   "columns": 1
+  },
+  {
+   "fieldname": "representing_side",
+   "fieldtype": "Select",
+   "label": "Representing",
+   "options": "Workmen\nEmployer\nIndependent",
+   "in_list_view": 1,
+   "reqd": 1,
+   "columns": 1
+  },
+  {
+   "fieldname": "gender",
+   "fieldtype": "Select",
+   "label": "Gender",
+   "options": "Male\nFemale\nOther",
+   "in_list_view": 1,
+   "columns": 1
+  },
+  {
+   "fieldname": "term_start",
+   "fieldtype": "Date",
+   "label": "Term Start",
+   "columns": 1
+  },
+  {
+   "fieldname": "term_end",
+   "fieldtype": "Date",
+   "label": "Term End",
+   "columns": 1
+  },
+  {
+   "default": "1",
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "label": "Active",
+   "in_list_view": 1,
+   "columns": 1
+  }
+ ],
+ "links": [],
+ "modified": "2026-06-03 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "HR",
+ "name": "Grievance Redressal Committee Member",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

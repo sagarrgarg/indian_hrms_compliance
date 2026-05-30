@@ -1,0 +1,200 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "format:WC-{company}-{formed_on}",
+ "creation": "2026-06-03 10:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 0,
+ "engine": "InnoDB",
+ "field_order": [
+  "identity_section",
+  "company",
+  "status",
+  "formed_on",
+  "column_break_meta",
+  "term_end",
+  "worker_count_at_formation",
+  "workmen_strength_total",
+  "member_count_total",
+  "workmen_section",
+  "workmen_intro_html",
+  "workmen_representatives",
+  "employer_section",
+  "employer_intro_html",
+  "employer_representatives",
+  "meetings_section",
+  "meetings_held",
+  "last_meeting_date",
+  "column_break_meetings",
+  "minutes_attachment",
+  "notes_section",
+  "notes"
+ ],
+ "fields": [
+  {
+   "fieldname": "identity_section",
+   "fieldtype": "Section Break",
+   "label": "Constitution"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "options": "Company",
+   "label": "Company",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "description": "Per IR Code Sec 3, every industrial establishment with 100+ workers must constitute a Works Committee. Threshold is configurable in HR Settings."
+  },
+  {
+   "default": "Active",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "Active\nDissolved\nReconstituting",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "formed_on",
+   "fieldtype": "Date",
+   "label": "Formed On",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "column_break_meta",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "term_end",
+   "fieldtype": "Date",
+   "label": "Term End"
+  },
+  {
+   "fieldname": "worker_count_at_formation",
+   "fieldtype": "Int",
+   "label": "Total Worker Count at Formation"
+  },
+  {
+   "fieldname": "workmen_strength_total",
+   "fieldtype": "Int",
+   "label": "Workmen Strength (Total)",
+   "description": "Total workmen in the establishment at the time of formation. Used to verify equal representation as per IR Code."
+  },
+  {
+   "fieldname": "member_count_total",
+   "fieldtype": "Int",
+   "label": "Total Member Count",
+   "read_only": 1,
+   "description": "Auto-computed (workmen + employer reps)."
+  },
+  {
+   "fieldname": "workmen_section",
+   "fieldtype": "Section Break",
+   "label": "Workmen Representatives",
+   "description": "Per IR Code Sec 3: representatives elected by the workmen in the prescribed manner."
+  },
+  {
+   "fieldname": "workmen_intro_html",
+   "fieldtype": "HTML",
+   "options": "<p style='color:#888;font-size:12px;margin:0'>Workmen representatives — elected from the rank-and-file. Number of workmen reps shall be ≥ number of employer reps.</p>"
+  },
+  {
+   "fieldname": "workmen_representatives",
+   "fieldtype": "Table",
+   "options": "Works Committee Member",
+   "label": "Workmen Representatives"
+  },
+  {
+   "fieldname": "employer_section",
+   "fieldtype": "Section Break",
+   "label": "Employer Representatives"
+  },
+  {
+   "fieldname": "employer_intro_html",
+   "fieldtype": "HTML",
+   "options": "<p style='color:#888;font-size:12px;margin:0'>Employer representatives — nominated by management.</p>"
+  },
+  {
+   "fieldname": "employer_representatives",
+   "fieldtype": "Table",
+   "options": "Works Committee Member",
+   "label": "Employer Representatives"
+  },
+  {
+   "fieldname": "meetings_section",
+   "fieldtype": "Section Break",
+   "label": "Meetings",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "meetings_held",
+   "fieldtype": "Int",
+   "label": "Meetings Held"
+  },
+  {
+   "fieldname": "last_meeting_date",
+   "fieldtype": "Date",
+   "label": "Last Meeting Date"
+  },
+  {
+   "fieldname": "column_break_meetings",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "minutes_attachment",
+   "fieldtype": "Attach",
+   "label": "Latest Minutes Attachment"
+  },
+  {
+   "fieldname": "notes_section",
+   "fieldtype": "Section Break",
+   "label": "Notes",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Long Text",
+   "label": "Notes"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-06-03 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "HR",
+ "name": "Works Committee",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR User",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "read": 1,
+   "role": "Employee"
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}
