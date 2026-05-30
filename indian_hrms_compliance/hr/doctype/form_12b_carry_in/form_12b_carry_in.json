@@ -1,0 +1,265 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "format:F12B-{company}-{employee}-{fiscal_year}",
+ "creation": "2026-05-30 12:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 0,
+ "engine": "InnoDB",
+ "field_order": [
+  "identity_section",
+  "employee",
+  "employee_name",
+  "fiscal_year",
+  "column_break_meta",
+  "company",
+  "status",
+  "prior_employer_section",
+  "prior_employer_name",
+  "prior_employer_tan",
+  "prior_employer_pan",
+  "column_break_pe",
+  "employment_from_date",
+  "employment_to_date",
+  "salary_section",
+  "monthly_breakup",
+  "totals_section",
+  "total_gross_salary",
+  "total_section_10",
+  "total_section_16",
+  "column_break_totals",
+  "total_taxable_salary",
+  "total_chapter_via_claimed",
+  "total_tds_deducted",
+  "attachments_section",
+  "supporting_documents",
+  "notes_section",
+  "notes"
+ ],
+ "fields": [
+  {
+   "fieldname": "identity_section",
+   "fieldtype": "Section Break",
+   "label": "Identity"
+  },
+  {
+   "fieldname": "employee",
+   "fieldtype": "Link",
+   "options": "Employee",
+   "label": "Employee",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fetch_from": "employee.employee_name",
+   "fieldname": "employee_name",
+   "fieldtype": "Data",
+   "label": "Employee Name",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "fiscal_year",
+   "fieldtype": "Link",
+   "options": "Fiscal Year",
+   "label": "Fiscal Year",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "description": "FY in which the employee joined the current employer."
+  },
+  {
+   "fieldname": "column_break_meta",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fetch_from": "employee.company",
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "options": "Company",
+   "label": "Company (Current Employer)",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "Draft\nVerified\nApplied",
+   "default": "Draft",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "prior_employer_section",
+   "fieldtype": "Section Break",
+   "label": "Prior Employer"
+  },
+  {
+   "fieldname": "prior_employer_name",
+   "fieldtype": "Data",
+   "label": "Prior Employer Name",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "prior_employer_tan",
+   "fieldtype": "Data",
+   "label": "Prior Employer TAN"
+  },
+  {
+   "fieldname": "prior_employer_pan",
+   "fieldtype": "Data",
+   "label": "Prior Employer PAN"
+  },
+  {
+   "fieldname": "column_break_pe",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "employment_from_date",
+   "fieldtype": "Date",
+   "label": "Employment From",
+   "reqd": 1
+  },
+  {
+   "fieldname": "employment_to_date",
+   "fieldtype": "Date",
+   "label": "Employment To (Last Working Day)",
+   "reqd": 1
+  },
+  {
+   "fieldname": "salary_section",
+   "fieldtype": "Section Break",
+   "label": "Monthly Salary Breakup (Prior Period)",
+   "description": "Capture month-by-month gross / exemptions / TDS for the prior employer period within this FY."
+  },
+  {
+   "fieldname": "monthly_breakup",
+   "fieldtype": "Table",
+   "options": "Form 12B Salary Detail",
+   "label": "Monthly Breakup"
+  },
+  {
+   "fieldname": "totals_section",
+   "fieldtype": "Section Break",
+   "label": "Totals"
+  },
+  {
+   "fieldname": "total_gross_salary",
+   "fieldtype": "Currency",
+   "label": "Total Gross Salary",
+   "read_only": 1
+  },
+  {
+   "fieldname": "total_section_10",
+   "fieldtype": "Currency",
+   "label": "Total Section 10 Exemptions",
+   "read_only": 1
+  },
+  {
+   "fieldname": "total_section_16",
+   "fieldtype": "Currency",
+   "label": "Total Section 16 Deductions",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_totals",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "total_taxable_salary",
+   "fieldtype": "Currency",
+   "label": "Total Taxable Salary (Prior)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "total_chapter_via_claimed",
+   "fieldtype": "Currency",
+   "label": "Chapter VI-A Claimed with Prior Employer",
+   "description": "80C / 80D / etc. claimed at the prior employer. Subtracted from current employer's eligible deduction cap."
+  },
+  {
+   "fieldname": "total_tds_deducted",
+   "fieldtype": "Currency",
+   "label": "Total TDS Deducted by Prior",
+   "read_only": 1
+  },
+  {
+   "fieldname": "attachments_section",
+   "fieldtype": "Section Break",
+   "label": "Supporting Documents",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "supporting_documents",
+   "fieldtype": "Attach",
+   "label": "Prior Employer Form 16 / Tax Slip"
+  },
+  {
+   "fieldname": "notes_section",
+   "fieldtype": "Section Break",
+   "label": "Notes",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Long Text",
+   "label": "Notes"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-05-30 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "HR",
+ "name": "Form 12B Carry In",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR User",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Employee",
+   "share": 1,
+   "write": 1,
+   "if_owner": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [
+  {"color": "Red", "title": "Draft"},
+  {"color": "Yellow", "title": "Verified"},
+  {"color": "Green", "title": "Applied"}
+ ],
+ "title_field": "employee_name",
+ "track_changes": 1
+}

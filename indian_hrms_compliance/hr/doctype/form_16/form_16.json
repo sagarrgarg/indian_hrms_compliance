@@ -1,0 +1,386 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "format:F16-{company}-{employee}-{fiscal_year}",
+ "creation": "2026-05-30 12:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 0,
+ "engine": "InnoDB",
+ "field_order": [
+  "identity_section",
+  "employee",
+  "employee_name",
+  "fiscal_year",
+  "column_break_meta",
+  "company",
+  "employer_pan",
+  "employer_tan",
+  "issue_status",
+  "issued_on",
+  "employee_details_section",
+  "employee_pan",
+  "employee_address",
+  "column_break_emp",
+  "period_from",
+  "period_to",
+  "part_a_section",
+  "part_a_html_intro",
+  "quarterly_deposits",
+  "part_b_section",
+  "gross_salary",
+  "section_10_exemptions",
+  "balance_after_sec10",
+  "section_16_deductions",
+  "income_under_salaries",
+  "column_break_partb",
+  "other_income",
+  "gross_total_income",
+  "chapter_via_deductions",
+  "taxable_income",
+  "tax_payable",
+  "surcharge",
+  "health_education_cess",
+  "tax_liability",
+  "relief_us_89",
+  "net_tax_payable",
+  "tds_section",
+  "tds_deducted",
+  "column_break_tds",
+  "tds_balance",
+  "form_12ba_section",
+  "perquisites",
+  "form_12ba_total",
+  "attachments_section",
+  "signed_pdf",
+  "notes_section",
+  "notes"
+ ],
+ "fields": [
+  {
+   "fieldname": "identity_section",
+   "fieldtype": "Section Break",
+   "label": "Form 16 — Identity"
+  },
+  {
+   "fieldname": "employee",
+   "fieldtype": "Link",
+   "options": "Employee",
+   "label": "Employee",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fetch_from": "employee.employee_name",
+   "fieldname": "employee_name",
+   "fieldtype": "Data",
+   "label": "Employee Name",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "fiscal_year",
+   "fieldtype": "Link",
+   "options": "Fiscal Year",
+   "label": "Fiscal Year",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "column_break_meta",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fetch_from": "employee.company",
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "options": "Company",
+   "label": "Company",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "description": "Each Company issues its own Form 16 — multi-Co employees get one per active employment."
+  },
+  {
+   "fieldname": "employer_pan",
+   "fieldtype": "Data",
+   "label": "Employer PAN",
+   "fetch_from": "company.pan"
+  },
+  {
+   "fieldname": "employer_tan",
+   "fieldtype": "Data",
+   "label": "Employer TAN"
+  },
+  {
+   "fieldname": "issue_status",
+   "fieldtype": "Select",
+   "label": "Issue Status",
+   "options": "Draft\nFinalised\nIssued",
+   "default": "Draft",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "issued_on",
+   "fieldtype": "Date",
+   "label": "Issued On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "employee_details_section",
+   "fieldtype": "Section Break",
+   "label": "Employee Details",
+   "collapsible": 1
+  },
+  {
+   "fetch_from": "employee.pan_number",
+   "fieldname": "employee_pan",
+   "fieldtype": "Data",
+   "label": "Employee PAN",
+   "read_only": 1
+  },
+  {
+   "fieldname": "employee_address",
+   "fieldtype": "Small Text",
+   "label": "Employee Address"
+  },
+  {
+   "fieldname": "column_break_emp",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "period_from",
+   "fieldtype": "Date",
+   "label": "Period From",
+   "read_only": 1,
+   "description": "Auto-set to FY start (or date_of_joining if mid-FY)."
+  },
+  {
+   "fieldname": "period_to",
+   "fieldtype": "Date",
+   "label": "Period To",
+   "read_only": 1,
+   "description": "Auto-set to FY end (or relieving_date if mid-FY exit)."
+  },
+  {
+   "fieldname": "part_a_section",
+   "fieldtype": "Section Break",
+   "label": "Part A — TDS Deposits"
+  },
+  {
+   "fieldname": "part_a_html_intro",
+   "fieldtype": "HTML",
+   "options": "<p style='color:#666;font-size:12px'>Quarterly TDS deposits by the employer. Each row corresponds to one quarter's TDS challan (BSR code + challan number + deposit date + amount).</p>"
+  },
+  {
+   "fieldname": "quarterly_deposits",
+   "fieldtype": "Table",
+   "options": "Form 16 Quarterly Deposit",
+   "label": "Quarterly Deposits"
+  },
+  {
+   "fieldname": "part_b_section",
+   "fieldtype": "Section Break",
+   "label": "Part B — Salary & Tax Computation"
+  },
+  {
+   "fieldname": "gross_salary",
+   "fieldtype": "Currency",
+   "label": "1. Gross Salary",
+   "description": "Sum of salary, perquisites, profits in lieu of salary."
+  },
+  {
+   "fieldname": "section_10_exemptions",
+   "fieldtype": "Currency",
+   "label": "2. Less: Exempt under Section 10 (HRA, LTA, etc.)"
+  },
+  {
+   "fieldname": "balance_after_sec10",
+   "fieldtype": "Currency",
+   "label": "3. Balance (1 − 2)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_16_deductions",
+   "fieldtype": "Currency",
+   "label": "4. Less: Deductions u/s 16 (Std deduction, Prof Tax, etc.)"
+  },
+  {
+   "fieldname": "income_under_salaries",
+   "fieldtype": "Currency",
+   "label": "5. Income under 'Salaries' (3 − 4)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_partb",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "other_income",
+   "fieldtype": "Currency",
+   "label": "6. Other Income (House Property, Other Sources)"
+  },
+  {
+   "fieldname": "gross_total_income",
+   "fieldtype": "Currency",
+   "label": "7. Gross Total Income (5 + 6)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "chapter_via_deductions",
+   "fieldtype": "Currency",
+   "label": "8. Less: Chapter VI-A Deductions (80C, 80D, 80E, etc.)"
+  },
+  {
+   "fieldname": "taxable_income",
+   "fieldtype": "Currency",
+   "label": "9. Taxable Income (7 − 8)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "tax_payable",
+   "fieldtype": "Currency",
+   "label": "10. Tax on Taxable Income"
+  },
+  {
+   "fieldname": "surcharge",
+   "fieldtype": "Currency",
+   "label": "11. Surcharge"
+  },
+  {
+   "fieldname": "health_education_cess",
+   "fieldtype": "Currency",
+   "label": "12. Health & Education Cess (4%)"
+  },
+  {
+   "fieldname": "tax_liability",
+   "fieldtype": "Currency",
+   "label": "13. Tax Liability (10 + 11 + 12)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "relief_us_89",
+   "fieldtype": "Currency",
+   "label": "14. Less: Relief u/s 89"
+  },
+  {
+   "fieldname": "net_tax_payable",
+   "fieldtype": "Currency",
+   "label": "15. Net Tax Payable (13 − 14)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "tds_section",
+   "fieldtype": "Section Break",
+   "label": "TDS Summary"
+  },
+  {
+   "fieldname": "tds_deducted",
+   "fieldtype": "Currency",
+   "label": "16. TDS Already Deducted by Employer"
+  },
+  {
+   "fieldname": "column_break_tds",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "tds_balance",
+   "fieldtype": "Currency",
+   "label": "17. Balance Refundable / Payable (15 − 16)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "form_12ba_section",
+   "fieldtype": "Section Break",
+   "label": "Form 12BA — Perquisites",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "perquisites",
+   "fieldtype": "Table",
+   "options": "Form 16 Perquisite",
+   "label": "Perquisites"
+  },
+  {
+   "fieldname": "form_12ba_total",
+   "fieldtype": "Currency",
+   "label": "Total Taxable Value of Perquisites",
+   "read_only": 1
+  },
+  {
+   "fieldname": "attachments_section",
+   "fieldtype": "Section Break",
+   "label": "Signed Copy",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "signed_pdf",
+   "fieldtype": "Attach",
+   "label": "Signed PDF",
+   "description": "Upload the signed Form 16 PDF here once finalised."
+  },
+  {
+   "fieldname": "notes_section",
+   "fieldtype": "Section Break",
+   "label": "Notes",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Long Text",
+   "label": "Notes",
+   "description": "Internal notes — not printed on the certificate."
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-05-30 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "HR",
+ "name": "Form 16",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR User",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Employee",
+   "if_owner": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [
+  {"color": "Red", "title": "Draft"},
+  {"color": "Yellow", "title": "Finalised"},
+  {"color": "Green", "title": "Issued"}
+ ],
+ "title_field": "employee_name",
+ "track_changes": 1
+}
