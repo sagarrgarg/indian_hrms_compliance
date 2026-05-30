@@ -241,6 +241,9 @@ doc_events = {
 		],
 		"before_submit": "indian_hrms_compliance.overrides.employee_separation_no_dues.block_submit_if_no_dues_pending",
 	},
+	"Full and Final Statement": {
+		"validate": "indian_hrms_compliance.overrides.full_and_final_extension.compute_phase4_lines",
+	},
 }
 
 # Scheduled Tasks
