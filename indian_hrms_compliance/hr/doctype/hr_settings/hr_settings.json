@@ -117,7 +117,37 @@
   "auto_trigger_resignation_on_termination_outcome",
   "column_break_disc_1",
   "auto_trigger_warning_letter",
-  "auto_trigger_salary_withholding_on_suspension"
+  "auto_trigger_salary_withholding_on_suspension",
+  "statutory_tab",
+  "wage_code_section",
+  "wage_code_enforcement",
+  "column_break_wc_1",
+  "wage_code_basic_da_min_pct",
+  "pf_section",
+  "pf_wage_ceiling",
+  "pf_employee_rate_pct",
+  "pf_employer_rate_pct",
+  "pf_eps_rate_pct",
+  "column_break_pf_1",
+  "pf_edli_rate_pct",
+  "pf_admin_charges_pct",
+  "pf_admin_charges_min",
+  "pf_minimum_headcount_for_applicability",
+  "esi_section",
+  "esi_wage_ceiling",
+  "esi_wage_ceiling_disabled",
+  "column_break_esi_1",
+  "esi_employee_rate_pct",
+  "esi_employer_rate_pct",
+  "esi_employee_daily_wage_waiver",
+  "min_wage_section",
+  "enforce_minimum_wage_validation",
+  "pt_lwf_section",
+  "default_pt_state",
+  "dpdp_section",
+  "dpdp_aadhaar_consent_required",
+  "column_break_dpdp_1",
+  "dpdp_data_retention_years"
  ],
  "fields": [
   {
@@ -825,6 +855,185 @@
    "fieldtype": "Check",
    "label": "Auto-create Salary Withholding on Suspension",
    "description": "When ticked, Suspension outcomes auto-create a Salary Withholding for the suspension period. Requires the Employee to have an active Salary Structure Assignment."
+  },
+  {
+   "fieldname": "statutory_tab",
+   "fieldtype": "Tab Break",
+   "label": "Statutory"
+  },
+  {
+   "fieldname": "wage_code_section",
+   "fieldtype": "Section Break",
+   "label": "Wage Code Enforcement",
+   "description": "Wage Code §2(y) (live since 21 Nov 2025) requires Basic + DA + Retaining Allowance ≥ 50% of total wages."
+  },
+  {
+   "default": "HARD",
+   "fieldname": "wage_code_enforcement",
+   "fieldtype": "Select",
+   "label": "Wage Code Enforcement",
+   "options": "HARD\nWARN\nOFF",
+   "description": "HARD blocks save; WARN only msgprints; OFF skips the check."
+  },
+  {
+   "fieldname": "column_break_wc_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "50",
+   "fieldname": "wage_code_basic_da_min_pct",
+   "fieldtype": "Percent",
+   "label": "Basic + DA Minimum %",
+   "description": "Floor for Basic + DA as % of total earnings."
+  },
+  {
+   "fieldname": "pf_section",
+   "fieldtype": "Section Break",
+   "label": "Provident Fund"
+  },
+  {
+   "default": "15000",
+   "fieldname": "pf_wage_ceiling",
+   "fieldtype": "Currency",
+   "label": "PF Wage Ceiling",
+   "description": "EPS / EDLI capped at this monthly wage (₹15,000 in 2026)."
+  },
+  {
+   "default": "12.0",
+   "fieldname": "pf_employee_rate_pct",
+   "fieldtype": "Percent",
+   "label": "PF Employee Rate %"
+  },
+  {
+   "default": "12.0",
+   "fieldname": "pf_employer_rate_pct",
+   "fieldtype": "Percent",
+   "label": "PF Employer Rate %"
+  },
+  {
+   "default": "8.33",
+   "fieldname": "pf_eps_rate_pct",
+   "fieldtype": "Percent",
+   "label": "EPS Rate % (of Employer share)"
+  },
+  {
+   "fieldname": "column_break_pf_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0.50",
+   "fieldname": "pf_edli_rate_pct",
+   "fieldtype": "Percent",
+   "label": "EDLI Rate %"
+  },
+  {
+   "default": "0.50",
+   "fieldname": "pf_admin_charges_pct",
+   "fieldtype": "Percent",
+   "label": "PF Admin Charges %"
+  },
+  {
+   "default": "500",
+   "fieldname": "pf_admin_charges_min",
+   "fieldtype": "Currency",
+   "label": "PF Admin Charges Minimum",
+   "description": "Per-establishment per-month minimum (₹500 in 2026)."
+  },
+  {
+   "default": "20",
+   "fieldname": "pf_minimum_headcount_for_applicability",
+   "fieldtype": "Int",
+   "label": "PF Headcount Threshold",
+   "description": "Company headcount at which PF becomes mandatory (20 by EPF Act)."
+  },
+  {
+   "fieldname": "esi_section",
+   "fieldtype": "Section Break",
+   "label": "Employees' State Insurance"
+  },
+  {
+   "default": "21000",
+   "fieldname": "esi_wage_ceiling",
+   "fieldtype": "Currency",
+   "label": "ESI Wage Ceiling",
+   "description": "Monthly gross at or below which ESI applies (₹21,000 standard)."
+  },
+  {
+   "default": "25000",
+   "fieldname": "esi_wage_ceiling_disabled",
+   "fieldtype": "Currency",
+   "label": "ESI Wage Ceiling (disabled employees)"
+  },
+  {
+   "fieldname": "column_break_esi_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0.75",
+   "fieldname": "esi_employee_rate_pct",
+   "fieldtype": "Percent",
+   "label": "ESI Employee Rate %"
+  },
+  {
+   "default": "3.25",
+   "fieldname": "esi_employer_rate_pct",
+   "fieldtype": "Percent",
+   "label": "ESI Employer Rate %"
+  },
+  {
+   "default": "176",
+   "fieldname": "esi_employee_daily_wage_waiver",
+   "fieldtype": "Currency",
+   "label": "ESI Employee Daily Wage Waiver",
+   "description": "Employee ESI share is waived when daily wage is at or below this amount."
+  },
+  {
+   "fieldname": "min_wage_section",
+   "fieldtype": "Section Break",
+   "label": "Minimum Wage"
+  },
+  {
+   "default": "1",
+   "fieldname": "enforce_minimum_wage_validation",
+   "fieldtype": "Check",
+   "label": "Enforce Minimum Wage Validation",
+   "description": "Validator checks structure gross against state Minimum Wage Notification per designation_category."
+  },
+  {
+   "fieldname": "pt_lwf_section",
+   "fieldtype": "Section Break",
+   "label": "PT / LWF"
+  },
+  {
+   "fieldname": "default_pt_state",
+   "fieldtype": "Link",
+   "options": "Indian State",
+   "label": "Default PT State",
+   "description": "Fallback state for employees whose address has no resolvable state."
+  },
+  {
+   "fieldname": "dpdp_section",
+   "fieldtype": "Section Break",
+   "label": "Digital Personal Data Protection (DPDP)",
+   "description": "Forward-looking — DPDP Rules 2026 implementation."
+  },
+  {
+   "default": "1",
+   "fieldname": "dpdp_aadhaar_consent_required",
+   "fieldtype": "Check",
+   "label": "Require Aadhaar Consent Record",
+   "description": "When ticked, the validator emits an INFO when an Employee has a full Aadhaar number stored without a consent record."
+  },
+  {
+   "fieldname": "column_break_dpdp_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "8",
+   "fieldname": "dpdp_data_retention_years",
+   "fieldtype": "Int",
+   "label": "Data Retention (years)",
+   "description": "Default retention period for ex-employee personal data after relieving (typical 7-8 years for IT Act and Companies Act compliance)."
   }
  ],
  "icon": "fa fa-cog",
