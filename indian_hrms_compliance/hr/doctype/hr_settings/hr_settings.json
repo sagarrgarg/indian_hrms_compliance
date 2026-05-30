@@ -79,7 +79,24 @@
   "probation_tab",
   "probation_defaults_section",
   "default_probation_period_days",
-  "probation_review_reminder_window_days"
+  "probation_review_reminder_window_days",
+  "exit_settlement_tab",
+  "notice_recovery_section",
+  "notice_recovery_basis",
+  "notice_recovery_days_in_month",
+  "column_break_exit_1",
+  "allow_negotiated_notice_waiver",
+  "fnf_auto_section",
+  "auto_create_gratuity_on_fnf",
+  "auto_create_leave_encashment_on_fnf",
+  "column_break_exit_2",
+  "compute_tds_on_fnf",
+  "exit_letters_section",
+  "auto_generate_exit_letters_on_fnf_submit",
+  "default_exit_letter_letterhead",
+  "column_break_exit_3",
+  "form_16_default_signatory_designation",
+  "form_16_issuance_deadline_alert_days"
  ],
  "fields": [
   {
@@ -543,6 +560,114 @@
    "label": "Probation Review Reminder Window (days)",
    "non_negative": 1,
    "description": "Daily scheduler creates Probation Review reminder ToDos for Employees whose Scheduled Confirmation Date falls within this many days from today. Default 30."
+  },
+
+  {
+   "fieldname": "exit_settlement_tab",
+   "fieldtype": "Tab Break",
+   "label": "Exit & Settlement"
+  },
+  {
+   "fieldname": "notice_recovery_section",
+   "fieldtype": "Section Break",
+   "label": "Notice Period Recovery / Pay-in-Lieu",
+   "description": "Drives the FnF notice math: per-day rate × notice balance. Used in receivables (Short Notice) or payables (Pay in Lieu)."
+  },
+  {
+   "default": "Basic Only",
+   "fieldname": "notice_recovery_basis",
+   "fieldtype": "Select",
+   "label": "Notice Recovery Basis",
+   "options": "Basic Only\nBasic + DA\nGross",
+   "description": "Component(s) from the last Salary Slip used to compute the per-day rate. Default: Basic Only."
+  },
+  {
+   "default": "30",
+   "fieldname": "notice_recovery_days_in_month",
+   "fieldtype": "Int",
+   "label": "Days in Month (divisor)",
+   "non_negative": 1,
+   "description": "Divisor for per-day rate. 30 is the common contractual standard; 26 / actual calendar days are alternatives."
+  },
+  {
+   "fieldname": "column_break_exit_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "fieldname": "allow_negotiated_notice_waiver",
+   "fieldtype": "Check",
+   "label": "Allow Negotiated Waiver / Override",
+   "description": "When ticked, the negotiated_waiver_amount field on FnF overrides the auto-computed Notice Balance Amount on the resulting line. Useful for negotiated settlements."
+  },
+  {
+   "fieldname": "fnf_auto_section",
+   "fieldtype": "Section Break",
+   "label": "F&F Auto-payables and TDS",
+   "description": "When on, FnF.validate auto-creates the relevant downstream documents and adds the corresponding lines to FnF."
+  },
+  {
+   "default": "1",
+   "fieldname": "auto_create_gratuity_on_fnf",
+   "fieldtype": "Check",
+   "label": "Auto-create Gratuity on FnF",
+   "description": "When tenure ≥ Gratuity Rule's minimum years AND no Gratuity exists for the Employee, FnF.validate creates a Gratuity draft using the Company's Gratuity Rule (or the first one found) and adds a payables line."
+  },
+  {
+   "default": "1",
+   "fieldname": "auto_create_leave_encashment_on_fnf",
+   "fieldtype": "Check",
+   "label": "Auto-create Leave Encashment on FnF",
+   "description": "For each Leave Type with allow_encashment=1 that has a balance for the Employee, FnF.validate creates a Leave Encashment draft and adds a payables line."
+  },
+  {
+   "fieldname": "column_break_exit_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "fieldname": "compute_tds_on_fnf",
+   "fieldtype": "Check",
+   "label": "Compute TDS on Final Settlement",
+   "description": "FnF.validate computes projected_annual_tax via Income Tax Slab applied to (YTD gross + FnF taxable payables) − YTD TDS deducted. Adds a 'TDS on Final Settlement' line to receivables. Skipped silently when no slab applies."
+  },
+  {
+   "fieldname": "exit_letters_section",
+   "fieldtype": "Section Break",
+   "label": "Exit Letters & Form 16"
+  },
+  {
+   "default": "0",
+   "fieldname": "auto_generate_exit_letters_on_fnf_submit",
+   "fieldtype": "Check",
+   "label": "Auto-generate Exit Letters on FnF Submit",
+   "description": "When on, submitting an FnF automatically creates Relieving / Experience / Service Certificate drafts. When off, HR clicks the 'Generate Exit Letters' button manually."
+  },
+  {
+   "fieldname": "default_exit_letter_letterhead",
+   "fieldtype": "Link",
+   "label": "Default Exit Letter Letter Head",
+   "options": "Letter Head",
+   "description": "Default Letter Head applied to exit letter PDFs."
+  },
+  {
+   "fieldname": "column_break_exit_3",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "form_16_default_signatory_designation",
+   "fieldtype": "Link",
+   "label": "Form 16 Signatory Designation",
+   "options": "Designation",
+   "description": "Designation printed as the authorised signatory on bulk-generated Form 16 PDFs."
+  },
+  {
+   "default": "15",
+   "fieldname": "form_16_issuance_deadline_alert_days",
+   "fieldtype": "Int",
+   "label": "Form 16 Deadline Alert (days before Jun 15)",
+   "non_negative": 1,
+   "description": "Daily scheduler alerts HR when within this many days of the Form 16 issuance deadline (June 15 each year)."
   }
  ],
  "icon": "fa fa-cog",

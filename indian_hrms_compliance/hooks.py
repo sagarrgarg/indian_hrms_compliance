@@ -244,6 +244,7 @@ doc_events = {
 	},
 	"Full and Final Statement": {
 		"validate": "indian_hrms_compliance.overrides.full_and_final_extension.compute_phase4_lines",
+		"on_submit": "indian_hrms_compliance.overrides.full_and_final_extension.auto_generate_exit_letters_on_submit",
 	},
 }
 

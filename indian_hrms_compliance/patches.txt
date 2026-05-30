@@ -52,3 +52,4 @@ indian_hrms_compliance.patches.v15_0.setup_resignation_request_workflow #2026-05
 indian_hrms_compliance.patches.v15_0.add_no_dues_to_employee_separation #2026-05-30
 indian_hrms_compliance.patches.v15_0.add_phase4_fields_to_fnf #2026-05-30
 indian_hrms_compliance.patches.v15_0.add_exit_letter_types #2026-05-30
+indian_hrms_compliance.patches.v15_0.seed_exit_settlement_defaults #2026-05-30
