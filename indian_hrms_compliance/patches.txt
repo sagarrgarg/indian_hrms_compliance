@@ -62,3 +62,6 @@ indian_hrms_compliance.patches.v15_0.seed_compliance_defaults #2026-05-30
 indian_hrms_compliance.patches.v15_0.add_minimum_wage_category_fields #2026-05-30
 indian_hrms_compliance.patches.v15_0.seed_indian_states #2026-05-30
 indian_hrms_compliance.patches.v15_0.seed_statutory_defaults #2026-05-30
+indian_hrms_compliance.patches.v15_0.extend_salary_component_types #2026-05-31
+indian_hrms_compliance.patches.v15_0.add_pf_esi_hr_settings #2026-05-31
+indian_hrms_compliance.patches.v15_0.seed_pf_esi_hr_settings_defaults #2026-05-31

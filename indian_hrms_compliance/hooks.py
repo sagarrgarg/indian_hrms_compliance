@@ -55,6 +55,9 @@ doctype_js = {
 	"Journal Entry": "public/js/erpnext/journal_entry.js",
 	"Delivery Trip": "public/js/erpnext/delivery_trip.js",
 	"Bank Transaction": "public/js/erpnext/bank_transaction.js",
+	"PF ECR Filing": "public/js/pf_ecr_filing.js",
+	"ESI Monthly Contribution": "public/js/esi_monthly_contribution.js",
+	"ESI Half Yearly Return": "public/js/esi_half_yearly_return.js",
 }
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
@@ -292,6 +295,8 @@ scheduler_events = {
 		"indian_hrms_compliance.hr.doctype.hrms_task.hrms_task.archive_old_completed_task_instances",
 		"indian_hrms_compliance.overrides.grievance_workflow.send_overdue_grievance_reminders",
 		"indian_hrms_compliance.hr.doctype.posh_complaint.posh_complaint.send_posh_overdue_reminders",
+		"indian_hrms_compliance.overrides.pf_ecr_generator.send_pf_ecr_due_reminders",
+		"indian_hrms_compliance.overrides.esi_generator.send_esi_due_reminders",
 	],
 	"daily_long": [
 		"indian_hrms_compliance.hr.doctype.leave_ledger_entry.leave_ledger_entry.process_expired_allocation",
