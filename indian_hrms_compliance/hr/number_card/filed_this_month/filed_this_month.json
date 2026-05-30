@@ -1,0 +1,20 @@
+{
+ "creation": "2026-06-02 09:00:00.000000",
+ "docstatus": 0,
+ "doctype": "Number Card",
+ "document_type": "Compliance Filing",
+ "filters_json": "[[\"Compliance Filing\",\"filed_on\",\"Timespan\",\"this month\"],[\"Compliance Filing\",\"filing_status\",\"in\",[\"Filed\",\"Late Filed\"]]]",
+ "function": "Count",
+ "idx": 0,
+ "is_public": 1,
+ "is_standard": 1,
+ "label": "Filed This Month",
+ "modified": "2026-06-02 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "HR",
+ "name": "Filed This Month",
+ "owner": "Administrator",
+ "show_percentage_stats": 1,
+ "stats_time_interval": "Monthly",
+ "type": "Document Type"
+}
