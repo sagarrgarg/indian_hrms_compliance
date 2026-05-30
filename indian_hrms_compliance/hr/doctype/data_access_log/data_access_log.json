@@ -1,0 +1,174 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "format:DAL-{accessed_on}-{####}",
+ "creation": "2026-06-03 09:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 0,
+ "engine": "InnoDB",
+ "field_order": [
+  "header_html",
+  "who_section",
+  "accessed_on",
+  "accessed_by",
+  "ip_address",
+  "column_break_who",
+  "user_agent",
+  "what_section",
+  "subject_employee",
+  "subject_doctype",
+  "subject_record",
+  "column_break_what",
+  "field_accessed",
+  "access_type",
+  "context_section",
+  "purpose_code",
+  "request_context"
+ ],
+ "fields": [
+  {
+   "fieldname": "header_html",
+   "fieldtype": "HTML",
+   "options": "<div style='background:#fdecea;border-left:4px solid #d33;padding:10px 14px;margin-bottom:8px'><strong>APPEND-ONLY AUDIT LOG</strong> &mdash; Records who accessed which sensitive field. <strong>Never store the field <em>value</em></strong> &mdash; only the field name and record reference. Manual edits are blocked at the doctype level.</div>"
+  },
+  {
+   "fieldname": "who_section",
+   "fieldtype": "Section Break",
+   "label": "Accessor"
+  },
+  {
+   "default": "now",
+   "fieldname": "accessed_on",
+   "fieldtype": "Datetime",
+   "label": "Accessed On",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "accessed_by",
+   "fieldtype": "Link",
+   "options": "User",
+   "label": "Accessed By",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "ip_address",
+   "fieldtype": "Data",
+   "label": "IP Address"
+  },
+  {
+   "fieldname": "column_break_who",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "user_agent",
+   "fieldtype": "Small Text",
+   "label": "User Agent"
+  },
+  {
+   "fieldname": "what_section",
+   "fieldtype": "Section Break",
+   "label": "Subject"
+  },
+  {
+   "fieldname": "subject_employee",
+   "fieldtype": "Link",
+   "options": "Employee",
+   "label": "Subject (Data Principal)",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "subject_doctype",
+   "fieldtype": "Data",
+   "label": "Subject DocType",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "subject_record",
+   "fieldtype": "Data",
+   "label": "Subject Record",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "column_break_what",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "field_accessed",
+   "fieldtype": "Data",
+   "label": "Field Accessed",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "description": "Field NAME ONLY — never the value."
+  },
+  {
+   "default": "Read",
+   "fieldname": "access_type",
+   "fieldtype": "Select",
+   "label": "Access Type",
+   "options": "Read\nExport\nPrint\nEmail",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "context_section",
+   "fieldtype": "Section Break",
+   "label": "Context",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "purpose_code",
+   "fieldtype": "Link",
+   "options": "Data Consent Purpose",
+   "label": "Purpose Code (best-effort)"
+  },
+  {
+   "fieldname": "request_context",
+   "fieldtype": "Small Text",
+   "label": "Request Context",
+   "description": "URL path, report name, etc. Helps reconstruct what action triggered the access."
+  }
+ ],
+ "in_create": 1,
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-06-03 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "HR",
+ "name": "Data Access Log",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 0,
+   "delete": 0,
+   "email": 0,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR Manager",
+   "share": 0,
+   "write": 0
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "accessed_on",
+ "sort_order": "DESC",
+ "track_changes": 0
+}

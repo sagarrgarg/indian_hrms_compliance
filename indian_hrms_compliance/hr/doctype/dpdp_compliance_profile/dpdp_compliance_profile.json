@@ -1,0 +1,190 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "creation": "2026-06-03 09:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 0,
+ "engine": "InnoDB",
+ "field_order": [
+  "header_html",
+  "sdf_section",
+  "is_designated_sdf",
+  "designation_date",
+  "column_break_sdf",
+  "data_protection_officer",
+  "dpo_email",
+  "dpo_phone",
+  "assessments_section",
+  "last_dpia_date",
+  "next_dpia_due",
+  "column_break_assess",
+  "last_audit_date",
+  "next_audit_due",
+  "consent_section",
+  "consent_managers_setup",
+  "breach_section",
+  "breach_notification_contact_email",
+  "breach_notification_log_url",
+  "governance_section",
+  "governance_notes"
+ ],
+ "fields": [
+  {
+   "fieldname": "header_html",
+   "fieldtype": "HTML",
+   "options": "<div style='background:#eef6fc;border-left:4px solid #2980b9;padding:10px 14px;margin-bottom:8px'><strong>DPDP Governance Singleton</strong> &mdash; Tracks Significant Data Fiduciary (SDF) designation, DPO appointment, and the readiness checklist required by DPDP Sec 10. Government can designate SDFs based on volume + sensitivity + risk; once designated, the DPO + annual audit + periodic DPIA are mandatory.</div>"
+  },
+  {
+   "fieldname": "sdf_section",
+   "fieldtype": "Section Break",
+   "label": "Significant Data Fiduciary Designation"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_designated_sdf",
+   "fieldtype": "Check",
+   "label": "Is Designated SDF",
+   "in_list_view": 1,
+   "description": "Tick only when officially notified by the Central Government as a Significant Data Fiduciary."
+  },
+  {
+   "fieldname": "designation_date",
+   "fieldtype": "Date",
+   "label": "Designation Date",
+   "depends_on": "is_designated_sdf"
+  },
+  {
+   "fieldname": "column_break_sdf",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "data_protection_officer",
+   "fieldtype": "Link",
+   "options": "User",
+   "label": "Data Protection Officer",
+   "depends_on": "is_designated_sdf",
+   "in_list_view": 1,
+   "description": "DPO must be based in India and answerable to the Board (Sec 10(2)(a) DPDP Act)."
+  },
+  {
+   "fetch_from": "data_protection_officer.email",
+   "fieldname": "dpo_email",
+   "fieldtype": "Data",
+   "label": "DPO Email",
+   "read_only": 1
+  },
+  {
+   "fieldname": "dpo_phone",
+   "fieldtype": "Data",
+   "label": "DPO Phone"
+  },
+  {
+   "fieldname": "assessments_section",
+   "fieldtype": "Section Break",
+   "label": "Periodic Assessments"
+  },
+  {
+   "fieldname": "last_dpia_date",
+   "fieldtype": "Date",
+   "label": "Last DPIA Date",
+   "description": "Data Protection Impact Assessment — mandatory periodic for SDFs (Sec 10(2)(c))."
+  },
+  {
+   "fieldname": "next_dpia_due",
+   "fieldtype": "Date",
+   "label": "Next DPIA Due"
+  },
+  {
+   "fieldname": "column_break_assess",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "last_audit_date",
+   "fieldtype": "Date",
+   "label": "Last Audit Date",
+   "description": "Independent data audit — mandatory annual for SDFs (Sec 10(2)(b))."
+  },
+  {
+   "fieldname": "next_audit_due",
+   "fieldtype": "Date",
+   "label": "Next Audit Due"
+  },
+  {
+   "fieldname": "consent_section",
+   "fieldtype": "Section Break",
+   "label": "Consent Manager Integration"
+  },
+  {
+   "default": "0",
+   "fieldname": "consent_managers_setup",
+   "fieldtype": "Check",
+   "label": "Consent Manager Integrated",
+   "description": "DPDP Rules Consent Manager provisions go live 13 Nov 2026. Tick when integration is configured."
+  },
+  {
+   "fieldname": "breach_section",
+   "fieldtype": "Section Break",
+   "label": "Breach Notification"
+  },
+  {
+   "fieldname": "breach_notification_contact_email",
+   "fieldtype": "Data",
+   "label": "Breach Notification Contact Email",
+   "description": "Email address that notifies DPB + affected Data Principals within 72 hours of a confirmed breach (per Rules)."
+  },
+  {
+   "fieldname": "breach_notification_log_url",
+   "fieldtype": "Data",
+   "label": "Breach Notification Log URL",
+   "description": "External URL where breach notifications and DPB acknowledgements are archived."
+  },
+  {
+   "fieldname": "governance_section",
+   "fieldtype": "Section Break",
+   "label": "Governance Notes",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "governance_notes",
+   "fieldtype": "Long Text",
+   "label": "Governance Notes"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-06-03 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "HR",
+ "name": "DPDP Compliance Profile",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "track_changes": 1
+}

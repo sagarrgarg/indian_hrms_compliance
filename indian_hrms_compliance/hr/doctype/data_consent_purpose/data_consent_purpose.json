@@ -1,0 +1,157 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "field:purpose_code",
+ "creation": "2026-06-03 09:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 0,
+ "engine": "InnoDB",
+ "field_order": [
+  "header_html",
+  "identity_section",
+  "purpose_code",
+  "purpose_name",
+  "is_active",
+  "column_break_meta",
+  "lawful_basis",
+  "retention_period_years",
+  "requires_explicit_consent",
+  "description_section",
+  "description",
+  "data_categories",
+  "withdrawal_consequences",
+  "notice_section",
+  "notice_template"
+ ],
+ "fields": [
+  {
+   "fieldname": "header_html",
+   "fieldtype": "HTML",
+   "options": "<div style='background:#eef6fc;border-left:4px solid #2980b9;padding:10px 14px;margin-bottom:8px'><strong>DPDP Master</strong> &mdash; Defines a purpose for which the organisation collects employee personal data. Per Sec 5 DPDP Act 2023, a Data Principal must be notified of the purpose before/at collection. Notice template is rendered to the employee when consent is captured.</div>"
+  },
+  {
+   "fieldname": "identity_section",
+   "fieldtype": "Section Break",
+   "label": "Purpose"
+  },
+  {
+   "fieldname": "purpose_code",
+   "fieldtype": "Data",
+   "label": "Purpose Code",
+   "reqd": 1,
+   "unique": 1,
+   "description": "Short stable identifier, ALL_CAPS_SNAKE_CASE. Used as autoname and in code references. Examples: STATUTORY_PAYROLL, BACKGROUND_CHECK."
+  },
+  {
+   "fieldname": "purpose_name",
+   "fieldtype": "Data",
+   "label": "Purpose Name",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "default": "1",
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "label": "Is Active",
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "column_break_meta",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "lawful_basis",
+   "fieldtype": "Select",
+   "label": "Lawful Basis",
+   "options": "Consent\nStatutory Obligation\nLegitimate Interest\nContract Performance\nVital Interest",
+   "reqd": 1,
+   "in_list_view": 1,
+   "description": "DPDP Act recognised lawful bases (Sec 6 + 7). Consent must be free, specific, informed, unambiguous."
+  },
+  {
+   "fieldname": "retention_period_years",
+   "fieldtype": "Int",
+   "label": "Retention Period (Years)",
+   "description": "Default retention used for Data Consent.expires_on and for Data Retention Rule when this purpose is selected. Overrides HR Settings dpdp_data_retention_years if set."
+  },
+  {
+   "default": "1",
+   "fieldname": "requires_explicit_consent",
+   "fieldtype": "Check",
+   "label": "Requires Explicit Consent",
+   "description": "When ON, a Data Consent record must exist before processing. When OFF (e.g., Statutory Obligation), processing is permitted under the lawful basis without consent."
+  },
+  {
+   "fieldname": "description_section",
+   "fieldtype": "Section Break",
+   "label": "Description & Categories"
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Long Text",
+   "label": "Description"
+  },
+  {
+   "fieldname": "data_categories",
+   "fieldtype": "Long Text",
+   "label": "Data Categories Covered",
+   "description": "What fields/categories of personal data this purpose covers. Comma-separated or markdown list. Example: pan_number, bank_ac_no, ifsc_code, aadhaar_last_4"
+  },
+  {
+   "fieldname": "withdrawal_consequences",
+   "fieldtype": "Long Text",
+   "label": "Withdrawal Consequences",
+   "description": "What happens if the employee withdraws this consent. Shown in the consent withdrawal flow. Example: 'Salary payments will be delayed until alternative payout details are provided.'"
+  },
+  {
+   "fieldname": "notice_section",
+   "fieldtype": "Section Break",
+   "label": "Notice Template",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "notice_template",
+   "fieldtype": "Long Text",
+   "label": "Notice Template (Jinja2 / Markdown)",
+   "description": "Markdown + Jinja2 template shown to the employee at consent capture. Available variables: {{ employee_name }}, {{ company }}, {{ purpose_name }}. Snapshotted into Data Consent.notice_shown_html so the exact text seen is preserved."
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-06-03 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "HR",
+ "name": "Data Consent Purpose",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 0,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR User",
+   "share": 0,
+   "write": 0
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "title_field": "purpose_name",
+ "track_changes": 1
+}

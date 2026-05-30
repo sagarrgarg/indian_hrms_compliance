@@ -1,0 +1,240 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "format:DC-{employee}-{purpose}-{granted_on}",
+ "creation": "2026-06-03 09:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 0,
+ "engine": "InnoDB",
+ "field_order": [
+  "header_html",
+  "identity_section",
+  "employee",
+  "employee_name",
+  "company",
+  "column_break_meta",
+  "purpose",
+  "lawful_basis",
+  "consent_version",
+  "consent_section",
+  "granted_on",
+  "consent_method",
+  "consent_status",
+  "column_break_consent",
+  "expires_on",
+  "proof_attachment",
+  "withdrawal_section",
+  "withdrawn_on",
+  "withdrawal_reason",
+  "notice_section",
+  "notice_shown_html",
+  "notes_section",
+  "notes"
+ ],
+ "fields": [
+  {
+   "fieldname": "header_html",
+   "fieldtype": "HTML",
+   "options": "<div style='background:#eef6fc;border-left:4px solid #2980b9;padding:10px 14px;margin-bottom:8px'><strong>DPDP Consent Record</strong> &mdash; One row per (Employee &times; Purpose &times; Consent Version). The notice the employee saw is snapshotted in this row. Withdrawal is recorded with date + reason &mdash; the row is NOT deleted (audit trail).</div>"
+  },
+  {
+   "fieldname": "identity_section",
+   "fieldtype": "Section Break",
+   "label": "Data Principal"
+  },
+  {
+   "fieldname": "employee",
+   "fieldtype": "Link",
+   "options": "Employee",
+   "label": "Employee",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fetch_from": "employee.employee_name",
+   "fieldname": "employee_name",
+   "fieldtype": "Data",
+   "label": "Employee Name",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fetch_from": "employee.company",
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "options": "Company",
+   "label": "Company",
+   "in_standard_filter": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_meta",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "purpose",
+   "fieldtype": "Link",
+   "options": "Data Consent Purpose",
+   "label": "Purpose",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fetch_from": "purpose.lawful_basis",
+   "fieldname": "lawful_basis",
+   "fieldtype": "Data",
+   "label": "Lawful Basis",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "default": "1.0",
+   "fieldname": "consent_version",
+   "fieldtype": "Data",
+   "label": "Consent Version",
+   "description": "Increment when the purpose's notice_template changes meaningfully. Old consents become 'Superseded' and a new row is captured."
+  },
+  {
+   "fieldname": "consent_section",
+   "fieldtype": "Section Break",
+   "label": "Consent"
+  },
+  {
+   "default": "Today",
+   "fieldname": "granted_on",
+   "fieldtype": "Date",
+   "label": "Granted On",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "consent_method",
+   "fieldtype": "Select",
+   "label": "Consent Method",
+   "options": "Web Form\nPaper Signature\nEmail Reply\nVerbal With Witness\nImplicit At Hiring",
+   "reqd": 1,
+   "description": "How the employee gave consent. Implicit At Hiring is for statutory-obligation purposes captured via the employment contract."
+  },
+  {
+   "default": "Active",
+   "fieldname": "consent_status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "Active\nWithdrawn\nExpired\nSuperseded",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "column_break_consent",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "expires_on",
+   "fieldtype": "Date",
+   "label": "Expires On",
+   "description": "Auto-computed from purpose.retention_period_years (or HR Settings dpdp_data_retention_years) if blank. Scheduler marks status Expired when past."
+  },
+  {
+   "fieldname": "proof_attachment",
+   "fieldtype": "Attach",
+   "label": "Proof Attachment",
+   "description": "Signed PDF, screenshot of email reply, etc. Recommended for non-Web-Form methods."
+  },
+  {
+   "fieldname": "withdrawal_section",
+   "fieldtype": "Section Break",
+   "label": "Withdrawal",
+   "depends_on": "eval:doc.consent_status === 'Withdrawn'",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "withdrawn_on",
+   "fieldtype": "Date",
+   "label": "Withdrawn On",
+   "depends_on": "eval:doc.consent_status === 'Withdrawn'",
+   "read_only": 1
+  },
+  {
+   "fieldname": "withdrawal_reason",
+   "fieldtype": "Small Text",
+   "label": "Withdrawal Reason",
+   "depends_on": "eval:doc.consent_status === 'Withdrawn'"
+  },
+  {
+   "fieldname": "notice_section",
+   "fieldtype": "Section Break",
+   "label": "Notice Snapshot",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "notice_shown_html",
+   "fieldtype": "Long Text",
+   "label": "Notice Shown (Snapshot)",
+   "read_only": 1,
+   "description": "Captured at the moment of consent. Even if the master notice_template changes later, this row preserves what the employee actually saw."
+  },
+  {
+   "fieldname": "notes_section",
+   "fieldtype": "Section Break",
+   "label": "Notes",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Long Text",
+   "label": "Notes"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-06-03 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "HR",
+ "name": "Data Consent",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 0,
+   "email": 1,
+   "export": 0,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR User",
+   "share": 0,
+   "write": 1
+  },
+  {
+   "create": 0,
+   "delete": 0,
+   "email": 0,
+   "export": 0,
+   "print": 1,
+   "read": 1,
+   "report": 0,
+   "role": "Employee",
+   "share": 0,
+   "write": 0,
+   "if_owner": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "title_field": "employee_name",
+ "track_changes": 1
+}

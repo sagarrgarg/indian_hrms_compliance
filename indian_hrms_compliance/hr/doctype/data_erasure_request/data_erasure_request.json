@@ -1,0 +1,245 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "format:DER-{employee}-{request_date}",
+ "creation": "2026-06-03 09:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 0,
+ "engine": "InnoDB",
+ "field_order": [
+  "header_html",
+  "identity_section",
+  "employee",
+  "request_date",
+  "requested_by",
+  "column_break_id",
+  "scope",
+  "specific_categories",
+  "workflow_section",
+  "workflow_state",
+  "column_break_wf",
+  "legal_review_required",
+  "legal_section",
+  "legal_reviewed_by",
+  "legal_reviewed_on",
+  "legal_review_outcome",
+  "decision_section",
+  "decision",
+  "decision_rationale",
+  "execution_section",
+  "erasure_executed_on",
+  "erasure_log",
+  "notes_section",
+  "notes"
+ ],
+ "fields": [
+  {
+   "fieldname": "header_html",
+   "fieldtype": "HTML",
+   "options": "<div style='background:#fdecea;border-left:4px solid #d33;padding:10px 14px;margin-bottom:8px'><strong>Right-to-Erasure (DPDP Sec 12)</strong> &mdash; Mandatory legal review before execution &mdash; some data has statutory retention obligations (PF/ESI 7 yrs, IT Act 8 yrs) and CANNOT be erased while the obligation stands. Execution is logged in Data Access Log + erasure_log.</div>"
+  },
+  {
+   "fieldname": "identity_section",
+   "fieldtype": "Section Break",
+   "label": "Request"
+  },
+  {
+   "fieldname": "employee",
+   "fieldtype": "Link",
+   "options": "Employee",
+   "label": "Employee (Data Principal)",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "default": "Today",
+   "fieldname": "request_date",
+   "fieldtype": "Date",
+   "label": "Request Date",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "requested_by",
+   "fieldtype": "Link",
+   "options": "User",
+   "label": "Requested By",
+   "description": "Usually the employee's own user account. HR can file on the employee's behalf if requested in writing."
+  },
+  {
+   "fieldname": "column_break_id",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Specific Data Categories",
+   "fieldname": "scope",
+   "fieldtype": "Select",
+   "label": "Scope",
+   "options": "Full Profile\nSpecific Data Categories",
+   "reqd": 1
+  },
+  {
+   "fieldname": "specific_categories",
+   "fieldtype": "Long Text",
+   "label": "Specific Data Categories",
+   "depends_on": "eval:doc.scope === 'Specific Data Categories'",
+   "description": "What categories the employee wants erased. Examples: bank_ac_no, ifsc_code, emergency_contact, performance_review_notes."
+  },
+  {
+   "fieldname": "workflow_section",
+   "fieldtype": "Section Break",
+   "label": "Workflow"
+  },
+  {
+   "fieldname": "workflow_state",
+   "fieldtype": "Link",
+   "options": "Workflow State",
+   "label": "Workflow State",
+   "no_copy": 1,
+   "read_only": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "column_break_wf",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "fieldname": "legal_review_required",
+   "fieldtype": "Check",
+   "label": "Legal Review Required",
+   "description": "Tick when statutory retention obligation needs checking (PF/ESI, Companies Act, IT Act). Default ON for all requests."
+  },
+  {
+   "fieldname": "legal_section",
+   "fieldtype": "Section Break",
+   "label": "Legal Review",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "legal_reviewed_by",
+   "fieldtype": "Link",
+   "options": "User",
+   "label": "Legal Reviewed By"
+  },
+  {
+   "fieldname": "legal_reviewed_on",
+   "fieldtype": "Date",
+   "label": "Legal Reviewed On"
+  },
+  {
+   "fieldname": "legal_review_outcome",
+   "fieldtype": "Long Text",
+   "label": "Legal Review Outcome",
+   "description": "Findings: which categories are erasable, which must be retained, and the statutory basis for retention."
+  },
+  {
+   "fieldname": "decision_section",
+   "fieldtype": "Section Break",
+   "label": "Decision",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "decision",
+   "fieldtype": "Select",
+   "label": "Decision",
+   "options": "\nApproved Full\nApproved Partial\nRejected",
+   "depends_on": "eval:in_list(['Decision Made','Executed','Rejected'], doc.workflow_state)"
+  },
+  {
+   "fieldname": "decision_rationale",
+   "fieldtype": "Long Text",
+   "label": "Decision Rationale",
+   "depends_on": "eval:in_list(['Decision Made','Executed','Rejected'], doc.workflow_state)"
+  },
+  {
+   "fieldname": "execution_section",
+   "fieldtype": "Section Break",
+   "label": "Execution",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "erasure_executed_on",
+   "fieldtype": "Date",
+   "label": "Erasure Executed On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "erasure_log",
+   "fieldtype": "Long Text",
+   "label": "Erasure Log",
+   "read_only": 1,
+   "description": "List of doctypes + record names + fields affected. Written by the executor function."
+  },
+  {
+   "fieldname": "notes_section",
+   "fieldtype": "Section Break",
+   "label": "Notes",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Long Text",
+   "label": "Notes"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-06-03 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "HR",
+ "name": "Data Erasure Request",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 0,
+   "email": 1,
+   "export": 0,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR User",
+   "share": 0,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 0,
+   "email": 0,
+   "export": 0,
+   "print": 1,
+   "read": 1,
+   "report": 0,
+   "role": "Employee",
+   "share": 0,
+   "write": 0,
+   "if_owner": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [
+  {"color": "Primary", "title": "Filed"},
+  {"color": "Warning", "title": "Under Legal Review"},
+  {"color": "Info", "title": "Decision Made"},
+  {"color": "Success", "title": "Executed"},
+  {"color": "Danger", "title": "Rejected"}
+ ],
+ "title_field": "employee",
+ "track_changes": 1
+}
