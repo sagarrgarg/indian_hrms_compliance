@@ -63,7 +63,16 @@ doctype_js = {
 	"LWF Return": "public/js/lwf_return.js",
 	"Compliance Filing": "public/js/compliance_filing.js",
 	"Compliance Return Definition": "public/js/compliance_return_definition.js",
+	"Standing Orders": "public/js/standing_orders.js",
+	"Works Committee": "public/js/works_committee.js",
+	"Gig Platform Worker": "public/js/gig_platform_worker.js",
+	"OSH Annual Return Form 26": "public/js/osh_annual_return_form_26.js",
+	"Grievance Redressal Committee": "public/js/grievance_redressal_committee.js",
 }
+# Phase 6E — Company form gets an extra JS for Labour Code applicability check.
+# Appended outside the dict literal to avoid clobbering the Company entry from
+# erpnext/company.js if a downstream patch also touches it.
+doctype_js["Company"] = ["public/js/erpnext/company.js", "public/js/labour_code_company_check.js"]
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
 # doctype_calendar_js = {"doctype" : "public/js/doctype_calendar.js"}
@@ -227,6 +236,7 @@ doc_events = {
 			"indian_hrms_compliance.overrides.employee_master.validate_person_data_consistency",
 			"indian_hrms_compliance.overrides.employee_master.validate_single_primary_employer",
 			"indian_hrms_compliance.overrides.employee_master.auto_set_probation_schedule",
+			"indian_hrms_compliance.overrides.labour_code_uan.validate_uan_aadhaar_linking",
 		],
 		"on_update": [
 			"indian_hrms_compliance.overrides.employee_master.update_approver_role",
@@ -338,7 +348,10 @@ scheduler_events = {
 		"indian_hrms_compliance.hr.utils.allocate_earned_leaves",
 	],
 	"weekly": ["indian_hrms_compliance.controllers.employee_reminders.send_reminders_in_advance_weekly"],
-	"monthly": ["indian_hrms_compliance.controllers.employee_reminders.send_reminders_in_advance_monthly"],
+	"monthly": [
+		"indian_hrms_compliance.controllers.employee_reminders.send_reminders_in_advance_monthly",
+		"indian_hrms_compliance.overrides.labour_code_applicability.monthly_labour_code_compliance_check",
+	],
 }
 
 advance_payment_doctypes = ["Leave Encashment", "Gratuity", "Employee Advance"]

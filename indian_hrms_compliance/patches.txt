@@ -69,3 +69,7 @@ indian_hrms_compliance.patches.v15_0.add_phase6b2_hr_settings #2026-06-01
 indian_hrms_compliance.patches.v15_0.seed_phase6b2_defaults #2026-06-01
 indian_hrms_compliance.patches.v15_0.add_compliance_calendar_hr_settings #2026-06-02
 indian_hrms_compliance.patches.v15_0.seed_compliance_calendar_defaults #2026-06-02
+indian_hrms_compliance.patches.v15_0.setup_standing_orders_workflow #2026-06-03
+indian_hrms_compliance.patches.v15_0.add_labour_code_employee_fields #2026-06-03
+indian_hrms_compliance.patches.v15_0.add_labour_code_hr_settings #2026-06-03
+indian_hrms_compliance.patches.v15_0.seed_labour_code_defaults #2026-06-03
