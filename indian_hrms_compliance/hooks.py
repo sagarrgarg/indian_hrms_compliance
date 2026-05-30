@@ -246,6 +246,10 @@ doc_events = {
 		"validate": "indian_hrms_compliance.overrides.full_and_final_extension.compute_phase4_lines",
 		"on_submit": "indian_hrms_compliance.overrides.full_and_final_extension.auto_generate_exit_letters_on_submit",
 	},
+	"Employee Grievance": {
+		"validate": "indian_hrms_compliance.overrides.grievance_workflow.compute_sla_due_date",
+		"on_update": "indian_hrms_compliance.overrides.grievance_workflow.route_grievance_todos",
+	},
 }
 
 # Scheduled Tasks
@@ -275,6 +279,7 @@ scheduler_events = {
 		"indian_hrms_compliance.hr.doctype.hrms_task.hrms_task.instantiate_due_tasks",
 		"indian_hrms_compliance.hr.doctype.hrms_task.hrms_task.send_overdue_task_reminders",
 		"indian_hrms_compliance.hr.doctype.hrms_task.hrms_task.archive_old_completed_task_instances",
+		"indian_hrms_compliance.overrides.grievance_workflow.send_overdue_grievance_reminders",
 	],
 	"daily_long": [
 		"indian_hrms_compliance.hr.doctype.leave_ledger_entry.leave_ledger_entry.process_expired_allocation",
