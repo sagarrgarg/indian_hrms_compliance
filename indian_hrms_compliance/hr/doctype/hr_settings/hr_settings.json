@@ -96,7 +96,28 @@
   "default_exit_letter_letterhead",
   "column_break_exit_3",
   "form_16_default_signatory_designation",
-  "form_16_issuance_deadline_alert_days"
+  "form_16_issuance_deadline_alert_days",
+  "compliance_tab",
+  "grievance_sla_section",
+  "grievance_sla_days_critical",
+  "grievance_sla_days_high",
+  "column_break_grievance_1",
+  "grievance_sla_days_medium",
+  "grievance_sla_days_low",
+  "grievance_digest_section",
+  "send_overdue_grievance_hr_digest",
+  "grievance_overdue_recipients_role",
+  "posh_section",
+  "posh_statutory_sla_days",
+  "posh_ic_alert_role",
+  "column_break_posh_1",
+  "posh_annual_report_alert_days",
+  "disciplinary_section",
+  "default_disciplinary_inquiry_days",
+  "auto_trigger_resignation_on_termination_outcome",
+  "column_break_disc_1",
+  "auto_trigger_warning_letter",
+  "auto_trigger_salary_withholding_on_suspension"
  ],
  "fields": [
   {
@@ -668,6 +689,142 @@
    "label": "Form 16 Deadline Alert (days before Jun 15)",
    "non_negative": 1,
    "description": "Daily scheduler alerts HR when within this many days of the Form 16 issuance deadline (June 15 each year)."
+  },
+
+  {
+   "fieldname": "compliance_tab",
+   "fieldtype": "Tab Break",
+   "label": "Compliance"
+  },
+  {
+   "fieldname": "grievance_sla_section",
+   "fieldtype": "Section Break",
+   "label": "Grievance SLA (by Severity)",
+   "description": "Default SLA days per severity, used when the Grievance Type doesn't specify default_sla_days. Days are computed from raised_date."
+  },
+  {
+   "default": "7",
+   "fieldname": "grievance_sla_days_critical",
+   "fieldtype": "Int",
+   "label": "Critical (days)",
+   "non_negative": 1
+  },
+  {
+   "default": "14",
+   "fieldname": "grievance_sla_days_high",
+   "fieldtype": "Int",
+   "label": "High (days)",
+   "non_negative": 1
+  },
+  {
+   "fieldname": "column_break_grievance_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "21",
+   "fieldname": "grievance_sla_days_medium",
+   "fieldtype": "Int",
+   "label": "Medium (days)",
+   "non_negative": 1
+  },
+  {
+   "default": "30",
+   "fieldname": "grievance_sla_days_low",
+   "fieldtype": "Int",
+   "label": "Low (days)",
+   "non_negative": 1
+  },
+  {
+   "fieldname": "grievance_digest_section",
+   "fieldtype": "Section Break",
+   "label": "Grievance Overdue Digest"
+  },
+  {
+   "default": "1",
+   "fieldname": "send_overdue_grievance_hr_digest",
+   "fieldtype": "Check",
+   "label": "Send Overdue Grievance HR Digest (daily)"
+  },
+  {
+   "default": "HR Manager",
+   "depends_on": "send_overdue_grievance_hr_digest",
+   "fieldname": "grievance_overdue_recipients_role",
+   "fieldtype": "Link",
+   "options": "Role",
+   "label": "Grievance Digest Recipients Role"
+  },
+  {
+   "fieldname": "posh_section",
+   "fieldtype": "Section Break",
+   "label": "POSH",
+   "description": "POSH complaint detail visibility is enforced by permission_query_conditions and is NOT controlled by HR Settings. These knobs only affect SLA + alerts."
+  },
+  {
+   "default": "90",
+   "fieldname": "posh_statutory_sla_days",
+   "fieldtype": "Int",
+   "label": "Statutory SLA (days)",
+   "non_negative": 1,
+   "description": "Sec 11 of POSH Act 2013 mandates 90 days. Editable for jurisdictions that adopt different timelines — change with legal advice."
+  },
+  {
+   "default": "HR Manager",
+   "fieldname": "posh_ic_alert_role",
+   "fieldtype": "Link",
+   "options": "Role",
+   "label": "POSH IC Alert Role",
+   "description": "Role notified when the IC for a Company is missing or has fewer than 4 active members (informational — not enforced)."
+  },
+  {
+   "fieldname": "column_break_posh_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "30",
+   "fieldname": "posh_annual_report_alert_days",
+   "fieldtype": "Int",
+   "label": "Annual Report Alert (days before FY end)",
+   "non_negative": 1,
+   "description": "HR is reminded to file the POSH Annual Report (Sec 21) this many days before fiscal year end."
+  },
+  {
+   "fieldname": "disciplinary_section",
+   "fieldtype": "Section Break",
+   "label": "Disciplinary Action Triggers",
+   "description": "Each downstream document trigger can be disabled here — useful for staged rollouts or when HR wants to keep manual control."
+  },
+  {
+   "default": "30",
+   "fieldname": "default_disciplinary_inquiry_days",
+   "fieldtype": "Int",
+   "label": "Default Inquiry Duration (days)",
+   "non_negative": 1,
+   "description": "Informational default for inquiry duration; surfaced on the Disciplinary Action form for HR reference."
+  },
+  {
+   "default": "1",
+   "fieldname": "auto_trigger_resignation_on_termination_outcome",
+   "fieldtype": "Check",
+   "label": "Auto-create Resignation Request on Termination Outcome",
+   "description": "When ticked, Disciplinary Action with outcome=Termination/Dismissal auto-creates a Resignation Request and walks it to Pending HR Approval. When unticked, HR must initiate the RR manually."
+  },
+  {
+   "fieldname": "column_break_disc_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "fieldname": "auto_trigger_warning_letter",
+   "fieldtype": "Check",
+   "label": "Auto-create Warning Letter on Warning Outcomes",
+   "description": "When ticked, Written / Final Warning outcomes auto-create an Appointment Letter draft using the Warning Letter Template."
+  },
+  {
+   "default": "1",
+   "fieldname": "auto_trigger_salary_withholding_on_suspension",
+   "fieldtype": "Check",
+   "label": "Auto-create Salary Withholding on Suspension",
+   "description": "When ticked, Suspension outcomes auto-create a Salary Withholding for the suspension period. Requires the Employee to have an active Salary Structure Assignment."
   }
  ],
  "icon": "fa fa-cog",

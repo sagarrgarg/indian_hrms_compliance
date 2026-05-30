@@ -36,6 +36,16 @@ STATE_DATE_FIELD_MAP = {
 }
 
 
+def _hr_setting(field, default=None):
+	"""Safe HR Settings read — returns default if the field doesn't exist
+	yet. Mirrors the pattern used by overrides/full_and_final_extension."""
+	meta = frappe.get_meta("HR Settings")
+	if not meta.get_field(field):
+		return default
+	val = frappe.db.get_single_value("HR Settings", field)
+	return default if val in (None, "") else val
+
+
 class DisciplinaryAction(Document):
 	def before_insert(self):
 		if not self.workflow_state:
@@ -75,6 +85,8 @@ class DisciplinaryAction(Document):
 			return
 		if self.linked_resignation_request:
 			return  # already triggered
+		if not int(_hr_setting("auto_trigger_resignation_on_termination_outcome", 1) or 0):
+			return
 		rr = frappe.get_doc(
 			{
 				"doctype": "Resignation Request",
@@ -115,6 +127,8 @@ class DisciplinaryAction(Document):
 			return
 		if self.linked_warning_letter:
 			return  # already triggered
+		if not int(_hr_setting("auto_trigger_warning_letter", 1) or 0):
+			return
 		# Use the Warning Letter Template if seeded (Phase 5 Stage 4).
 		template = frappe.db.get_value(
 			"Appointment Letter Template", {"letter_type": "Warning Letter"}, "name"
@@ -157,6 +171,8 @@ class DisciplinaryAction(Document):
 		if self.linked_salary_withholding:
 			return
 		if not (self.suspension_from and self.suspension_to):
+			return
+		if not int(_hr_setting("auto_trigger_salary_withholding_on_suspension", 1) or 0):
 			return
 		try:
 			# Salary Withholding requires payroll_frequency + cycles. We'll
