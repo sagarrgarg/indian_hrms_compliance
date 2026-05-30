@@ -1,0 +1,255 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "field:company",
+ "creation": "2026-05-30 09:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 0,
+ "engine": "InnoDB",
+ "field_order": [
+  "identity_section",
+  "company",
+  "effective_from",
+  "earnings_section",
+  "basic_component",
+  "da_component",
+  "column_break_earn",
+  "hra_component",
+  "arrear_component",
+  "pf_section",
+  "pf_employee_component",
+  "pf_employer_component",
+  "eps_component",
+  "column_break_pf",
+  "edli_component",
+  "pf_admin_charges_component",
+  "esi_section",
+  "esi_employee_component",
+  "column_break_esi",
+  "esi_employer_component",
+  "state_section",
+  "pt_component",
+  "lwf_employee_component",
+  "column_break_state",
+  "lwf_employer_component",
+  "tax_section",
+  "income_tax_component",
+  "column_break_tax",
+  "gratuity_component",
+  "notes_section",
+  "notes"
+ ],
+ "fields": [
+  {
+   "fieldname": "identity_section",
+   "fieldtype": "Section Break",
+   "label": "Identity"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "options": "Company",
+   "label": "Company",
+   "reqd": 1,
+   "unique": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "effective_from",
+   "fieldtype": "Date",
+   "label": "Effective From",
+   "default": "Today",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "earnings_section",
+   "fieldtype": "Section Break",
+   "label": "Earnings Components"
+  },
+  {
+   "fieldname": "basic_component",
+   "fieldtype": "Link",
+   "options": "Salary Component",
+   "label": "Basic Component",
+   "fetch_from": "company.basic_component"
+  },
+  {
+   "fieldname": "da_component",
+   "fieldtype": "Link",
+   "options": "Salary Component",
+   "label": "Dearness Allowance Component"
+  },
+  {
+   "fieldname": "column_break_earn",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "hra_component",
+   "fieldtype": "Link",
+   "options": "Salary Component",
+   "label": "HRA Component",
+   "fetch_from": "company.hra_component"
+  },
+  {
+   "fieldname": "arrear_component",
+   "fieldtype": "Link",
+   "options": "Salary Component",
+   "label": "Arrear Component",
+   "fetch_from": "company.arrear_component"
+  },
+  {
+   "fieldname": "pf_section",
+   "fieldtype": "Section Break",
+   "label": "Provident Fund Components"
+  },
+  {
+   "fieldname": "pf_employee_component",
+   "fieldtype": "Link",
+   "options": "Salary Component",
+   "label": "PF Employee Component"
+  },
+  {
+   "fieldname": "pf_employer_component",
+   "fieldtype": "Link",
+   "options": "Salary Component",
+   "label": "PF Employer Component"
+  },
+  {
+   "fieldname": "eps_component",
+   "fieldtype": "Link",
+   "options": "Salary Component",
+   "label": "EPS Component"
+  },
+  {
+   "fieldname": "column_break_pf",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "edli_component",
+   "fieldtype": "Link",
+   "options": "Salary Component",
+   "label": "EDLI Component"
+  },
+  {
+   "fieldname": "pf_admin_charges_component",
+   "fieldtype": "Link",
+   "options": "Salary Component",
+   "label": "PF Admin Charges Component"
+  },
+  {
+   "fieldname": "esi_section",
+   "fieldtype": "Section Break",
+   "label": "ESI Components"
+  },
+  {
+   "fieldname": "esi_employee_component",
+   "fieldtype": "Link",
+   "options": "Salary Component",
+   "label": "ESI Employee Component"
+  },
+  {
+   "fieldname": "column_break_esi",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "esi_employer_component",
+   "fieldtype": "Link",
+   "options": "Salary Component",
+   "label": "ESI Employer Component"
+  },
+  {
+   "fieldname": "state_section",
+   "fieldtype": "Section Break",
+   "label": "State Components (PT & LWF)"
+  },
+  {
+   "fieldname": "pt_component",
+   "fieldtype": "Link",
+   "options": "Salary Component",
+   "label": "Professional Tax Component"
+  },
+  {
+   "fieldname": "lwf_employee_component",
+   "fieldtype": "Link",
+   "options": "Salary Component",
+   "label": "LWF Employee Component"
+  },
+  {
+   "fieldname": "column_break_state",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "lwf_employer_component",
+   "fieldtype": "Link",
+   "options": "Salary Component",
+   "label": "LWF Employer Component"
+  },
+  {
+   "fieldname": "tax_section",
+   "fieldtype": "Section Break",
+   "label": "Tax & Gratuity Components"
+  },
+  {
+   "fieldname": "income_tax_component",
+   "fieldtype": "Link",
+   "options": "Salary Component",
+   "label": "Income Tax Component"
+  },
+  {
+   "fieldname": "column_break_tax",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "gratuity_component",
+   "fieldtype": "Link",
+   "options": "Salary Component",
+   "label": "Gratuity Component"
+  },
+  {
+   "fieldname": "notes_section",
+   "fieldtype": "Section Break",
+   "label": "Notes",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Long Text",
+   "label": "Notes"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-05-30 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "HR",
+ "name": "Statutory Component Mapping",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR User",
+   "share": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "company",
+ "track_changes": 1
+}

@@ -1,0 +1,94 @@
+{
+ "actions": [],
+ "creation": "2026-05-30 09:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "gender",
+  "from_amount",
+  "to_amount",
+  "period",
+  "amount",
+  "special_month_amount",
+  "effective_from",
+  "effective_to"
+ ],
+ "fields": [
+  {
+   "default": "Any",
+   "fieldname": "gender",
+   "fieldtype": "Select",
+   "label": "Gender",
+   "options": "Any\nMale\nFemale\nOther",
+   "in_list_view": 1,
+   "columns": 1,
+   "description": "Use 'Any' unless the state has gender-specific slabs (e.g. Maharashtra Male)."
+  },
+  {
+   "fieldname": "from_amount",
+   "fieldtype": "Currency",
+   "label": "From (Gross / period)",
+   "reqd": 1,
+   "in_list_view": 1,
+   "columns": 1
+  },
+  {
+   "fieldname": "to_amount",
+   "fieldtype": "Currency",
+   "label": "To (Gross / period)",
+   "reqd": 1,
+   "in_list_view": 1,
+   "columns": 1,
+   "description": "0 means 'and above'."
+  },
+  {
+   "default": "Monthly",
+   "fieldname": "period",
+   "fieldtype": "Select",
+   "label": "Period",
+   "options": "Monthly\nHalf-yearly",
+   "in_list_view": 1,
+   "columns": 1
+  },
+  {
+   "fieldname": "amount",
+   "fieldtype": "Currency",
+   "label": "PT Amount",
+   "reqd": 1,
+   "in_list_view": 1,
+   "columns": 1,
+   "description": "PT per period."
+  },
+  {
+   "fieldname": "special_month_amount",
+   "fieldtype": "Currency",
+   "label": "Special Month Amount",
+   "description": "Used for February (KA/MH have an extra deduction in Feb).",
+   "columns": 1
+  },
+  {
+   "fieldname": "effective_from",
+   "fieldtype": "Date",
+   "label": "Effective From"
+  },
+  {
+   "fieldname": "effective_to",
+   "fieldtype": "Date",
+   "label": "Effective To"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-05-30 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "HR",
+ "name": "Indian State PT Slab",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

@@ -1,0 +1,117 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "format:SSVL-{#####}",
+ "creation": "2026-05-30 09:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 0,
+ "engine": "InnoDB",
+ "field_order": [
+  "identity_section",
+  "salary_structure",
+  "validated_on",
+  "column_break_id",
+  "triggered_by",
+  "severity",
+  "issue_code",
+  "detail_section",
+  "message"
+ ],
+ "fields": [
+  {
+   "fieldname": "identity_section",
+   "fieldtype": "Section Break",
+   "label": "Validation Run"
+  },
+  {
+   "fieldname": "salary_structure",
+   "fieldtype": "Link",
+   "options": "Salary Structure",
+   "label": "Salary Structure",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "validated_on",
+   "fieldtype": "Datetime",
+   "label": "Validated On",
+   "default": "now",
+   "reqd": 1,
+   "in_list_view": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_id",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "triggered_by",
+   "fieldtype": "Link",
+   "options": "User",
+   "label": "Triggered By",
+   "read_only": 1
+  },
+  {
+   "fieldname": "severity",
+   "fieldtype": "Select",
+   "label": "Severity",
+   "options": "\nHARD\nWARN\nINFO",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "issue_code",
+   "fieldtype": "Data",
+   "label": "Issue Code",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "description": "Stable code (e.g. WAGE_CODE_50, PF_COMPONENT_MISSING) for filtering & alerts."
+  },
+  {
+   "fieldname": "detail_section",
+   "fieldtype": "Section Break",
+   "label": "Detail"
+  },
+  {
+   "fieldname": "message",
+   "fieldtype": "Long Text",
+   "label": "Message"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-05-30 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "HR",
+ "name": "Salary Structure Validation Log",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR User",
+   "share": 1
+  }
+ ],
+ "sort_field": "validated_on",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 0
+}

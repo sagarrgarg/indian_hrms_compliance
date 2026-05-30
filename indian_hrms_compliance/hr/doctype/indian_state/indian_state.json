@@ -1,0 +1,258 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "field:state_code",
+ "creation": "2026-05-30 09:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 0,
+ "engine": "InnoDB",
+ "field_order": [
+  "identity_section",
+  "state_code",
+  "state_name",
+  "column_break_id",
+  "region",
+  "pt_section",
+  "pt_applicable",
+  "pt_filing_frequency",
+  "pt_special_month",
+  "column_break_pt",
+  "pt_max_annual_cap",
+  "pt_slabs",
+  "lwf_section",
+  "lwf_applicable",
+  "lwf_filing_frequency",
+  "column_break_lwf",
+  "lwf_employee_amount",
+  "lwf_employer_amount",
+  "shops_estab_section",
+  "shops_estab_act_name",
+  "shops_estab_annual_return_form",
+  "column_break_shops",
+  "shops_estab_annual_return_due",
+  "shops_estab_certificate_validity",
+  "labour_code_section",
+  "labour_code_notification_status",
+  "minimum_wage_notification_url",
+  "notes_section",
+  "notes"
+ ],
+ "fields": [
+  {
+   "fieldname": "identity_section",
+   "fieldtype": "Section Break",
+   "label": "Identity"
+  },
+  {
+   "fieldname": "state_code",
+   "fieldtype": "Data",
+   "label": "State Code",
+   "reqd": 1,
+   "unique": 1,
+   "length": 2,
+   "description": "ISO 3166-2:IN style 2-letter code, e.g. KA, MH, DL."
+  },
+  {
+   "fieldname": "state_name",
+   "fieldtype": "Data",
+   "label": "State Name",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "column_break_id",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "region",
+   "fieldtype": "Select",
+   "label": "Region",
+   "options": "\nNorth\nSouth\nEast\nWest\nNorth-East\nCentral",
+   "in_standard_filter": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "pt_section",
+   "fieldtype": "Section Break",
+   "label": "Professional Tax"
+  },
+  {
+   "default": "1",
+   "fieldname": "pt_applicable",
+   "fieldtype": "Check",
+   "label": "PT Applicable",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "pt_filing_frequency",
+   "fieldtype": "Select",
+   "label": "PT Filing Frequency",
+   "options": "\nMonthly\nHalf-yearly\nAnnual",
+   "depends_on": "pt_applicable"
+  },
+  {
+   "fieldname": "pt_special_month",
+   "fieldtype": "Select",
+   "label": "PT Special Month",
+   "options": "\nNone\nFebruary (extra)",
+   "depends_on": "pt_applicable",
+   "description": "States like KA / MH deduct an extra amount in February."
+  },
+  {
+   "fieldname": "column_break_pt",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "2500",
+   "fieldname": "pt_max_annual_cap",
+   "fieldtype": "Currency",
+   "label": "PT Max Annual Cap",
+   "depends_on": "pt_applicable",
+   "description": "Constitutional cap is INR 2,500 / employee / year."
+  },
+  {
+   "fieldname": "pt_slabs",
+   "fieldtype": "Table",
+   "label": "PT Slabs",
+   "options": "Indian State PT Slab",
+   "depends_on": "pt_applicable"
+  },
+  {
+   "fieldname": "lwf_section",
+   "fieldtype": "Section Break",
+   "label": "Labour Welfare Fund"
+  },
+  {
+   "default": "0",
+   "fieldname": "lwf_applicable",
+   "fieldtype": "Check",
+   "label": "LWF Applicable",
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "lwf_filing_frequency",
+   "fieldtype": "Select",
+   "label": "LWF Filing Frequency",
+   "options": "\nMonthly\nHalf-yearly\nAnnual",
+   "depends_on": "lwf_applicable"
+  },
+  {
+   "fieldname": "column_break_lwf",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "lwf_employee_amount",
+   "fieldtype": "Currency",
+   "label": "LWF Employee Amount",
+   "depends_on": "lwf_applicable"
+  },
+  {
+   "fieldname": "lwf_employer_amount",
+   "fieldtype": "Currency",
+   "label": "LWF Employer Amount",
+   "depends_on": "lwf_applicable"
+  },
+  {
+   "fieldname": "shops_estab_section",
+   "fieldtype": "Section Break",
+   "label": "Shops & Establishments"
+  },
+  {
+   "fieldname": "shops_estab_act_name",
+   "fieldtype": "Data",
+   "label": "Shops & Estab Act Name"
+  },
+  {
+   "fieldname": "shops_estab_annual_return_form",
+   "fieldtype": "Data",
+   "label": "Annual Return Form"
+  },
+  {
+   "fieldname": "column_break_shops",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "shops_estab_annual_return_due",
+   "fieldtype": "Data",
+   "label": "Annual Return Due",
+   "description": "Free text — e.g. '31 Jan'."
+  },
+  {
+   "fieldname": "shops_estab_certificate_validity",
+   "fieldtype": "Select",
+   "label": "Certificate Validity",
+   "options": "\n1 year\n5 years\nLifetime"
+  },
+  {
+   "fieldname": "labour_code_section",
+   "fieldtype": "Section Break",
+   "label": "Labour Codes"
+  },
+  {
+   "fieldname": "labour_code_notification_status",
+   "fieldtype": "Select",
+   "label": "Labour Code Notification Status",
+   "options": "\nAll Codes Notified\nPartial\nNone Notified",
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "minimum_wage_notification_url",
+   "fieldtype": "Data",
+   "label": "Minimum Wage Notification URL"
+  },
+  {
+   "fieldname": "notes_section",
+   "fieldtype": "Section Break",
+   "label": "Notes",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Long Text",
+   "label": "Notes"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-05-30 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "HR",
+ "name": "Indian State",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR User",
+   "share": 1
+  },
+  {
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Employee",
+   "share": 1
+  }
+ ],
+ "sort_field": "state_code",
+ "sort_order": "ASC",
+ "states": [],
+ "title_field": "state_name",
+ "track_changes": 1
+}
