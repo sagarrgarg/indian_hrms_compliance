@@ -1,0 +1,230 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "format:PT-{company}-{state}-{period_label}",
+ "creation": "2026-05-30 18:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 0,
+ "engine": "InnoDB",
+ "field_order": [
+  "identity_section",
+  "company",
+  "state",
+  "pt_registration_number",
+  "column_break_id",
+  "period_type",
+  "period_label",
+  "period_start",
+  "period_end",
+  "status_section",
+  "filing_status",
+  "generated_on",
+  "filed_on",
+  "challan_number",
+  "summary_section",
+  "total_employees_in_state",
+  "total_pt_collected",
+  "rows_section",
+  "rows",
+  "file_section",
+  "pt_csv",
+  "exceptions_section",
+  "exceptions",
+  "notes_section",
+  "notes"
+ ],
+ "fields": [
+  {
+   "fieldname": "identity_section",
+   "fieldtype": "Section Break",
+   "label": "Return Identity"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "options": "Company",
+   "label": "Company",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "default": ":Company"
+  },
+  {
+   "fieldname": "state",
+   "fieldtype": "Link",
+   "options": "Indian State",
+   "label": "State",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "description": "Indian State (KA / MH / TN etc.) — drives slab lookup + filing frequency."
+  },
+  {
+   "fieldname": "pt_registration_number",
+   "fieldtype": "Data",
+   "label": "PT Enrollment / Registration Number",
+   "description": "Company's PT enrollment number for this state."
+  },
+  {
+   "fieldname": "column_break_id",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fetch_from": "state.pt_filing_frequency",
+   "fieldname": "period_type",
+   "fieldtype": "Select",
+   "options": "\nMonthly\nHalf-yearly",
+   "label": "Period Type",
+   "read_only": 1
+  },
+  {
+   "fieldname": "period_label",
+   "fieldtype": "Data",
+   "label": "Period Label",
+   "in_list_view": 1,
+   "description": "Human-readable, e.g. 'May 2026' or 'Apr-Sep 2026'."
+  },
+  {
+   "fieldname": "period_start",
+   "fieldtype": "Date",
+   "label": "Period Start",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "period_end",
+   "fieldtype": "Date",
+   "label": "Period End",
+   "reqd": 1
+  },
+  {
+   "fieldname": "status_section",
+   "fieldtype": "Section Break",
+   "label": "Filing Status"
+  },
+  {
+   "default": "Draft",
+   "fieldname": "filing_status",
+   "fieldtype": "Select",
+   "options": "Draft\nGenerated\nFiled\nCancelled",
+   "label": "Filing Status",
+   "read_only": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "generated_on",
+   "fieldtype": "Datetime",
+   "label": "Generated On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "filed_on",
+   "fieldtype": "Date",
+   "label": "Filed On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "challan_number",
+   "fieldtype": "Data",
+   "label": "Challan Number"
+  },
+  {
+   "fieldname": "summary_section",
+   "fieldtype": "Section Break",
+   "label": "Summary"
+  },
+  {
+   "fieldname": "total_employees_in_state",
+   "fieldtype": "Int",
+   "label": "Total Employees in State",
+   "read_only": 1
+  },
+  {
+   "fieldname": "total_pt_collected",
+   "fieldtype": "Currency",
+   "label": "Total PT Collected",
+   "read_only": 1
+  },
+  {
+   "fieldname": "rows_section",
+   "fieldtype": "Section Break",
+   "label": "Per-Employee Rows"
+  },
+  {
+   "fieldname": "rows",
+   "fieldtype": "Table",
+   "options": "Professional Tax Return Row",
+   "label": "Rows"
+  },
+  {
+   "fieldname": "file_section",
+   "fieldtype": "Section Break",
+   "label": "Return File"
+  },
+  {
+   "fieldname": "pt_csv",
+   "fieldtype": "Attach",
+   "label": "PT Return CSV",
+   "read_only": 1,
+   "description": "Per-employee CSV summary. Use as input when populating the state's PT portal / PDF."
+  },
+  {
+   "fieldname": "exceptions_section",
+   "fieldtype": "Section Break",
+   "label": "Exceptions",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "exceptions",
+   "fieldtype": "Long Text",
+   "label": "Exceptions",
+   "read_only": 1
+  },
+  {
+   "fieldname": "notes_section",
+   "fieldtype": "Section Break",
+   "label": "Notes",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Long Text",
+   "label": "Notes"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-05-30 18:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Payroll",
+ "name": "Professional Tax Return",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR User",
+   "share": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "period_label",
+ "track_changes": 1
+}

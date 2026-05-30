@@ -1,0 +1,99 @@
+{
+ "actions": [],
+ "creation": "2026-05-30 18:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "employee",
+  "employee_name",
+  "pan",
+  "gender",
+  "gross_wages",
+  "pt_deducted",
+  "expected_pt",
+  "variance",
+  "salary_slip"
+ ],
+ "fields": [
+  {
+   "fieldname": "employee",
+   "fieldtype": "Link",
+   "options": "Employee",
+   "label": "Employee",
+   "in_list_view": 1,
+   "columns": 2
+  },
+  {
+   "fetch_from": "employee.employee_name",
+   "fieldname": "employee_name",
+   "fieldtype": "Data",
+   "label": "Employee Name",
+   "read_only": 1,
+   "in_list_view": 1,
+   "columns": 2
+  },
+  {
+   "fetch_from": "employee.pan_number",
+   "fieldname": "pan",
+   "fieldtype": "Data",
+   "label": "PAN",
+   "length": 10
+  },
+  {
+   "fieldname": "gender",
+   "fieldtype": "Select",
+   "options": "\nMale\nFemale\nOther",
+   "label": "Gender",
+   "description": "Required for MH where slabs are gender-specific. Fetched from Employee.gender if not set."
+  },
+  {
+   "fieldname": "gross_wages",
+   "fieldtype": "Currency",
+   "label": "Gross Wages",
+   "in_list_view": 1,
+   "columns": 2
+  },
+  {
+   "fieldname": "pt_deducted",
+   "fieldtype": "Currency",
+   "label": "PT Deducted",
+   "in_list_view": 1,
+   "columns": 2,
+   "description": "Actual PT line on the Salary Slip's deductions table."
+  },
+  {
+   "fieldname": "expected_pt",
+   "fieldtype": "Currency",
+   "label": "Expected PT (per slab)",
+   "in_list_view": 1,
+   "columns": 1,
+   "description": "Per Indian State PT slab lookup against gross_wages + gender + period."
+  },
+  {
+   "fieldname": "variance",
+   "fieldtype": "Currency",
+   "label": "Variance",
+   "read_only": 1,
+   "description": "pt_deducted - expected_pt. Nonzero → audit flag."
+  },
+  {
+   "fieldname": "salary_slip",
+   "fieldtype": "Link",
+   "options": "Salary Slip",
+   "label": "Salary Slip"
+  }
+ ],
+ "istable": 1,
+ "links": [],
+ "modified": "2026-05-30 18:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Payroll",
+ "name": "Professional Tax Return Row",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

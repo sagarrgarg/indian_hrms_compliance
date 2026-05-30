@@ -1,0 +1,320 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "format:24Q-{company}-{fiscal_year}-{quarter}",
+ "creation": "2026-05-30 18:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 0,
+ "engine": "InnoDB",
+ "field_order": [
+  "identity_section",
+  "company",
+  "fiscal_year",
+  "quarter",
+  "column_break_id",
+  "act",
+  "form_name",
+  "column_break_meta",
+  "employer_tan",
+  "employer_pan",
+  "responsible_section",
+  "responsible_person_name",
+  "responsible_person_designation",
+  "column_break_resp",
+  "responsible_person_pan",
+  "responsible_person_address",
+  "status_section",
+  "filing_status",
+  "generated_on",
+  "filed_on",
+  "ack_number",
+  "challan_section",
+  "challans",
+  "annexure_i_section",
+  "annexure_i_rows",
+  "annexure_ii_section",
+  "annexure_ii_rows",
+  "summary_section",
+  "total_tax_deducted",
+  "total_tax_deposited",
+  "column_break_summary",
+  "total_employees",
+  "file_section",
+  "txt_file",
+  "exceptions_section",
+  "exceptions",
+  "notes_section",
+  "notes"
+ ],
+ "fields": [
+  {
+   "fieldname": "identity_section",
+   "fieldtype": "Section Break",
+   "label": "Return Identity"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "options": "Company",
+   "label": "Company",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "default": ":Company"
+  },
+  {
+   "fieldname": "fiscal_year",
+   "fieldtype": "Link",
+   "options": "Fiscal Year",
+   "label": "Fiscal Year",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "quarter",
+   "fieldtype": "Select",
+   "options": "Q1\nQ2\nQ3\nQ4",
+   "label": "Quarter",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "description": "Q1 = Apr-Jun, Q2 = Jul-Sep, Q3 = Oct-Dec, Q4 = Jan-Mar. Annexure II is mandatory for Q4."
+  },
+  {
+   "fieldname": "column_break_id",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "act",
+   "fieldtype": "Select",
+   "options": "Income Tax Act 1961 (Form 24Q)\nIncome Tax Act 2025 (Form 138)",
+   "label": "Governing Act",
+   "description": "Auto-derived in validate(): IT Act 2025 (Form 138) for Q1 FY 2026-27 onwards; Form 24Q otherwise."
+  },
+  {
+   "fieldname": "form_name",
+   "fieldtype": "Data",
+   "label": "Form Name",
+   "read_only": 1,
+   "description": "Display name: 'Form 24Q' or 'Form 138'."
+  },
+  {
+   "fieldname": "column_break_meta",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "employer_tan",
+   "fieldtype": "Data",
+   "label": "Employer TAN",
+   "length": 10,
+   "description": "10-char Tax deduction Account Number (4 alpha + 5 num + 1 alpha). Auto-populated from Company.tax_id."
+  },
+  {
+   "fetch_from": "company.pan",
+   "fieldname": "employer_pan",
+   "fieldtype": "Data",
+   "label": "Employer PAN",
+   "length": 10
+  },
+  {
+   "fieldname": "responsible_section",
+   "fieldtype": "Section Break",
+   "label": "Person Responsible for Deduction"
+  },
+  {
+   "fieldname": "responsible_person_name",
+   "fieldtype": "Data",
+   "label": "Responsible Person Name"
+  },
+  {
+   "fieldname": "responsible_person_designation",
+   "fieldtype": "Link",
+   "options": "Designation",
+   "label": "Designation"
+  },
+  {
+   "fieldname": "column_break_resp",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "responsible_person_pan",
+   "fieldtype": "Data",
+   "label": "Responsible Person PAN",
+   "length": 10
+  },
+  {
+   "fieldname": "responsible_person_address",
+   "fieldtype": "Small Text",
+   "label": "Address"
+  },
+  {
+   "fieldname": "status_section",
+   "fieldtype": "Section Break",
+   "label": "Filing Status"
+  },
+  {
+   "default": "Draft",
+   "fieldname": "filing_status",
+   "fieldtype": "Select",
+   "options": "Draft\nGenerated\nFiled\nCancelled",
+   "label": "Filing Status",
+   "read_only": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "generated_on",
+   "fieldtype": "Datetime",
+   "label": "Generated On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "filed_on",
+   "fieldtype": "Date",
+   "label": "Filed On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ack_number",
+   "fieldtype": "Data",
+   "label": "Acknowledgement Number",
+   "description": "15-digit RPU acknowledgement number issued upon successful filing."
+  },
+  {
+   "fieldname": "challan_section",
+   "fieldtype": "Section Break",
+   "label": "Challans Deposited"
+  },
+  {
+   "fieldname": "challans",
+   "fieldtype": "Table",
+   "options": "Form 24Q Challan",
+   "label": "Challans"
+  },
+  {
+   "fieldname": "annexure_i_section",
+   "fieldtype": "Section Break",
+   "label": "Annexure I — Deductee Details (Quarterly)"
+  },
+  {
+   "fieldname": "annexure_i_rows",
+   "fieldtype": "Table",
+   "options": "Form 24Q Annexure I Row",
+   "label": "Annexure I Rows"
+  },
+  {
+   "fieldname": "annexure_ii_section",
+   "fieldtype": "Section Break",
+   "label": "Annexure II — Salary Breakup (Annual, Q4 only)",
+   "depends_on": "eval:doc.quarter === 'Q4'"
+  },
+  {
+   "fieldname": "annexure_ii_rows",
+   "fieldtype": "Table",
+   "options": "Form 24Q Annexure II Row",
+   "label": "Annexure II Rows",
+   "depends_on": "eval:doc.quarter === 'Q4'"
+  },
+  {
+   "fieldname": "summary_section",
+   "fieldtype": "Section Break",
+   "label": "Return Summary"
+  },
+  {
+   "fieldname": "total_tax_deducted",
+   "fieldtype": "Currency",
+   "label": "Total Tax Deducted",
+   "read_only": 1,
+   "description": "Sum of Annexure I tds_amount."
+  },
+  {
+   "fieldname": "total_tax_deposited",
+   "fieldtype": "Currency",
+   "label": "Total Tax Deposited",
+   "read_only": 1,
+   "description": "Sum of Challan rows' challan_total_tds."
+  },
+  {
+   "fieldname": "column_break_summary",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "total_employees",
+   "fieldtype": "Int",
+   "label": "Total Employees",
+   "read_only": 1,
+   "description": "Distinct employee count in Annexure I."
+  },
+  {
+   "fieldname": "file_section",
+   "fieldtype": "Section Break",
+   "label": "RPU Input File"
+  },
+  {
+   "fieldname": "txt_file",
+   "fieldtype": "Attach",
+   "label": "RPU Input File (.txt)",
+   "read_only": 1,
+   "description": "Pipe-delimited (^) per NSDL TIN RPU spec. Run RPU offline to produce the .fvu for upload."
+  },
+  {
+   "fieldname": "exceptions_section",
+   "fieldtype": "Section Break",
+   "label": "Exceptions",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "exceptions",
+   "fieldtype": "Long Text",
+   "label": "Exceptions",
+   "read_only": 1,
+   "description": "Audit trail — employees skipped, challan mismatches, missing PANs, etc."
+  },
+  {
+   "fieldname": "notes_section",
+   "fieldtype": "Section Break",
+   "label": "Notes",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Long Text",
+   "label": "Notes"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-05-30 18:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Payroll",
+ "name": "TDS Return Form 24Q",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR User",
+   "share": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "form_name",
+ "track_changes": 1
+}

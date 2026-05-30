@@ -1,0 +1,73 @@
+{
+ "actions": [],
+ "creation": "2026-05-30 18:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "employee",
+  "employee_name",
+  "gross_wages",
+  "employee_lwf",
+  "employer_lwf",
+  "salary_slip"
+ ],
+ "fields": [
+  {
+   "fieldname": "employee",
+   "fieldtype": "Link",
+   "options": "Employee",
+   "label": "Employee",
+   "in_list_view": 1,
+   "columns": 2
+  },
+  {
+   "fetch_from": "employee.employee_name",
+   "fieldname": "employee_name",
+   "fieldtype": "Data",
+   "label": "Employee Name",
+   "read_only": 1,
+   "in_list_view": 1,
+   "columns": 2
+  },
+  {
+   "fieldname": "gross_wages",
+   "fieldtype": "Currency",
+   "label": "Gross Wages",
+   "in_list_view": 1,
+   "columns": 2
+  },
+  {
+   "fieldname": "employee_lwf",
+   "fieldtype": "Currency",
+   "label": "Employee LWF",
+   "in_list_view": 1,
+   "columns": 2
+  },
+  {
+   "fieldname": "employer_lwf",
+   "fieldtype": "Currency",
+   "label": "Employer LWF",
+   "in_list_view": 1,
+   "columns": 2
+  },
+  {
+   "fieldname": "salary_slip",
+   "fieldtype": "Link",
+   "options": "Salary Slip",
+   "label": "Salary Slip"
+  }
+ ],
+ "istable": 1,
+ "links": [],
+ "modified": "2026-05-30 18:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Payroll",
+ "name": "LWF Return Row",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

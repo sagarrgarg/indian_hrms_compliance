@@ -1,0 +1,83 @@
+{
+ "actions": [],
+ "creation": "2026-05-30 18:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "challan_serial_no",
+  "bsr_code",
+  "challan_date",
+  "challan_amount",
+  "challan_total_tds",
+  "section_code",
+  "bank_name"
+ ],
+ "fields": [
+  {
+   "fieldname": "challan_serial_no",
+   "fieldtype": "Data",
+   "label": "Challan Serial No",
+   "in_list_view": 1,
+   "columns": 1,
+   "description": "5-digit Challan Identification Number (CIN) serial from the bank acknowledgement."
+  },
+  {
+   "fieldname": "bsr_code",
+   "fieldtype": "Data",
+   "label": "BSR Code",
+   "in_list_view": 1,
+   "columns": 1,
+   "description": "7-digit Bank Branch BSR Code on the challan counterfoil."
+  },
+  {
+   "fieldname": "challan_date",
+   "fieldtype": "Date",
+   "label": "Challan Date",
+   "in_list_view": 1,
+   "columns": 1
+  },
+  {
+   "fieldname": "challan_amount",
+   "fieldtype": "Currency",
+   "label": "Challan Amount",
+   "in_list_view": 1,
+   "columns": 2,
+   "description": "Total amount deposited via this challan (TDS + interest + fee)."
+  },
+  {
+   "fieldname": "challan_total_tds",
+   "fieldtype": "Currency",
+   "label": "TDS in Challan",
+   "in_list_view": 1,
+   "columns": 2,
+   "description": "Of the challan amount, the portion that is TDS under section 192."
+  },
+  {
+   "default": "192",
+   "fieldname": "section_code",
+   "fieldtype": "Data",
+   "label": "Section",
+   "in_list_view": 1,
+   "columns": 1,
+   "description": "TDS section under which the challan was paid (typically 192 for salary)."
+  },
+  {
+   "fieldname": "bank_name",
+   "fieldtype": "Data",
+   "label": "Bank Name"
+  }
+ ],
+ "istable": 1,
+ "links": [],
+ "modified": "2026-05-30 18:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Payroll",
+ "name": "Form 24Q Challan",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}
