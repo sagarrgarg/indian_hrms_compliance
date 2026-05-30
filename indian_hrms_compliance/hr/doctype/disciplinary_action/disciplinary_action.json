@@ -1,0 +1,322 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "format:DA-{company}-{employee}-{action_date}-{####}",
+ "creation": "2026-05-30 15:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 0,
+ "engine": "InnoDB",
+ "field_order": [
+  "identity_section",
+  "employee",
+  "employee_name",
+  "designation",
+  "department",
+  "column_break_meta",
+  "company",
+  "action_date",
+  "nature_of_misconduct",
+  "source_section",
+  "linked_grievance",
+  "linked_posh_complaint",
+  "column_break_source",
+  "incident_date",
+  "incident_description",
+  "evidence_attach",
+  "process_section",
+  "workflow_state",
+  "show_cause_issued_on",
+  "response_received_on",
+  "column_break_process",
+  "inquiry_completed_on",
+  "outcome_decided_on",
+  "closed_on",
+  "outcome_section",
+  "outcome",
+  "outcome_narrative",
+  "column_break_outcome",
+  "suspension_from",
+  "suspension_to",
+  "pip_period_days",
+  "linkage_section",
+  "linked_resignation_request",
+  "linked_warning_letter",
+  "linked_salary_withholding"
+ ],
+ "fields": [
+  {
+   "fieldname": "identity_section",
+   "fieldtype": "Section Break",
+   "label": "Subject"
+  },
+  {
+   "fieldname": "employee",
+   "fieldtype": "Link",
+   "options": "Employee",
+   "label": "Employee",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fetch_from": "employee.employee_name",
+   "fieldname": "employee_name",
+   "fieldtype": "Data",
+   "label": "Employee Name",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fetch_from": "employee.designation",
+   "fieldname": "designation",
+   "fieldtype": "Link",
+   "options": "Designation",
+   "label": "Designation",
+   "read_only": 1
+  },
+  {
+   "fetch_from": "employee.department",
+   "fieldname": "department",
+   "fieldtype": "Link",
+   "options": "Department",
+   "label": "Department",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_meta",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fetch_from": "employee.company",
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "options": "Company",
+   "label": "Company",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "action_date",
+   "fieldtype": "Date",
+   "label": "Initiation Date",
+   "default": "Today",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "nature_of_misconduct",
+   "fieldtype": "Select",
+   "label": "Nature of Misconduct",
+   "options": "Performance\nMisconduct\nAttendance\nPolicy Breach\nPOSH-related\nFraud\nOther",
+   "reqd": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "source_section",
+   "fieldtype": "Section Break",
+   "label": "Source",
+   "description": "If this action stems from a Grievance or POSH Complaint, link it here for traceability."
+  },
+  {
+   "fieldname": "linked_grievance",
+   "fieldtype": "Link",
+   "options": "Employee Grievance",
+   "label": "Linked Grievance"
+  },
+  {
+   "fieldname": "linked_posh_complaint",
+   "fieldtype": "Link",
+   "options": "POSH Complaint",
+   "label": "Linked POSH Complaint",
+   "description": "Linked when action recommended by IC. Visible only to those with POSH access on the complaint."
+  },
+  {
+   "fieldname": "column_break_source",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "incident_date",
+   "fieldtype": "Date",
+   "label": "Incident Date"
+  },
+  {
+   "fieldname": "incident_description",
+   "fieldtype": "Long Text",
+   "label": "Incident Description",
+   "reqd": 1
+  },
+  {
+   "fieldname": "evidence_attach",
+   "fieldtype": "Attach",
+   "label": "Evidence"
+  },
+  {
+   "fieldname": "process_section",
+   "fieldtype": "Section Break",
+   "label": "Process"
+  },
+  {
+   "fieldname": "workflow_state",
+   "fieldtype": "Link",
+   "options": "Workflow State",
+   "label": "Workflow State",
+   "no_copy": 1,
+   "read_only": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "show_cause_issued_on",
+   "fieldtype": "Date",
+   "label": "Show-Cause Issued On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "response_received_on",
+   "fieldtype": "Date",
+   "label": "Response Received On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_process",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "inquiry_completed_on",
+   "fieldtype": "Date",
+   "label": "Inquiry Completed On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "outcome_decided_on",
+   "fieldtype": "Date",
+   "label": "Outcome Decided On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "closed_on",
+   "fieldtype": "Date",
+   "label": "Closed On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "outcome_section",
+   "fieldtype": "Section Break",
+   "label": "Outcome"
+  },
+  {
+   "fieldname": "outcome",
+   "fieldtype": "Select",
+   "label": "Outcome",
+   "options": "\nNo Action\nVerbal Warning\nWritten Warning\nFinal Warning\nPIP\nSuspension\nTermination\nDismissal",
+   "mandatory_depends_on": "eval:in_list(['Outcome Decided','Closed'], doc.workflow_state)",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "outcome_narrative",
+   "fieldtype": "Long Text",
+   "label": "Outcome Narrative",
+   "mandatory_depends_on": "eval:in_list(['Outcome Decided','Closed'], doc.workflow_state)"
+  },
+  {
+   "fieldname": "column_break_outcome",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "suspension_from",
+   "fieldtype": "Date",
+   "label": "Suspension From",
+   "depends_on": "eval:doc.outcome === 'Suspension'",
+   "mandatory_depends_on": "eval:doc.outcome === 'Suspension'"
+  },
+  {
+   "fieldname": "suspension_to",
+   "fieldtype": "Date",
+   "label": "Suspension To",
+   "depends_on": "eval:doc.outcome === 'Suspension'",
+   "mandatory_depends_on": "eval:doc.outcome === 'Suspension'"
+  },
+  {
+   "fieldname": "pip_period_days",
+   "fieldtype": "Int",
+   "label": "PIP Period (days)",
+   "depends_on": "eval:doc.outcome === 'PIP'",
+   "non_negative": 1,
+   "default": "90"
+  },
+  {
+   "fieldname": "linkage_section",
+   "fieldtype": "Section Break",
+   "label": "Downstream Linkage",
+   "description": "Auto-set when the outcome triggers a downstream document (Resignation Request, Warning Letter, Salary Withholding).",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "linked_resignation_request",
+   "fieldtype": "Link",
+   "options": "Resignation Request",
+   "label": "Linked Resignation Request",
+   "read_only": 1,
+   "description": "Auto-created on Termination / Dismissal outcomes."
+  },
+  {
+   "fieldname": "linked_warning_letter",
+   "fieldtype": "Link",
+   "options": "Appointment Letter",
+   "label": "Linked Warning Letter",
+   "read_only": 1,
+   "description": "Auto-created on Written / Final Warning outcomes (requires Warning Letter Type — Phase 5 Stage 4)."
+  },
+  {
+   "fieldname": "linked_salary_withholding",
+   "fieldtype": "Link",
+   "options": "Salary Withholding",
+   "label": "Linked Salary Withholding",
+   "read_only": 1,
+   "description": "Auto-created on Suspension outcome for the suspension period."
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-05-30 15:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "HR",
+ "name": "Disciplinary Action",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR User",
+   "share": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [
+  {"color": "Red", "title": "Initiated"},
+  {"color": "Yellow", "title": "Show-Cause Issued"},
+  {"color": "Yellow", "title": "Response Received"},
+  {"color": "Orange", "title": "Under Inquiry"},
+  {"color": "Orange", "title": "Outcome Decided"},
+  {"color": "Green", "title": "Closed"}
+ ],
+ "title_field": "employee_name",
+ "track_changes": 1
+}

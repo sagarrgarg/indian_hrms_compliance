@@ -56,3 +56,4 @@ indian_hrms_compliance.patches.v15_0.seed_exit_settlement_defaults #2026-05-30
 indian_hrms_compliance.patches.v15_0.enhance_employee_grievance #2026-05-30
 indian_hrms_compliance.patches.v15_0.setup_grievance_workflow #2026-05-30
 indian_hrms_compliance.patches.v15_0.setup_posh_workflow #2026-05-30
+indian_hrms_compliance.patches.v15_0.setup_disciplinary_action_workflow #2026-05-30
