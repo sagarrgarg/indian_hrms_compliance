@@ -1,0 +1,179 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "format:ESIHY-{company}-{fiscal_year}-{period}",
+ "creation": "2026-05-30 16:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 0,
+ "engine": "InnoDB",
+ "field_order": [
+  "identity_section",
+  "company",
+  "fiscal_year",
+  "period",
+  "column_break_id",
+  "filing_status",
+  "due_date",
+  "filed_on",
+  "filings_section",
+  "linked_monthly_filings",
+  "summary_section",
+  "total_wages_period",
+  "column_break_summary",
+  "total_contribution_period",
+  "html_section",
+  "summary_html",
+  "notes_section",
+  "notes"
+ ],
+ "fields": [
+  {
+   "fieldname": "identity_section",
+   "fieldtype": "Section Break",
+   "label": "Return Identity"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "options": "Company",
+   "label": "Company",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "default": ":Company"
+  },
+  {
+   "fieldname": "fiscal_year",
+   "fieldtype": "Link",
+   "options": "Fiscal Year",
+   "label": "Fiscal Year",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "period",
+   "fieldtype": "Select",
+   "label": "Period",
+   "options": "Apr-Sep\nOct-Mar",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "description": "Apr-Sep (due 11 Nov) or Oct-Mar (due 11 May)."
+  },
+  {
+   "fieldname": "column_break_id",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Draft",
+   "fieldname": "filing_status",
+   "fieldtype": "Select",
+   "label": "Filing Status",
+   "options": "Draft\nFiled",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "due_date",
+   "fieldtype": "Date",
+   "label": "Due Date",
+   "read_only": 1,
+   "description": "Auto: 11 Nov (Apr-Sep) or 11 May (Oct-Mar)."
+  },
+  {
+   "fieldname": "filed_on",
+   "fieldtype": "Date",
+   "label": "Filed On"
+  },
+  {
+   "fieldname": "filings_section",
+   "fieldtype": "Section Break",
+   "label": "Linked Monthly Filings"
+  },
+  {
+   "fieldname": "linked_monthly_filings",
+   "fieldtype": "Table",
+   "options": "ESI Half Yearly Filing Reference",
+   "label": "Linked Monthly Filings",
+   "description": "The six (or fewer) ESI Monthly Contribution docs that comprise this period."
+  },
+  {
+   "fieldname": "summary_section",
+   "fieldtype": "Section Break",
+   "label": "Period Summary"
+  },
+  {
+   "fieldname": "total_wages_period",
+   "fieldtype": "Currency",
+   "label": "Total Wages (Period)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_summary",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "total_contribution_period",
+   "fieldtype": "Currency",
+   "label": "Total Contribution (Period)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "html_section",
+   "fieldtype": "Section Break",
+   "label": "Summary HTML",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "summary_html",
+   "fieldtype": "Long Text",
+   "label": "Summary HTML",
+   "read_only": 1,
+   "description": "Auto-rendered table of the six monthly filings."
+  },
+  {
+   "fieldname": "notes_section",
+   "fieldtype": "Section Break",
+   "label": "Notes",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Long Text",
+   "label": "Notes"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-05-30 16:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Payroll",
+ "name": "ESI Half Yearly Return",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR User",
+   "share": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "fiscal_year",
+ "track_changes": 1
+}

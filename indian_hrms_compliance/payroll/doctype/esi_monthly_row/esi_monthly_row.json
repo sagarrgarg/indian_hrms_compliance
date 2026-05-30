@@ -1,0 +1,104 @@
+{
+ "actions": [],
+ "creation": "2026-05-30 16:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "employee",
+  "employee_name",
+  "ip_number",
+  "salary_slip",
+  "no_of_days",
+  "total_wages",
+  "employee_contribution",
+  "employer_contribution",
+  "reason_code_for_zero",
+  "last_working_day"
+ ],
+ "fields": [
+  {
+   "fieldname": "employee",
+   "fieldtype": "Link",
+   "options": "Employee",
+   "label": "Employee",
+   "in_list_view": 1,
+   "columns": 2
+  },
+  {
+   "fetch_from": "employee.employee_name",
+   "fieldname": "employee_name",
+   "fieldtype": "Data",
+   "label": "Employee Name",
+   "read_only": 1,
+   "in_list_view": 1,
+   "columns": 2
+  },
+  {
+   "fieldname": "ip_number",
+   "fieldtype": "Data",
+   "label": "IP Number",
+   "in_list_view": 1,
+   "columns": 2,
+   "description": "10-digit ESIC Insured Person number from Employee.esic_ip_number."
+  },
+  {
+   "fieldname": "salary_slip",
+   "fieldtype": "Link",
+   "options": "Salary Slip",
+   "label": "Salary Slip",
+   "in_list_view": 1,
+   "columns": 1
+  },
+  {
+   "fieldname": "no_of_days",
+   "fieldtype": "Int",
+   "label": "No of Days",
+   "description": "Paid days in the wage month (working days - LOP)."
+  },
+  {
+   "fieldname": "total_wages",
+   "fieldtype": "Currency",
+   "label": "Total Monthly Wages",
+   "in_list_view": 1,
+   "columns": 2
+  },
+  {
+   "fieldname": "employee_contribution",
+   "fieldtype": "Currency",
+   "label": "Employee Contribution",
+   "description": "0.75% of wages (waived if daily wage ≤ ₹176)."
+  },
+  {
+   "fieldname": "employer_contribution",
+   "fieldtype": "Currency",
+   "label": "Employer Contribution",
+   "description": "3.25% of wages."
+  },
+  {
+   "fieldname": "reason_code_for_zero",
+   "fieldtype": "Select",
+   "label": "Reason Code for Zero Workings",
+   "options": "\n1 - On Leave\n2 - Strike\n3 - Lockout\n4 - Out of Coverage\n5 - Disciplinary Action\n6 - Retired\n7 - Out of Employment\n8 - Expired",
+   "description": "Required by ESIC portal when no_of_days = 0."
+  },
+  {
+   "fieldname": "last_working_day",
+   "fieldtype": "Date",
+   "label": "Last Working Day",
+   "description": "Set only if the employee exited during the wage month."
+  }
+ ],
+ "istable": 1,
+ "links": [],
+ "modified": "2026-05-30 16:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Payroll",
+ "name": "ESI Monthly Row",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

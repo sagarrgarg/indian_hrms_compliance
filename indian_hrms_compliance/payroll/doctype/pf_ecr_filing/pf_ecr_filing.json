@@ -1,0 +1,280 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "format:PFECR-{company}-{wage_month_label}",
+ "creation": "2026-05-30 16:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 0,
+ "engine": "InnoDB",
+ "field_order": [
+  "identity_section",
+  "company",
+  "wage_month",
+  "wage_month_label",
+  "column_break_id",
+  "establishment_code",
+  "filing_status",
+  "generated_on",
+  "filed_on",
+  "challan_section",
+  "challan_number",
+  "column_break_challan",
+  "challan_amount",
+  "ecr_summary_section",
+  "total_members",
+  "total_gross_wages",
+  "total_epf_wages",
+  "total_eps_wages",
+  "column_break_summary",
+  "total_epf_contribution",
+  "total_eps_contribution",
+  "total_edli_contribution",
+  "total_admin_charges",
+  "total_remittance",
+  "rows_section",
+  "rows",
+  "file_section",
+  "ecr_file",
+  "exceptions_section",
+  "exceptions",
+  "notes_section",
+  "notes"
+ ],
+ "fields": [
+  {
+   "fieldname": "identity_section",
+   "fieldtype": "Section Break",
+   "label": "Filing Identity"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "options": "Company",
+   "label": "Company",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "default": ":Company"
+  },
+  {
+   "fieldname": "wage_month",
+   "fieldtype": "Date",
+   "label": "Wage Month",
+   "reqd": 1,
+   "in_list_view": 1,
+   "description": "First day of the wage month (e.g., 2026-05-01 for May 2026 wages)."
+  },
+  {
+   "fieldname": "wage_month_label",
+   "fieldtype": "Data",
+   "label": "Wage Month Label",
+   "read_only": 1,
+   "in_list_view": 1,
+   "description": "Auto-computed MMM-YYYY (e.g., May-2026)."
+  },
+  {
+   "fieldname": "column_break_id",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "establishment_code",
+   "fieldtype": "Data",
+   "label": "Establishment Code",
+   "reqd": 1,
+   "description": "PF establishment ID, e.g. MH/PUN/12345/678. Fetched from Company custom field if set."
+  },
+  {
+   "default": "Draft",
+   "fieldname": "filing_status",
+   "fieldtype": "Select",
+   "label": "Filing Status",
+   "options": "Draft\nGenerated\nFiled\nCancelled",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "generated_on",
+   "fieldtype": "Datetime",
+   "label": "Generated On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "filed_on",
+   "fieldtype": "Date",
+   "label": "Filed On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "challan_section",
+   "fieldtype": "Section Break",
+   "label": "Challan"
+  },
+  {
+   "fieldname": "challan_number",
+   "fieldtype": "Data",
+   "label": "Challan Number",
+   "description": "Captured after payment on the EPFO portal."
+  },
+  {
+   "fieldname": "column_break_challan",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "challan_amount",
+   "fieldtype": "Currency",
+   "label": "Challan Amount",
+   "read_only": 1,
+   "description": "Mirror of Total Remittance; the amount paid via EPFO challan."
+  },
+  {
+   "fieldname": "ecr_summary_section",
+   "fieldtype": "Section Break",
+   "label": "ECR Summary"
+  },
+  {
+   "fieldname": "total_members",
+   "fieldtype": "Int",
+   "label": "Total Members",
+   "read_only": 1
+  },
+  {
+   "fieldname": "total_gross_wages",
+   "fieldtype": "Currency",
+   "label": "Total Gross Wages",
+   "read_only": 1
+  },
+  {
+   "fieldname": "total_epf_wages",
+   "fieldtype": "Currency",
+   "label": "Total EPF Wages",
+   "read_only": 1
+  },
+  {
+   "fieldname": "total_eps_wages",
+   "fieldtype": "Currency",
+   "label": "Total EPS Wages",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_summary",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "total_epf_contribution",
+   "fieldtype": "Currency",
+   "label": "Total EPF Contribution",
+   "read_only": 1,
+   "description": "Sum of employee 12% contributions (A/c 1 + part of A/c 10)."
+  },
+  {
+   "fieldname": "total_eps_contribution",
+   "fieldtype": "Currency",
+   "label": "Total EPS Contribution",
+   "read_only": 1,
+   "description": "Employer 8.33% to A/c 10 (Pension), capped at 1,250 per member."
+  },
+  {
+   "fieldname": "total_edli_contribution",
+   "fieldtype": "Currency",
+   "label": "Total EDLI Contribution",
+   "read_only": 1,
+   "description": "Employer 0.50% to A/c 21, capped at 75 per member."
+  },
+  {
+   "fieldname": "total_admin_charges",
+   "fieldtype": "Currency",
+   "label": "Total Admin Charges",
+   "read_only": 1,
+   "description": "Employer 0.50% to A/c 2 (min 500 per establishment)."
+  },
+  {
+   "fieldname": "total_remittance",
+   "fieldtype": "Currency",
+   "label": "Total Remittance",
+   "read_only": 1,
+   "description": "Sum of all contributions — the amount HR pays as challan."
+  },
+  {
+   "fieldname": "rows_section",
+   "fieldtype": "Section Break",
+   "label": "ECR Rows"
+  },
+  {
+   "fieldname": "rows",
+   "fieldtype": "Table",
+   "options": "PF ECR Row",
+   "label": "Rows"
+  },
+  {
+   "fieldname": "file_section",
+   "fieldtype": "Section Break",
+   "label": "ECR File"
+  },
+  {
+   "fieldname": "ecr_file",
+   "fieldtype": "Attach",
+   "label": "ECR File",
+   "read_only": 1,
+   "description": "Pipe-delimited .txt per EPFO ECR 2.0 spec. Upload to unifiedportal-emp.epfindia.gov.in."
+  },
+  {
+   "fieldname": "exceptions_section",
+   "fieldtype": "Section Break",
+   "label": "Exceptions",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "exceptions",
+   "fieldtype": "Long Text",
+   "label": "Exceptions",
+   "read_only": 1,
+   "description": "Bullet list of employees skipped + reasons (missing UAN, etc.)."
+  },
+  {
+   "fieldname": "notes_section",
+   "fieldtype": "Section Break",
+   "label": "Notes",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Long Text",
+   "label": "Notes"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-05-30 16:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Payroll",
+ "name": "PF ECR Filing",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR User",
+   "share": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "wage_month_label",
+ "track_changes": 1
+}

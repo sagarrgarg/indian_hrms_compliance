@@ -1,0 +1,123 @@
+{
+ "actions": [],
+ "creation": "2026-05-30 16:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "employee",
+  "employee_name",
+  "uan",
+  "salary_slip",
+  "gross_wages",
+  "epf_wages",
+  "eps_wages",
+  "edli_wages",
+  "epf_contribution",
+  "eps_contribution",
+  "epf_eps_diff",
+  "ncp_days",
+  "refund_of_advances"
+ ],
+ "fields": [
+  {
+   "fieldname": "employee",
+   "fieldtype": "Link",
+   "options": "Employee",
+   "label": "Employee",
+   "reqd": 1,
+   "in_list_view": 1,
+   "columns": 2
+  },
+  {
+   "fetch_from": "employee.employee_name",
+   "fieldname": "employee_name",
+   "fieldtype": "Data",
+   "label": "Employee Name",
+   "read_only": 1,
+   "in_list_view": 1,
+   "columns": 2
+  },
+  {
+   "fieldname": "uan",
+   "fieldtype": "Data",
+   "label": "UAN",
+   "in_list_view": 1,
+   "columns": 2,
+   "description": "12-digit Universal Account Number from Employee master."
+  },
+  {
+   "fieldname": "salary_slip",
+   "fieldtype": "Link",
+   "options": "Salary Slip",
+   "label": "Salary Slip",
+   "in_list_view": 1,
+   "columns": 1
+  },
+  {
+   "fieldname": "gross_wages",
+   "fieldtype": "Currency",
+   "label": "Gross Wages"
+  },
+  {
+   "fieldname": "epf_wages",
+   "fieldtype": "Currency",
+   "label": "EPF Wages",
+   "description": "Basic + DA (the wage base on which 12% PF is computed)."
+  },
+  {
+   "fieldname": "eps_wages",
+   "fieldtype": "Currency",
+   "label": "EPS Wages",
+   "description": "min(EPF Wages, statutory ceiling 15,000)."
+  },
+  {
+   "fieldname": "edli_wages",
+   "fieldtype": "Currency",
+   "label": "EDLI Wages",
+   "description": "min(EPF Wages, statutory ceiling 15,000)."
+  },
+  {
+   "fieldname": "epf_contribution",
+   "fieldtype": "Currency",
+   "label": "EPF Contribution Remitted",
+   "description": "round(EPF Wages * 12%) — total employee contribution to A/c 1."
+  },
+  {
+   "fieldname": "eps_contribution",
+   "fieldtype": "Currency",
+   "label": "EPS Contribution Remitted",
+   "description": "round(EPS Wages * 8.33%) — employer share to A/c 10 (Pension)."
+  },
+  {
+   "fieldname": "epf_eps_diff",
+   "fieldtype": "Currency",
+   "label": "EPF EPS Diff Remitted",
+   "description": "EPF Contribution - EPS Contribution = employer A/c 1 share."
+  },
+  {
+   "fieldname": "ncp_days",
+   "fieldtype": "Int",
+   "label": "NCP Days",
+   "description": "Non-contributing period days (LOP / unauthorised leave)."
+  },
+  {
+   "default": "0",
+   "fieldname": "refund_of_advances",
+   "fieldtype": "Currency",
+   "label": "Refund of Advances"
+  }
+ ],
+ "istable": 1,
+ "links": [],
+ "modified": "2026-05-30 16:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Payroll",
+ "name": "PF ECR Row",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}
