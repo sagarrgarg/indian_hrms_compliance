@@ -1,0 +1,246 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "format:GIG-{worker_id}",
+ "creation": "2026-06-03 10:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 0,
+ "engine": "InnoDB",
+ "field_order": [
+  "identity_section",
+  "worker_id",
+  "worker_name",
+  "gender",
+  "date_of_birth",
+  "column_break_personal",
+  "pan_number",
+  "aadhaar_last_4",
+  "uan",
+  "bank_section",
+  "bank_ac_no",
+  "ifsc_code",
+  "column_break_id",
+  "engagement_section",
+  "aggregator_company",
+  "platform_engagement_type",
+  "engagement_start",
+  "engagement_end",
+  "status",
+  "column_break_engagement",
+  "average_monthly_earnings",
+  "ss_section",
+  "ss_contribution_rate_pct",
+  "last_ss_contribution_date",
+  "ss_scheme_enrolled",
+  "column_break_ss",
+  "e_shram_number",
+  "notes_section",
+  "notes"
+ ],
+ "fields": [
+  {
+   "fieldname": "identity_section",
+   "fieldtype": "Section Break",
+   "label": "Identity"
+  },
+  {
+   "fieldname": "worker_id",
+   "fieldtype": "Data",
+   "label": "Worker ID",
+   "reqd": 1,
+   "unique": 1,
+   "in_list_view": 1,
+   "description": "Aggregator's internal worker identifier (used to build the GIG-... name)."
+  },
+  {
+   "fieldname": "worker_name",
+   "fieldtype": "Data",
+   "label": "Worker Name",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "gender",
+   "fieldtype": "Select",
+   "label": "Gender",
+   "options": "\nMale\nFemale\nOther\nPrefer Not To Say"
+  },
+  {
+   "fieldname": "date_of_birth",
+   "fieldtype": "Date",
+   "label": "Date of Birth"
+  },
+  {
+   "fieldname": "column_break_personal",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "pan_number",
+   "fieldtype": "Data",
+   "label": "PAN"
+  },
+  {
+   "fieldname": "aadhaar_last_4",
+   "fieldtype": "Data",
+   "label": "Aadhaar Last 4 Digits",
+   "description": "Only last 4 digits stored — DPDP-conscious pattern."
+  },
+  {
+   "fieldname": "uan",
+   "fieldtype": "Data",
+   "label": "UAN",
+   "description": "Universal Account Number — mandatory under SS Code Sec 142."
+  },
+  {
+   "fieldname": "bank_section",
+   "fieldtype": "Section Break",
+   "label": "Bank",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "bank_ac_no",
+   "fieldtype": "Data",
+   "label": "Bank A/c No"
+  },
+  {
+   "fieldname": "ifsc_code",
+   "fieldtype": "Data",
+   "label": "IFSC Code"
+  },
+  {
+   "fieldname": "column_break_id",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "engagement_section",
+   "fieldtype": "Section Break",
+   "label": "Engagement"
+  },
+  {
+   "fieldname": "aggregator_company",
+   "fieldtype": "Link",
+   "options": "Company",
+   "label": "Aggregator Company",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "description": "The aggregator company this gig/platform worker is contracted to."
+  },
+  {
+   "fieldname": "platform_engagement_type",
+   "fieldtype": "Select",
+   "label": "Engagement Type",
+   "options": "On-Demand Delivery\nRide-Sharing\nCare-Giving\nBeauty\nTutoring\nOther Service",
+   "reqd": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "engagement_start",
+   "fieldtype": "Date",
+   "label": "Engagement Start",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "engagement_end",
+   "fieldtype": "Date",
+   "label": "Engagement End"
+  },
+  {
+   "default": "Active",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "Active\nSuspended\nTerminated",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "column_break_engagement",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "average_monthly_earnings",
+   "fieldtype": "Currency",
+   "label": "Average Monthly Earnings"
+  },
+  {
+   "fieldname": "ss_section",
+   "fieldtype": "Section Break",
+   "label": "Social Security",
+   "description": "SS Code Sec 114 — aggregator's contribution to gig/platform worker SS scheme. Exact rates pending Central Government notification."
+  },
+  {
+   "fieldname": "ss_contribution_rate_pct",
+   "fieldtype": "Percent",
+   "label": "SS Contribution Rate (%)"
+  },
+  {
+   "fieldname": "last_ss_contribution_date",
+   "fieldtype": "Date",
+   "label": "Last SS Contribution Date"
+  },
+  {
+   "default": "0",
+   "fieldname": "ss_scheme_enrolled",
+   "fieldtype": "Check",
+   "label": "Enrolled in Gig SS Scheme"
+  },
+  {
+   "fieldname": "column_break_ss",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "e_shram_number",
+   "fieldtype": "Data",
+   "label": "e-Shram Number",
+   "description": "Unorganised Workers Identification Number."
+  },
+  {
+   "fieldname": "notes_section",
+   "fieldtype": "Section Break",
+   "label": "Notes",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Long Text",
+   "label": "Notes"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-06-03 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "HR",
+ "name": "Gig Platform Worker",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR User",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "worker_name",
+ "track_changes": 1
+}

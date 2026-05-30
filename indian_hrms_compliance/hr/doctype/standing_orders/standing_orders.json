@@ -1,0 +1,233 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "format:SO-{company}-v{version}",
+ "creation": "2026-06-03 10:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 0,
+ "engine": "InnoDB",
+ "is_submittable": 1,
+ "field_order": [
+  "identity_section",
+  "company",
+  "version",
+  "status",
+  "column_break_meta",
+  "effective_from",
+  "effective_to",
+  "submitted_on",
+  "certified_on",
+  "certifying_section",
+  "certifying_officer_name",
+  "certifying_officer_designation",
+  "column_break_certifying",
+  "worker_count_at_filing",
+  "linked_grievance_policy",
+  "content_section",
+  "standing_orders_html",
+  "model_orders_used",
+  "attachment",
+  "versioning_section",
+  "superseded_by",
+  "supersedes",
+  "notes_section",
+  "notes",
+  "amended_from"
+ ],
+ "fields": [
+  {
+   "fieldname": "identity_section",
+   "fieldtype": "Section Break",
+   "label": "Identity"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "options": "Company",
+   "label": "Company",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "description": "Per IR Code Sec 28, Standing Orders are mandatory for industrial establishments with 300+ workers (threshold configurable in HR Settings)."
+  },
+  {
+   "fieldname": "version",
+   "fieldtype": "Data",
+   "label": "Version",
+   "reqd": 1,
+   "in_list_view": 1,
+   "description": "Semantic version, e.g. 1.0, 2.0. Each amended version is a new submitted doc."
+  },
+  {
+   "default": "Draft",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "Draft\nSubmitted to Certifying Officer\nCertified\nActive\nSuperseded",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "column_break_meta",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "effective_from",
+   "fieldtype": "Date",
+   "label": "Effective From",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "effective_to",
+   "fieldtype": "Date",
+   "label": "Effective To"
+  },
+  {
+   "fieldname": "submitted_on",
+   "fieldtype": "Date",
+   "label": "Submitted On"
+  },
+  {
+   "fieldname": "certified_on",
+   "fieldtype": "Date",
+   "label": "Certified On"
+  },
+  {
+   "fieldname": "certifying_section",
+   "fieldtype": "Section Break",
+   "label": "Certifying Officer",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "certifying_officer_name",
+   "fieldtype": "Data",
+   "label": "Certifying Officer Name"
+  },
+  {
+   "fieldname": "certifying_officer_designation",
+   "fieldtype": "Data",
+   "label": "Certifying Officer Designation"
+  },
+  {
+   "fieldname": "column_break_certifying",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "worker_count_at_filing",
+   "fieldtype": "Int",
+   "label": "Worker Count at Filing",
+   "description": "Company headcount at time of submission for audit trail."
+  },
+  {
+   "fieldname": "linked_grievance_policy",
+   "fieldtype": "Link",
+   "options": "HRMS Policy",
+   "label": "Linked Grievance / Disciplinary Policy",
+   "description": "Cross-link to the HRMS Policy (POSH / Grievance / Disciplinary) referenced in these Standing Orders."
+  },
+  {
+   "fieldname": "content_section",
+   "fieldtype": "Section Break",
+   "label": "Standing Orders Content"
+  },
+  {
+   "fieldname": "standing_orders_html",
+   "fieldtype": "Text Editor",
+   "label": "Standing Orders",
+   "reqd": 1,
+   "description": "The content covering classification of workers, working hours, holidays, leave, shifts, attendance, late, suspension, dismissal etc. per IR Code Sec 29."
+  },
+  {
+   "default": "0",
+   "fieldname": "model_orders_used",
+   "fieldtype": "Check",
+   "label": "Model Standing Orders Adopted",
+   "description": "Schedule I model orders adopted without modification."
+  },
+  {
+   "fieldname": "attachment",
+   "fieldtype": "Attach",
+   "label": "Signed PDF"
+  },
+  {
+   "fieldname": "versioning_section",
+   "fieldtype": "Section Break",
+   "label": "Versioning",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "superseded_by",
+   "fieldtype": "Link",
+   "options": "Standing Orders",
+   "label": "Superseded By",
+   "read_only": 1
+  },
+  {
+   "fieldname": "supersedes",
+   "fieldtype": "Link",
+   "options": "Standing Orders",
+   "label": "Supersedes",
+   "read_only": 1
+  },
+  {
+   "fieldname": "notes_section",
+   "fieldtype": "Section Break",
+   "label": "Notes",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Long Text",
+   "label": "Notes"
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Standing Orders",
+   "print_hide": 1,
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-06-03 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "HR",
+ "name": "Standing Orders",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR Manager",
+   "share": 1,
+   "submit": 1,
+   "cancel": 1,
+   "amend": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR User",
+   "share": 1
+  },
+  {
+   "read": 1,
+   "role": "Employee"
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

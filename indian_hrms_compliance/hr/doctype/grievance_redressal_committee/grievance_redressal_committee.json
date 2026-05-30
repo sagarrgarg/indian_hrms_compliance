@@ -1,0 +1,168 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "format:GRC-{company}-{formation_date}",
+ "creation": "2026-06-03 10:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 0,
+ "engine": "InnoDB",
+ "field_order": [
+  "identity_section",
+  "company",
+  "status",
+  "formation_date",
+  "column_break_meta",
+  "worker_count_at_formation",
+  "women_member_count",
+  "members_section",
+  "members_intro_html",
+  "members",
+  "meetings_section",
+  "meetings_held",
+  "last_meeting_date",
+  "column_break_meetings",
+  "linked_grievance_policy",
+  "notes_section",
+  "notes"
+ ],
+ "fields": [
+  {
+   "fieldname": "identity_section",
+   "fieldtype": "Section Break",
+   "label": "Constitution"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "options": "Company",
+   "label": "Company",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "description": "Per IR Code Sec 4, every industrial establishment with 20+ workers must constitute a Grievance Redressal Committee. Distinct from POSH IC."
+  },
+  {
+   "default": "Active",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "Active\nDissolved",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "formation_date",
+   "fieldtype": "Date",
+   "label": "Formation Date",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "column_break_meta",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "worker_count_at_formation",
+   "fieldtype": "Int",
+   "label": "Worker Count at Formation"
+  },
+  {
+   "fieldname": "women_member_count",
+   "fieldtype": "Int",
+   "label": "Women Member Count",
+   "read_only": 1,
+   "description": "Auto-computed. IR Code Sec 4(2) requires at least one woman member."
+  },
+  {
+   "fieldname": "members_section",
+   "fieldtype": "Section Break",
+   "label": "Members"
+  },
+  {
+   "fieldname": "members_intro_html",
+   "fieldtype": "HTML",
+   "options": "<p style='color:#888;font-size:12px;margin:0'>Per IR Code Sec 4: maximum 12 members. At least one member must be a woman. Equal representation of workmen and employer is recommended.</p>"
+  },
+  {
+   "fieldname": "members",
+   "fieldtype": "Table",
+   "options": "Grievance Redressal Committee Member",
+   "label": "Members"
+  },
+  {
+   "fieldname": "meetings_section",
+   "fieldtype": "Section Break",
+   "label": "Meetings",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "meetings_held",
+   "fieldtype": "Int",
+   "label": "Meetings Held"
+  },
+  {
+   "fieldname": "last_meeting_date",
+   "fieldtype": "Date",
+   "label": "Last Meeting Date"
+  },
+  {
+   "fieldname": "column_break_meetings",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "linked_grievance_policy",
+   "fieldtype": "Link",
+   "options": "HRMS Policy",
+   "label": "Linked Grievance Policy"
+  },
+  {
+   "fieldname": "notes_section",
+   "fieldtype": "Section Break",
+   "label": "Notes",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Long Text",
+   "label": "Notes"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-06-03 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "HR",
+ "name": "Grievance Redressal Committee",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR User",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "read": 1,
+   "role": "Employee"
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}
