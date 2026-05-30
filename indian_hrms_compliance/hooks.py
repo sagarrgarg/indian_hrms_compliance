@@ -255,6 +255,12 @@ doc_events = {
 		"validate": "indian_hrms_compliance.overrides.grievance_workflow.compute_sla_due_date",
 		"on_update": "indian_hrms_compliance.overrides.grievance_workflow.route_grievance_todos",
 	},
+	"Salary Structure": {
+		"validate": "indian_hrms_compliance.overrides.salary_structure_validator.validate_salary_structure",
+	},
+	"Salary Structure Assignment": {
+		"validate": "indian_hrms_compliance.overrides.salary_structure_validator.validate_salary_structure_assignment",
+	},
 }
 
 # Scheduled Tasks
