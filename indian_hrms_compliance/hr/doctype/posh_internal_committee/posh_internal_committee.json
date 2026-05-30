@@ -1,0 +1,167 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "format:POSH-IC-{company}-{constitution_date}",
+ "creation": "2026-05-30 14:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 0,
+ "engine": "InnoDB",
+ "field_order": [
+  "identity_section",
+  "company",
+  "status",
+  "constitution_date",
+  "column_break_meta",
+  "dissolution_date",
+  "notification_recipients_section",
+  "send_complaint_alerts",
+  "members_section",
+  "members_intro_html",
+  "members",
+  "policy_section",
+  "linked_posh_policy",
+  "notes_section",
+  "notes"
+ ],
+ "fields": [
+  {
+   "fieldname": "identity_section",
+   "fieldtype": "Section Break",
+   "label": "Constitution"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "options": "Company",
+   "label": "Company",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "description": "Per Section 4 of POSH Act 2013, every Company with 10+ employees must constitute its own IC. Multi-Co groups: one IC per Company."
+  },
+  {
+   "default": "Active",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "Active\nDissolved",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "constitution_date",
+   "fieldtype": "Date",
+   "label": "Constituted On",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "column_break_meta",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "dissolution_date",
+   "fieldtype": "Date",
+   "label": "Dissolved On",
+   "depends_on": "eval:doc.status === 'Dissolved'",
+   "mandatory_depends_on": "eval:doc.status === 'Dissolved'"
+  },
+  {
+   "fieldname": "notification_recipients_section",
+   "fieldtype": "Section Break",
+   "label": "Notifications"
+  },
+  {
+   "default": "1",
+   "fieldname": "send_complaint_alerts",
+   "fieldtype": "Check",
+   "label": "Alert IC Members on New Complaints",
+   "description": "When on, every IC Member receives a PWA Notification (and ToDo) when a POSH Complaint is filed for this Company."
+  },
+  {
+   "fieldname": "members_section",
+   "fieldtype": "Section Break",
+   "label": "Members"
+  },
+  {
+   "fieldname": "members_intro_html",
+   "fieldtype": "HTML",
+   "options": "<p style='color:#888;font-size:12px;margin:0'>Per Section 4(2) of POSH Act 2013: the Presiding Officer must be a senior female employee; at least half the members should be women; at least one External Member from an NGO / legal background. The Act requires a minimum of 4 members.</p>"
+  },
+  {
+   "fieldname": "members",
+   "fieldtype": "Table",
+   "options": "POSH IC Member",
+   "label": "Members"
+  },
+  {
+   "fieldname": "policy_section",
+   "fieldtype": "Section Break",
+   "label": "Linked POSH Policy",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "linked_posh_policy",
+   "fieldtype": "Link",
+   "options": "HRMS Policy",
+   "label": "POSH Policy",
+   "description": "Link to the published HRMS Policy of category POSH. Used by Annual Report to confirm policy training."
+  },
+  {
+   "fieldname": "notes_section",
+   "fieldtype": "Section Break",
+   "label": "Notes",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Long Text",
+   "label": "Notes"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [
+  {
+   "link_doctype": "POSH Complaint",
+   "link_fieldname": "internal_committee"
+  }
+ ],
+ "modified": "2026-05-30 14:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "HR",
+ "name": "POSH Internal Committee",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR User",
+   "share": 1
+  },
+  {
+   "read": 1,
+   "role": "Employee"
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [
+  {"color": "Green", "title": "Active"},
+  {"color": "Red", "title": "Dissolved"}
+ ],
+ "track_changes": 1
+}

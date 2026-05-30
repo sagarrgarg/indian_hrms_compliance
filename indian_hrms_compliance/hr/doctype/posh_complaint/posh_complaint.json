@@ -1,0 +1,355 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "format:POSH-{company}-{filing_date}-{####}",
+ "creation": "2026-05-30 14:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 0,
+ "engine": "InnoDB",
+ "field_order": [
+  "header_warning_html",
+  "identity_section",
+  "company",
+  "internal_committee",
+  "filing_date",
+  "column_break_meta",
+  "anonymous",
+  "complainant",
+  "complainant_name_masked",
+  "complainant_employee_id_masked",
+  "accused_section",
+  "accused",
+  "accused_employee_name",
+  "accused_company",
+  "incident_section",
+  "incident_date",
+  "incident_location",
+  "incident_description",
+  "evidence",
+  "workflow_section",
+  "workflow_state",
+  "filing_acknowledged_on",
+  "inquiry_started_on",
+  "findings_recorded_on",
+  "action_recommended_on",
+  "closed_on",
+  "column_break_wf",
+  "sla_due_date",
+  "last_reminder_sent_on",
+  "findings_section",
+  "inquiry_findings",
+  "action_recommended",
+  "action_taken",
+  "action_date",
+  "linkage_section",
+  "linked_disciplinary_action",
+  "linked_grievance",
+  "confidentiality_section",
+  "complainant_confidentiality_acknowledgement",
+  "ic_confidentiality_acknowledgement"
+ ],
+ "fields": [
+  {
+   "fieldname": "header_warning_html",
+   "fieldtype": "HTML",
+   "options": "<div style='background:#fdecea;border-left:4px solid #d33;padding:12px 16px;margin-bottom:8px'><strong>CONFIDENTIAL</strong> — POSH Complaint records are restricted by permission_query_conditions to the complainant, accused, and active IC members of this Company. HR Manager / HR User roles do NOT have default access. Per Sec 16 of POSH Act 2013, breaching confidentiality is a punishable offence.</div>"
+  },
+  {
+   "fieldname": "identity_section",
+   "fieldtype": "Section Break",
+   "label": "Filing"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "options": "Company",
+   "label": "Company",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "description": "Company in which the complainant is currently employed."
+  },
+  {
+   "fieldname": "internal_committee",
+   "fieldtype": "Link",
+   "options": "POSH Internal Committee",
+   "label": "Internal Committee",
+   "reqd": 1,
+   "description": "Auto-suggests the Active IC for this Company on save."
+  },
+  {
+   "fieldname": "filing_date",
+   "fieldtype": "Date",
+   "label": "Filing Date",
+   "reqd": 1,
+   "default": "Today",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "description": "Day the complaint was filed. 90-day statutory SLA runs from this date (Sec 11)."
+  },
+  {
+   "fieldname": "column_break_meta",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "anonymous",
+   "fieldtype": "Check",
+   "label": "Anonymous",
+   "description": "When ticked, complainant identity is masked on lists and reports. The complainant Link is still stored — only displayed-name fields are masked."
+  },
+  {
+   "fieldname": "complainant",
+   "fieldtype": "Link",
+   "options": "Employee",
+   "label": "Complainant",
+   "reqd": 1
+  },
+  {
+   "fieldname": "complainant_name_masked",
+   "fieldtype": "Data",
+   "label": "Complainant (display)",
+   "read_only": 1,
+   "in_list_view": 1,
+   "description": "Auto-computed: masked if anonymous, else employee_name."
+  },
+  {
+   "fieldname": "complainant_employee_id_masked",
+   "fieldtype": "Data",
+   "label": "Complainant Employee ID (display)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "accused_section",
+   "fieldtype": "Section Break",
+   "label": "Accused"
+  },
+  {
+   "fieldname": "accused",
+   "fieldtype": "Link",
+   "options": "Employee",
+   "label": "Accused",
+   "reqd": 1,
+   "description": "May be from a different Company within the group; the complaint stays with the complainant's Company IC."
+  },
+  {
+   "fetch_from": "accused.employee_name",
+   "fieldname": "accused_employee_name",
+   "fieldtype": "Data",
+   "label": "Accused Name",
+   "read_only": 1
+  },
+  {
+   "fetch_from": "accused.company",
+   "fieldname": "accused_company",
+   "fieldtype": "Link",
+   "options": "Company",
+   "label": "Accused's Company",
+   "read_only": 1
+  },
+  {
+   "fieldname": "incident_section",
+   "fieldtype": "Section Break",
+   "label": "Incident"
+  },
+  {
+   "fieldname": "incident_date",
+   "fieldtype": "Date",
+   "label": "Incident Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "incident_location",
+   "fieldtype": "Small Text",
+   "label": "Location"
+  },
+  {
+   "fieldname": "incident_description",
+   "fieldtype": "Long Text",
+   "label": "Description of Incident",
+   "reqd": 1
+  },
+  {
+   "fieldname": "evidence",
+   "fieldtype": "Attach",
+   "label": "Evidence (single file)",
+   "description": "Use Frappe's attach-multiple via the form sidebar for additional files."
+  },
+  {
+   "fieldname": "workflow_section",
+   "fieldtype": "Section Break",
+   "label": "Workflow"
+  },
+  {
+   "fieldname": "workflow_state",
+   "fieldtype": "Link",
+   "options": "Workflow State",
+   "label": "Workflow State",
+   "no_copy": 1,
+   "read_only": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "filing_acknowledged_on",
+   "fieldtype": "Date",
+   "label": "Acknowledged On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "inquiry_started_on",
+   "fieldtype": "Date",
+   "label": "Inquiry Started On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "findings_recorded_on",
+   "fieldtype": "Date",
+   "label": "Findings Recorded On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "action_recommended_on",
+   "fieldtype": "Date",
+   "label": "Action Recommended On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "closed_on",
+   "fieldtype": "Date",
+   "label": "Closed On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_wf",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "sla_due_date",
+   "fieldtype": "Date",
+   "label": "SLA Due Date (Statutory)",
+   "read_only": 1,
+   "description": "Filing Date + statutory 90 days (Sec 11 of POSH Act). Auto-set on insert."
+  },
+  {
+   "fieldname": "last_reminder_sent_on",
+   "fieldtype": "Date",
+   "label": "Last Reminder Sent On",
+   "read_only": 1,
+   "no_copy": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "findings_section",
+   "fieldtype": "Section Break",
+   "label": "Inquiry Findings & Action"
+  },
+  {
+   "fieldname": "inquiry_findings",
+   "fieldtype": "Long Text",
+   "label": "Inquiry Findings",
+   "mandatory_depends_on": "eval:in_list(['Findings Recorded','Action Recommended','Closed'], doc.workflow_state)"
+  },
+  {
+   "fieldname": "action_recommended",
+   "fieldtype": "Select",
+   "label": "Action Recommended",
+   "options": "\nNo Action (Complaint Not Substantiated)\nWritten Warning\nFinal Warning\nSuspension\nTransfer\nTermination\nOther",
+   "mandatory_depends_on": "eval:in_list(['Action Recommended','Closed'], doc.workflow_state)"
+  },
+  {
+   "fieldname": "action_taken",
+   "fieldtype": "Long Text",
+   "label": "Action Taken (Narrative)",
+   "mandatory_depends_on": "eval:doc.workflow_state === 'Closed'"
+  },
+  {
+   "fieldname": "action_date",
+   "fieldtype": "Date",
+   "label": "Action Date"
+  },
+  {
+   "fieldname": "linkage_section",
+   "fieldtype": "Section Break",
+   "label": "Linkage",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "linked_disciplinary_action",
+   "fieldtype": "Link",
+   "options": "Disciplinary Action",
+   "label": "Linked Disciplinary Action",
+   "description": "Set when an Action Recommended leads to a Disciplinary Action."
+  },
+  {
+   "fieldname": "linked_grievance",
+   "fieldtype": "Link",
+   "options": "Employee Grievance",
+   "label": "Linked Grievance",
+   "description": "If the complaint originated as an Employee Grievance that was reclassified to POSH."
+  },
+  {
+   "fieldname": "confidentiality_section",
+   "fieldtype": "Section Break",
+   "label": "Confidentiality Acknowledgements",
+   "collapsible": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "complainant_confidentiality_acknowledgement",
+   "fieldtype": "Check",
+   "label": "Complainant has acknowledged confidentiality terms"
+  },
+  {
+   "default": "0",
+   "fieldname": "ic_confidentiality_acknowledgement",
+   "fieldtype": "Check",
+   "label": "IC members have acknowledged confidentiality"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-05-30 14:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "HR",
+ "name": "POSH Complaint",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 0,
+   "email": 1,
+   "export": 0,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Employee",
+   "share": 0,
+   "write": 1
+  },
+  {
+   "create": 0,
+   "delete": 0,
+   "email": 1,
+   "export": 0,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR Manager",
+   "share": 0,
+   "write": 0
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [
+  {"color": "Red", "title": "Filed"},
+  {"color": "Yellow", "title": "Acknowledged"},
+  {"color": "Yellow", "title": "Inquiry"},
+  {"color": "Orange", "title": "Findings Recorded"},
+  {"color": "Orange", "title": "Action Recommended"},
+  {"color": "Green", "title": "Closed"}
+ ],
+ "title_field": "complainant_name_masked",
+ "track_changes": 1
+}
