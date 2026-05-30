@@ -49,3 +49,4 @@ indian_hrms_compliance.patches.v15_0.migrate_kra_owner_to_designation #2026-05-2
 indian_hrms_compliance.patches.v15_0.scope_hr_docs_to_company #2026-05-29
 indian_hrms_compliance.patches.v15_0.seed_hr_settings_defaults #2026-05-29
 indian_hrms_compliance.patches.v15_0.setup_resignation_request_workflow #2026-05-30
+indian_hrms_compliance.patches.v15_0.add_no_dues_to_employee_separation #2026-05-30

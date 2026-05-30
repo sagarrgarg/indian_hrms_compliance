@@ -232,6 +232,15 @@ doc_events = {
 	"Appraisal": {
 		"validate": "indian_hrms_compliance.overrides.appraisal.populate_kra_performance",
 	},
+	"Employee Separation": {
+		"after_insert": "indian_hrms_compliance.overrides.employee_separation_no_dues.clone_no_dues_from_template",
+		"on_update": [
+			"indian_hrms_compliance.overrides.employee_separation_no_dues.route_no_dues_todos",
+			"indian_hrms_compliance.overrides.employee_separation_no_dues.close_no_dues_todos_on_cleared",
+			"indian_hrms_compliance.overrides.employee_separation_no_dues.stamp_relieving_date_on_completion",
+		],
+		"before_submit": "indian_hrms_compliance.overrides.employee_separation_no_dues.block_submit_if_no_dues_pending",
+	},
 }
 
 # Scheduled Tasks
