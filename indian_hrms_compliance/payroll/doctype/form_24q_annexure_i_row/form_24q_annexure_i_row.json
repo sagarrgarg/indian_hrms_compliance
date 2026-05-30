@@ -1,0 +1,105 @@
+{
+ "actions": [],
+ "creation": "2026-05-30 18:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "employee",
+  "employee_pan",
+  "employee_name",
+  "payment_date",
+  "amount_paid",
+  "tds_amount",
+  "challan_serial_no",
+  "section_code",
+  "reason_for_lower_no_deduction",
+  "salary_slip"
+ ],
+ "fields": [
+  {
+   "fieldname": "employee",
+   "fieldtype": "Link",
+   "options": "Employee",
+   "label": "Employee",
+   "in_list_view": 1,
+   "columns": 2
+  },
+  {
+   "fieldname": "employee_pan",
+   "fieldtype": "Data",
+   "label": "PAN",
+   "in_list_view": 1,
+   "columns": 2,
+   "length": 10,
+   "description": "10-char PAN of the deductee. PANNOTAVBL allowed only with valid reason code."
+  },
+  {
+   "fetch_from": "employee.employee_name",
+   "fieldname": "employee_name",
+   "fieldtype": "Data",
+   "label": "Employee Name",
+   "read_only": 1,
+   "in_list_view": 1,
+   "columns": 2
+  },
+  {
+   "fieldname": "payment_date",
+   "fieldtype": "Date",
+   "label": "Payment / Credit Date",
+   "description": "Date on which salary was paid / credited. Drives the TDS quarter."
+  },
+  {
+   "fieldname": "amount_paid",
+   "fieldtype": "Currency",
+   "label": "Amount Paid / Credited",
+   "in_list_view": 1,
+   "columns": 2,
+   "description": "Gross salary paid (before TDS) for the period."
+  },
+  {
+   "fieldname": "tds_amount",
+   "fieldtype": "Currency",
+   "label": "TDS Deducted",
+   "in_list_view": 1,
+   "columns": 1
+  },
+  {
+   "fieldname": "challan_serial_no",
+   "fieldtype": "Data",
+   "label": "Challan Serial No",
+   "description": "Must match a Challan row's challan_serial_no. RPU rejects orphan deductees."
+  },
+  {
+   "default": "192A",
+   "fieldname": "section_code",
+   "fieldtype": "Data",
+   "label": "Section",
+   "description": "192A in 24Q context = Salary (the deductee section is 192A in Annexure I)."
+  },
+  {
+   "fieldname": "reason_for_lower_no_deduction",
+   "fieldtype": "Data",
+   "label": "Reason (Lower / No Deduction)",
+   "description": "Codes A/B/C/T/Y/S/Z per CPC TDS RPU. Leave blank when TDS deducted at normal rate."
+  },
+  {
+   "fieldname": "salary_slip",
+   "fieldtype": "Link",
+   "options": "Salary Slip",
+   "label": "Salary Slip"
+  }
+ ],
+ "istable": 1,
+ "links": [],
+ "modified": "2026-05-30 18:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Payroll",
+ "name": "Form 24Q Annexure I Row",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}
