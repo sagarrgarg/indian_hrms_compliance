@@ -1,0 +1,73 @@
+{
+ "actions": [],
+ "creation": "2026-05-30 12:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "month",
+  "gross_salary",
+  "section_10_exemptions",
+  "section_16_deductions",
+  "taxable_salary",
+  "tds_deducted"
+ ],
+ "fields": [
+  {
+   "fieldname": "month",
+   "fieldtype": "Select",
+   "label": "Month",
+   "options": "Apr\nMay\nJun\nJul\nAug\nSep\nOct\nNov\nDec\nJan\nFeb\nMar",
+   "in_list_view": 1,
+   "reqd": 1,
+   "columns": 1
+  },
+  {
+   "fieldname": "gross_salary",
+   "fieldtype": "Currency",
+   "label": "Gross Salary",
+   "in_list_view": 1,
+   "columns": 2
+  },
+  {
+   "fieldname": "section_10_exemptions",
+   "fieldtype": "Currency",
+   "label": "Sec 10 Exemptions",
+   "in_list_view": 1,
+   "columns": 2
+  },
+  {
+   "fieldname": "section_16_deductions",
+   "fieldtype": "Currency",
+   "label": "Sec 16 Deductions",
+   "in_list_view": 1,
+   "columns": 2
+  },
+  {
+   "fieldname": "taxable_salary",
+   "fieldtype": "Currency",
+   "label": "Taxable Salary",
+   "in_list_view": 1,
+   "columns": 2
+  },
+  {
+   "fieldname": "tds_deducted",
+   "fieldtype": "Currency",
+   "label": "TDS Deducted",
+   "in_list_view": 1,
+   "columns": 2
+  }
+ ],
+ "istable": 1,
+ "links": [],
+ "modified": "2026-05-30 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "HR",
+ "name": "Form 12B Salary Detail",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}
