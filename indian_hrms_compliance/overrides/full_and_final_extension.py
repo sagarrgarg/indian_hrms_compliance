@@ -561,3 +561,20 @@ def generate_exit_letters_from_fnf(fnf_name):
 			)
 		)
 	return created
+
+
+def auto_generate_exit_letters_on_submit(doc, method=None):
+	"""on_submit doc_event for Full and Final Statement — when the HR Setting
+	auto_generate_exit_letters_on_fnf_submit is on, create the 3 exit letter
+	drafts as a side effect of submitting the FnF."""
+	if not int(_hr_setting("auto_generate_exit_letters_on_fnf_submit", 0) or 0):
+		return
+	try:
+		generate_exit_letters_from_fnf(doc.name)
+	except Exception:
+		# Don't roll back the FnF submission for letter generation issues;
+		# HR can click the manual button to retry.
+		frappe.log_error(
+			title=f"Auto exit letter generation failed for {doc.name}",
+			message=frappe.get_traceback(),
+		)
