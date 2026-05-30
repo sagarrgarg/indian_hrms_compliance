@@ -1,0 +1,307 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "format:RES-{company}-{employee}-{submission_date}",
+ "creation": "2026-05-30 09:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "request_section",
+  "request_type",
+  "initiated_by",
+  "submission_date",
+  "column_break_meta",
+  "employee",
+  "employee_name",
+  "company",
+  "department",
+  "designation",
+  "reason_section",
+  "reason_category",
+  "reason_details",
+  "notice_section",
+  "notice_required_days",
+  "notice_offered_days",
+  "intended_last_working_date",
+  "column_break_notice",
+  "notice_disposition",
+  "garden_leave_paid",
+  "approval_section",
+  "workflow_state",
+  "manager_acknowledgement_date",
+  "manager_comments",
+  "column_break_appr",
+  "hr_approval_date",
+  "hr_comments",
+  "linkage_section",
+  "linked_employee_separation",
+  "linked_full_and_final"
+ ],
+ "fields": [
+  {
+   "fieldname": "request_section",
+   "fieldtype": "Section Break",
+   "label": "Request"
+  },
+  {
+   "fieldname": "request_type",
+   "fieldtype": "Select",
+   "label": "Request Type",
+   "options": "Resignation\nTermination\nRetirement\nEnd of Contract\nDeath",
+   "reqd": 1,
+   "default": "Resignation",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "description": "Resignation = employee-initiated. Termination = employer-initiated. Retirement / End of Contract = scheduled. Death = posthumous (HR-only)."
+  },
+  {
+   "fieldname": "initiated_by",
+   "fieldtype": "Select",
+   "label": "Initiated By",
+   "options": "Employee\nEmployer",
+   "read_only": 1,
+   "description": "Auto-derived from Request Type."
+  },
+  {
+   "fieldname": "submission_date",
+   "fieldtype": "Date",
+   "label": "Submission Date",
+   "reqd": 1,
+   "default": "Today",
+   "in_list_view": 1,
+   "description": "Date the notice was submitted (employee letter date for Resignation, employer letter date for Termination). Notice period clock starts from this date."
+  },
+  {
+   "fieldname": "column_break_meta",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "employee",
+   "fieldtype": "Link",
+   "label": "Employee",
+   "options": "Employee",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fetch_from": "employee.employee_name",
+   "fieldname": "employee_name",
+   "fieldtype": "Data",
+   "label": "Employee Name",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fetch_from": "employee.company",
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Company",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "description": "Each Resignation Request is Company-scoped — multi-Co employees file one per active employment."
+  },
+  {
+   "fetch_from": "employee.department",
+   "fieldname": "department",
+   "fieldtype": "Link",
+   "label": "Department",
+   "options": "Department",
+   "read_only": 1
+  },
+  {
+   "fetch_from": "employee.designation",
+   "fieldname": "designation",
+   "fieldtype": "Link",
+   "label": "Designation",
+   "options": "Designation",
+   "read_only": 1
+  },
+  {
+   "fieldname": "reason_section",
+   "fieldtype": "Section Break",
+   "label": "Reason"
+  },
+  {
+   "fieldname": "reason_category",
+   "fieldtype": "Select",
+   "label": "Reason Category",
+   "options": "\nBetter Opportunity\nHigher Studies\nRelocation\nPersonal / Family\nHealth\nWork-Life Balance\nCompensation\nManager / Team Issues\nPerformance (Termination)\nMisconduct (Termination)\nRedundancy (Termination)\nRetirement\nDeath\nOther",
+   "in_standard_filter": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "reason_details",
+   "fieldtype": "Long Text",
+   "label": "Reason Details",
+   "description": "Free-text narrative. For Termination, HR notes the basis (PIP outcome, investigation reference, etc)."
+  },
+  {
+   "fieldname": "notice_section",
+   "fieldtype": "Section Break",
+   "label": "Notice Period"
+  },
+  {
+   "fetch_from": "employee.notice_number_of_days",
+   "fieldname": "notice_required_days",
+   "fieldtype": "Int",
+   "label": "Notice Required (days)",
+   "non_negative": 1,
+   "description": "Contractual notice as set on the Employee master. Editable here if a different commitment applies."
+  },
+  {
+   "fieldname": "notice_offered_days",
+   "fieldtype": "Int",
+   "label": "Notice Offered (days)",
+   "non_negative": 1,
+   "reqd": 1,
+   "description": "Days the initiating party offers to serve. For Termination this is what the employer is giving. The Intended Last Working Date is derived from this."
+  },
+  {
+   "fieldname": "intended_last_working_date",
+   "fieldtype": "Date",
+   "label": "Intended Last Working Date",
+   "description": "Auto-computed = Submission Date + Notice Offered. Editable for negotiated dates. The actual relieving date is set later when Employee Separation completes."
+  },
+  {
+   "fieldname": "column_break_notice",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "notice_disposition",
+   "fieldtype": "Select",
+   "label": "Notice Disposition",
+   "options": "Will Serve in Full\nShort Notice (recovery)\nPay in Lieu of Notice\nGarden Leave",
+   "reqd": 1,
+   "default": "Will Serve in Full",
+   "in_standard_filter": 1,
+   "description": "Drives the FnF computation: Short Notice = recovery from employee. Pay in Lieu = payable to employee (employer waives served notice). Garden Leave = full notice paid as regular salary."
+  },
+  {
+   "default": "0",
+   "depends_on": "eval:doc.notice_disposition === 'Garden Leave'",
+   "fieldname": "garden_leave_paid",
+   "fieldtype": "Check",
+   "label": "Garden Leave Salary Paid",
+   "description": "Tick when the garden leave period has been paid in regular salary cycles. Closes the notice loop without an FnF line."
+  },
+  {
+   "fieldname": "approval_section",
+   "fieldtype": "Section Break",
+   "label": "Approval Trail"
+  },
+  {
+   "fieldname": "workflow_state",
+   "fieldtype": "Link",
+   "label": "Workflow State",
+   "options": "Workflow State",
+   "no_copy": 1,
+   "read_only": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "manager_acknowledgement_date",
+   "fieldtype": "Date",
+   "label": "Manager Acknowledged On",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "manager_comments",
+   "fieldtype": "Small Text",
+   "label": "Manager Comments"
+  },
+  {
+   "fieldname": "column_break_appr",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "hr_approval_date",
+   "fieldtype": "Date",
+   "label": "HR Approved On",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "hr_comments",
+   "fieldtype": "Small Text",
+   "label": "HR Comments"
+  },
+  {
+   "fieldname": "linkage_section",
+   "fieldtype": "Section Break",
+   "label": "Linkage",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "linked_employee_separation",
+   "fieldtype": "Link",
+   "label": "Linked Employee Separation",
+   "options": "Employee Separation",
+   "read_only": 1,
+   "no_copy": 1,
+   "description": "Auto-created on Approved."
+  },
+  {
+   "fieldname": "linked_full_and_final",
+   "fieldtype": "Link",
+   "label": "Linked Full and Final Statement",
+   "options": "Full and Final Statement",
+   "read_only": 1,
+   "no_copy": 1,
+   "description": "Set when HR creates an FnF for this Employee that references this Resignation Request."
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-05-30 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "HR",
+ "name": "Resignation Request",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR User",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Employee",
+   "share": 1,
+   "write": 1,
+   "if_owner": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "employee_name",
+ "track_changes": 1
+}

@@ -48,3 +48,4 @@ indian_hrms_compliance.patches.v15_0.backfill_kra_is_global #2026-05-29
 indian_hrms_compliance.patches.v15_0.migrate_kra_owner_to_designation #2026-05-29
 indian_hrms_compliance.patches.v15_0.scope_hr_docs_to_company #2026-05-29
 indian_hrms_compliance.patches.v15_0.seed_hr_settings_defaults #2026-05-29
+indian_hrms_compliance.patches.v15_0.setup_resignation_request_workflow #2026-05-30
