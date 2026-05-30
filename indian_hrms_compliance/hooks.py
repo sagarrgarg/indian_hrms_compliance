@@ -61,6 +61,8 @@ doctype_js = {
 	"TDS Return Form 24Q": "public/js/tds_return_form_24q.js",
 	"Professional Tax Return": "public/js/professional_tax_return.js",
 	"LWF Return": "public/js/lwf_return.js",
+	"Compliance Filing": "public/js/compliance_filing.js",
+	"Compliance Return Definition": "public/js/compliance_return_definition.js",
 }
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
@@ -185,6 +187,7 @@ doc_events = {
 		"on_update": [
 			"indian_hrms_compliance.overrides.company.make_company_fixtures",
 			"indian_hrms_compliance.overrides.company.set_default_hr_accounts",
+			"indian_hrms_compliance.overrides.compliance_calendar.seed_compliance_return_definitions",
 		],
 		"on_trash": "indian_hrms_compliance.overrides.company.handle_linked_docs",
 	},
@@ -267,6 +270,30 @@ doc_events = {
 	"Salary Structure Assignment": {
 		"validate": "indian_hrms_compliance.overrides.salary_structure_validator.validate_salary_structure_assignment",
 	},
+	"PF ECR Filing": {
+		"on_update": "indian_hrms_compliance.overrides.compliance_calendar.auto_link_filing_on_save",
+	},
+	"ESI Monthly Contribution": {
+		"on_update": "indian_hrms_compliance.overrides.compliance_calendar.auto_link_filing_on_save",
+	},
+	"ESI Half Yearly Return": {
+		"on_update": "indian_hrms_compliance.overrides.compliance_calendar.auto_link_filing_on_save",
+	},
+	"TDS Return Form 24Q": {
+		"on_update": "indian_hrms_compliance.overrides.compliance_calendar.auto_link_filing_on_save",
+	},
+	"Professional Tax Return": {
+		"on_update": "indian_hrms_compliance.overrides.compliance_calendar.auto_link_filing_on_save",
+	},
+	"LWF Return": {
+		"on_update": "indian_hrms_compliance.overrides.compliance_calendar.auto_link_filing_on_save",
+	},
+	"Form 16": {
+		"on_update": "indian_hrms_compliance.overrides.compliance_calendar.auto_link_filing_on_save",
+	},
+	"POSH Annual Report": {
+		"on_update": "indian_hrms_compliance.overrides.compliance_calendar.auto_link_filing_on_save",
+	},
 }
 
 # Scheduled Tasks
@@ -303,6 +330,7 @@ scheduler_events = {
 		"indian_hrms_compliance.overrides.form_24q_generator.send_form_24q_due_reminders",
 		"indian_hrms_compliance.overrides.pt_return_generator.send_pt_return_due_reminders",
 		"indian_hrms_compliance.overrides.lwf_return_generator.send_lwf_return_due_reminders",
+		"indian_hrms_compliance.overrides.compliance_calendar.send_compliance_calendar_reminders",
 	],
 	"daily_long": [
 		"indian_hrms_compliance.hr.doctype.leave_ledger_entry.leave_ledger_entry.process_expired_allocation",
