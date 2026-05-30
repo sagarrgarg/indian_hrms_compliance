@@ -22,7 +22,12 @@ class SalaryStructureValidationLog(Document):
 
 def record_issue(salary_structure, severity, code, message):
 	"""Insert a log row. Used by the validator. Never raises — log
-	failures must not block the user's actual save."""
+	failures must not block the user's actual save.
+
+	IMPORTANT: log rows must survive even when the calling save throws
+	(e.g. HARD wage_code validation fails → frappe.throw rolls back the
+	transaction). We use db.commit() after the insert so the audit trail
+	persists regardless of what happens to the parent save."""
 	try:
 		doc = frappe.get_doc(
 			{
@@ -35,6 +40,9 @@ def record_issue(salary_structure, severity, code, message):
 			}
 		)
 		doc.insert(ignore_permissions=True)
+		# Persist immediately so a subsequent HARD throw doesn't roll
+		# the audit row back along with the user's save.
+		frappe.db.commit()
 		return doc.name
 	except Exception:
 		frappe.log_error(

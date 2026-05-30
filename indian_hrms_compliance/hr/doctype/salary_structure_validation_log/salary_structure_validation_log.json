@@ -25,12 +25,12 @@
   },
   {
    "fieldname": "salary_structure",
-   "fieldtype": "Link",
-   "options": "Salary Structure",
+   "fieldtype": "Data",
    "label": "Salary Structure",
    "reqd": 1,
    "in_list_view": 1,
-   "in_standard_filter": 1
+   "in_standard_filter": 1,
+   "description": "Stored as text (not Link) so the log row survives if the Salary Structure is renamed or deleted."
   },
   {
    "fieldname": "validated_on",
