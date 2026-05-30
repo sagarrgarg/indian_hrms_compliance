@@ -492,3 +492,72 @@ def _recompute_totals(doc):
 		total_receivable + flt(doc.total_asset_recovery_cost or 0),
 		doc.precision("total_receivable_amount"),
 	)
+
+
+# ---- Stage 6: Exit Letter generation ----
+
+EXIT_LETTER_TYPES = ("Relieving Letter", "Experience Letter", "Service Certificate")
+
+
+@frappe.whitelist()
+def generate_exit_letters_from_fnf(fnf_name):
+	"""Create three draft Appointment Letter records linked to this FnF,
+	one per exit letter type, using the seeded templates.
+
+	Idempotent — skips letter types that already have a draft for this FnF.
+	Returns the list of letter names so the JS can offer Open links."""
+	fnf = frappe.get_doc("Full and Final Statement", fnf_name)
+	if not fnf.relieving_date:
+		frappe.throw(_("Set Relieving Date on the FnF before generating exit letters."))
+	if not fnf.employee:
+		frappe.throw(_("FnF has no Employee."))
+
+	employee_name = frappe.db.get_value("Employee", fnf.employee, "employee_name") or fnf.employee
+	created = []
+	for letter_type in EXIT_LETTER_TYPES:
+		existing = frappe.db.exists(
+			"Appointment Letter",
+			{"full_and_final_statement": fnf.name, "letter_type": letter_type},
+		)
+		if existing:
+			created.append(existing)
+			continue
+
+		template = frappe.db.get_value(
+			"Appointment Letter Template", {"letter_type": letter_type}, "name"
+		)
+		if not template:
+			frappe.msgprint(
+				_("No template found for {0} — skipped. Create one to enable.").format(letter_type)
+			)
+			continue
+
+		doc = frappe.get_doc(
+			{
+				"doctype": "Appointment Letter",
+				"job_applicant": "",  # exit letters bypass this — pattern from Probation Review
+				"applicant_name": employee_name,
+				"appointment_date": fnf.relieving_date,
+				"company": fnf.company,
+				"appointment_letter_template": template,
+				"letter_type": letter_type,
+				"employee": fnf.employee,
+				"full_and_final_statement": fnf.name,
+			}
+		)
+		try:
+			doc.insert(ignore_permissions=True, ignore_mandatory=True)
+			created.append(doc.name)
+		except Exception:
+			frappe.log_error(
+				title=f"Exit letter generation failed: {letter_type} for {fnf.name}",
+				message=frappe.get_traceback(),
+			)
+
+	if created:
+		frappe.msgprint(
+			_("Generated {0} exit letter draft(s). Edit content + finalise from the Appointment Letter list.").format(
+				len(created)
+			)
+		)
+	return created

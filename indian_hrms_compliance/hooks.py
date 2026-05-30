@@ -47,6 +47,7 @@ app_include_css = "indian_hrms_compliance.bundle.css"
 doctype_js = {
 	"Employee": "public/js/erpnext/employee.js",
 	"Job Offer": "public/js/erpnext/job_offer.js",
+	"Full and Final Statement": "public/js/full_and_final_phase4.js",
 	"Company": "public/js/erpnext/company.js",
 	"Department": "public/js/erpnext/department.js",
 	"Timesheet": "public/js/erpnext/timesheet.js",
