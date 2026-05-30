@@ -1,0 +1,171 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "format:DRR-{doctype_name}-{field_name}",
+ "creation": "2026-06-03 09:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 0,
+ "engine": "InnoDB",
+ "field_order": [
+  "header_html",
+  "scope_section",
+  "doctype_name",
+  "field_or_record",
+  "field_name",
+  "column_break_scope",
+  "purpose",
+  "is_active",
+  "policy_section",
+  "retention_period_years",
+  "anchor_field",
+  "column_break_policy",
+  "action_on_expiry",
+  "applicable_when_condition",
+  "audit_section",
+  "last_purged_on",
+  "notes"
+ ],
+ "fields": [
+  {
+   "fieldname": "header_html",
+   "fieldtype": "HTML",
+   "options": "<div style='background:#fef9e7;border-left:4px solid #f1c40f;padding:10px 14px;margin-bottom:8px'><strong>RETENTION RULE</strong> &mdash; Drives the weekly purge scheduler. <strong>Test in 'Anonymize' mode for at least one cycle before switching to 'Delete'.</strong> Per HR Settings.dpdp_purge_max_per_run, the purge processes at most N records per run as a safety bound.</div>"
+  },
+  {
+   "fieldname": "scope_section",
+   "fieldtype": "Section Break",
+   "label": "Scope"
+  },
+  {
+   "fieldname": "doctype_name",
+   "fieldtype": "Link",
+   "options": "DocType",
+   "label": "DocType",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "default": "Record-Level",
+   "fieldname": "field_or_record",
+   "fieldtype": "Select",
+   "label": "Scope",
+   "options": "Record-Level\nField-Level",
+   "description": "Record-Level: the whole record is processed. Field-Level: only the named field on each matching record is processed (typical for retaining the record but anonymising a single PII field)."
+  },
+  {
+   "fieldname": "field_name",
+   "fieldtype": "Data",
+   "label": "Field Name",
+   "depends_on": "eval:doc.field_or_record === 'Field-Level'",
+   "description": "For Field-Level scope: the field to anonymise/erase. Ignored for Record-Level."
+  },
+  {
+   "fieldname": "column_break_scope",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "purpose",
+   "fieldtype": "Link",
+   "options": "Data Consent Purpose",
+   "label": "Purpose",
+   "description": "Best-effort tag — links the retention rule to the purpose under which the data was collected."
+  },
+  {
+   "default": "1",
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "label": "Is Active",
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "policy_section",
+   "fieldtype": "Section Break",
+   "label": "Policy"
+  },
+  {
+   "fieldname": "retention_period_years",
+   "fieldtype": "Int",
+   "label": "Retention Period (Years)",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "anchor_field",
+   "fieldtype": "Data",
+   "label": "Anchor Date Field",
+   "description": "Date field on the doctype used as the start of the retention window. Examples: 'creation', 'relieving_date', 'closed_on', 'start_date'. If blank, defaults to 'creation'."
+  },
+  {
+   "fieldname": "column_break_policy",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Anonymize",
+   "fieldname": "action_on_expiry",
+   "fieldtype": "Select",
+   "label": "Action on Expiry",
+   "options": "Anonymize\nDelete\nArchive",
+   "description": "Anonymize: replace PII with [Anonymized]. Delete: hard delete. Archive: dump to /private/files/archive/&lt;doctype&gt;/&lt;name&gt;.json then delete. Start with Anonymize."
+  },
+  {
+   "fieldname": "applicable_when_condition",
+   "fieldtype": "Small Text",
+   "label": "Applicable When (SQL fragment)",
+   "description": "Optional extra SQL WHERE fragment, e.g. \"status = 'Left'\". Combined with AND. No semicolons."
+  },
+  {
+   "fieldname": "audit_section",
+   "fieldtype": "Section Break",
+   "label": "Audit",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "last_purged_on",
+   "fieldtype": "Date",
+   "label": "Last Purged On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Long Text",
+   "label": "Notes"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-06-03 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "HR",
+ "name": "Data Retention Rule",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 0,
+   "delete": 0,
+   "email": 0,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR User",
+   "share": 0,
+   "write": 0
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "track_changes": 1
+}
