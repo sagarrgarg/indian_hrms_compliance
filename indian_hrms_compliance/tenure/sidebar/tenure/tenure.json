@@ -48,8 +48,8 @@
    "is_default_module": 0,
    "keep_closed": 0,
    "label": "New Employee",
-   "link_to": "New Employee Setup",
-   "link_type": "DocType",
+   "link_to": "new-employee-setup",
+   "link_type": "Page",
    "open_in_new_tab": 0,
    "show_arrow": 0,
    "type": "Link"

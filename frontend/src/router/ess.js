@@ -106,6 +106,20 @@ const routes = [
 			next(canViewCockpit.data === false ? { name: "Home" } : true)
 		},
 	},
+	{
+		name: "ManageKraTasks",
+		path: "/manage-kra-tasks",
+		component: () => import("@/views/ManageKraTasks.vue"),
+		beforeEnter: async (to, from, next) => {
+			const { canViewCockpit } = await import("@/data/cockpit")
+			try {
+				await (canViewCockpit.promise || canViewCockpit.reload())
+			} catch (e) {
+				/* backend kra_tasks endpoints still enforce access */
+			}
+			next(canViewCockpit.data === false ? { name: "Home" } : true)
+		},
+	},
 ]
 
 export default routes

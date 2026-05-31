@@ -81,6 +81,7 @@ def get_hr_cockpit(period: str = "Monthly") -> dict:
 		"people": [],
 		"trends": {},
 		"readiness": {},
+		"coverage": {},
 	}
 	_safe(payload, "kpis", _build_kpis, ctx)
 	_safe(payload, "compliance", _build_compliance, ctx)
@@ -88,6 +89,7 @@ def get_hr_cockpit(period: str = "Monthly") -> dict:
 	_safe(payload, "people", _build_people, ctx)
 	_safe(payload, "trends", _build_trends, ctx)
 	_safe(payload, "readiness", _build_readiness, ctx)
+	_safe(payload, "coverage", _build_coverage, ctx)
 	return payload
 
 
@@ -95,6 +97,55 @@ def _build_readiness(ctx):
 	from indian_hrms_compliance.overrides.employee_master import get_employee_readiness_summary
 
 	return get_employee_readiness_summary(ctx["company"])
+
+
+def _build_coverage(ctx):
+	"""Governance gaps in the task framework, company-scoped:
+	- uncovered KRAs: Active KRAs with no Active HRMS Task rolling up to them.
+	- unassigned tasks: Active HRMS Tasks whose scope resolves to 0 Active
+	  Employees (nobody will ever get an instance).
+	Both are things HR must fix, surfaced with a route into the manage view."""
+	from indian_hrms_compliance.hr.doctype.hrms_task.hrms_task import resolve_assigned_employees
+
+	kra_filters = {"status": "Active"}
+	task_filters = {"status": "Active", "is_group": 0}
+	if ctx["company"]:
+		kra_filters["company"] = ctx["company"]
+		task_filters["company"] = ctx["company"]
+
+	active_kras = frappe.get_all("KRA", filters=kra_filters, fields=["name", "title", "kra_category"])
+	tasks = frappe.get_all(
+		"HRMS Task",
+		filters=task_filters,
+		fields=[
+			"name", "task_name", "kra", "company", "applicable_to_all_active",
+			"assigned_to_department", "assigned_to_designation", "assigned_to_branch",
+			"assigned_to_grade", "assigned_to_employment_type", "assigned_to_employee_group",
+		],
+	)
+
+	kras_with_task = {t.kra for t in tasks if t.kra}
+	uncovered = [
+		{"name": k.name, "title": k.title or k.name, "category": k.kra_category or ""}
+		for k in active_kras
+		if k.name not in kras_with_task
+	]
+
+	unassigned = []
+	for t in tasks:
+		if not resolve_assigned_employees(frappe._dict(t)):
+			unassigned.append({"name": t.name, "task_name": t.task_name, "kra": t.kra or ""})
+
+	return {
+		"uncovered_kras": uncovered,
+		"unassigned_tasks": unassigned,
+		"totals": {
+			"active_kras": len(active_kras),
+			"active_tasks": len(tasks),
+			"uncovered_kras": len(uncovered),
+			"unassigned_tasks": len(unassigned),
+		},
+	}
 
 
 def _safe(payload, key, fn, ctx):

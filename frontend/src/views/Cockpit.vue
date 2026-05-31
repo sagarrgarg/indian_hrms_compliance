@@ -12,9 +12,25 @@
 							<span v-if="data?.company" class="text-xs text-gray-500 leading-tight">{{ data.company }}</span>
 						</div>
 					</div>
-					<button class="p-1 text-gray-500" @click="refresh">
-						<FeatherIcon name="refresh-cw" class="h-5 w-5" :class="{ 'animate-spin': cockpit.loading }" />
-					</button>
+					<div class="flex items-center gap-1">
+						<button
+							class="flex items-center gap-1 px-2 py-1 text-xs font-medium text-indigo-600 bg-indigo-50 rounded-full"
+							@click="$router.push({ name: 'ManageKraTasks' })"
+						>
+							<FeatherIcon name="target" class="h-4 w-4" />
+							{{ __("KRAs & Tasks") }}
+						</button>
+						<button
+							class="flex items-center gap-1 px-2 py-1 text-xs font-medium text-violet-600 bg-violet-50 rounded-full"
+							@click="$router.push({ name: 'OrgChart3D' })"
+						>
+							<FeatherIcon name="box" class="h-4 w-4" />
+							{{ __("3D Org Chart") }}
+						</button>
+						<button class="p-1 text-gray-500" @click="refresh">
+							<FeatherIcon name="refresh-cw" class="h-5 w-5" :class="{ 'animate-spin': cockpit.loading }" />
+						</button>
+					</div>
 				</div>
 			</div>
 		</ion-header>
@@ -140,6 +156,67 @@
 						</div>
 					</GlassCard>
 
+					<!-- Task Coverage (governance gaps) -->
+					<GlassCard :title="__('Task Coverage')">
+						<template #header>
+							<button
+								class="text-xs font-medium text-indigo-600"
+								@click="$router.push({ name: 'ManageKraTasks' })"
+							>
+								{{ __("Manage") }} →
+							</button>
+						</template>
+						<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+							<button
+								class="rounded-xl p-3 border text-left active:scale-[0.99] transition"
+								:class="coverage.uncovered_kras?.length ? 'bg-amber-50 border-amber-100' : 'bg-emerald-50 border-emerald-100'"
+								@click="$router.push({ name: 'ManageKraTasks' })"
+							>
+								<div class="flex items-center justify-between">
+									<span class="text-xs font-semibold uppercase tracking-wide" :class="coverage.uncovered_kras?.length ? 'text-amber-600' : 'text-emerald-600'">
+										{{ __("KRAs without tasks") }}
+									</span>
+									<span class="text-2xl font-bold" :class="coverage.uncovered_kras?.length ? 'text-amber-600' : 'text-emerald-600'">
+										{{ coverage.totals?.uncovered_kras ?? 0 }}
+									</span>
+								</div>
+								<ul v-if="coverage.uncovered_kras?.length" class="mt-2 space-y-1">
+									<li v-for="k in coverage.uncovered_kras.slice(0, 4)" :key="k.name" class="text-sm text-gray-600 truncate">
+										{{ k.title }}
+									</li>
+									<li v-if="coverage.uncovered_kras.length > 4" class="text-xs text-gray-400">
+										+{{ coverage.uncovered_kras.length - 4 }} {{ __("more") }}
+									</li>
+								</ul>
+								<p v-else class="mt-2 text-sm text-emerald-600">{{ __("Every active KRA has a task ✓") }}</p>
+							</button>
+
+							<button
+								class="rounded-xl p-3 border text-left active:scale-[0.99] transition"
+								:class="coverage.unassigned_tasks?.length ? 'bg-red-50 border-red-100' : 'bg-emerald-50 border-emerald-100'"
+								@click="$router.push({ name: 'ManageKraTasks' })"
+							>
+								<div class="flex items-center justify-between">
+									<span class="text-xs font-semibold uppercase tracking-wide" :class="coverage.unassigned_tasks?.length ? 'text-red-600' : 'text-emerald-600'">
+										{{ __("Tasks assigned to nobody") }}
+									</span>
+									<span class="text-2xl font-bold" :class="coverage.unassigned_tasks?.length ? 'text-red-600' : 'text-emerald-600'">
+										{{ coverage.totals?.unassigned_tasks ?? 0 }}
+									</span>
+								</div>
+								<ul v-if="coverage.unassigned_tasks?.length" class="mt-2 space-y-1">
+									<li v-for="t in coverage.unassigned_tasks.slice(0, 4)" :key="t.name" class="text-sm text-gray-600 truncate">
+										{{ t.task_name }}
+									</li>
+									<li v-if="coverage.unassigned_tasks.length > 4" class="text-xs text-gray-400">
+										+{{ coverage.unassigned_tasks.length - 4 }} {{ __("more") }}
+									</li>
+								</ul>
+								<p v-else class="mt-2 text-sm text-emerald-600">{{ __("Every active task reaches someone ✓") }}</p>
+							</button>
+						</div>
+					</GlassCard>
+
 					<div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
 						<!-- 4. People Pulse -->
 						<GlassCard :title="__('People Pulse')">
@@ -221,6 +298,7 @@ const complianceBuckets = computed(() => {
 	]
 })
 
+const coverage = computed(() => data.value?.coverage || {})
 const readiness = computed(() => data.value?.readiness || {})
 const missingChips = computed(() => {
 	const m = readiness.value?.missing || {}
