@@ -2061,3 +2061,539 @@ def get_my_erasure_requests() -> list[dict]:
 		fields=_DPDP_ERASURE_LIST_FIELDS,
 		order_by="request_date desc, creation desc",
 	)
+
+
+# ---------------------------------------------------------------------------
+# Phase 7F — Manager Mobile Approvals inbox
+# ---------------------------------------------------------------------------
+#
+# A unified inbox of everything awaiting the current user's action AS AN
+# APPROVER (not as an employee). Aggregates six request types; each item is
+# tagged with the doctype, an action_type, and a category so the PWA can group
+# and act on it. SECURITY: approve_request / reject_request re-derive the
+# authorized approver server-side for the specific record and refuse anyone
+# else — the inbox listing is only a convenience, never the authorization.
+
+# Category labels surfaced to the PWA segment filter / badges.
+_APPROVAL_CATEGORIES = ("Leave", "Expense", "Advance", "Shift", "Attendance", "Task", "Resignation")
+
+
+def _approver_employees_for_user(user: str) -> list[str]:
+	"""Active Employee names linked to ``user`` (a user may map to several)."""
+	return frappe.get_all(
+		"Employee",
+		filters={"user_id": user, "status": "Active"},
+		pluck="name",
+	)
+
+
+def _resignation_reports_to_user(user: str) -> set[str]:
+	"""Employee names whose ``reports_to`` resolves to an Employee owned by ``user``.
+
+	Used to decide which Resignation Requests this user may acknowledge as the
+	reporting manager.
+	"""
+	manager_emps = _approver_employees_for_user(user)
+	if not manager_emps:
+		return set()
+	return set(
+		frappe.get_all(
+			"Employee",
+			filters={"reports_to": ("in", manager_emps)},
+			pluck="name",
+		)
+	)
+
+
+def _pending_leave_approvals(user: str) -> list[dict]:
+	rows = frappe.get_all(
+		"Leave Application",
+		filters={"status": "Open", "leave_approver": user, "docstatus": 0},
+		fields=[
+			"name",
+			"employee",
+			"employee_name",
+			"leave_type",
+			"from_date",
+			"to_date",
+			"total_leave_days",
+			"posting_date",
+		],
+		order_by="posting_date desc",
+	)
+	out = []
+	for r in rows:
+		dates = (
+			str(getdate(r.from_date))
+			if r.from_date == r.to_date
+			else f"{getdate(r.from_date)} → {getdate(r.to_date)}"
+		)
+		out.append(
+			{
+				"doctype": "Leave Application",
+				"name": r.name,
+				"category": "Leave",
+				"title": _("Leave: {0}").format(r.leave_type),
+				"subtitle": _("{0} ({1} day(s))").format(dates, flt(r.total_leave_days)),
+				"employee": r.employee,
+				"employee_name": r.employee_name,
+				"date": str(r.posting_date) if r.posting_date else None,
+				"action_type": "status",
+			}
+		)
+	return out
+
+
+def _pending_expense_approvals(user: str) -> list[dict]:
+	rows = frappe.get_all(
+		"Expense Claim",
+		filters={
+			"approval_status": ("in", ["Draft", "Submitted"]),
+			"expense_approver": user,
+			"docstatus": 0,
+		},
+		fields=[
+			"name",
+			"employee",
+			"employee_name",
+			"total_claimed_amount",
+			"company",
+			"posting_date",
+		],
+		order_by="posting_date desc",
+	)
+	out = []
+	for r in rows:
+		out.append(
+			{
+				"doctype": "Expense Claim",
+				"name": r.name,
+				"category": "Expense",
+				"title": _("Expense Claim"),
+				"subtitle": _("Amount: {0}").format(flt(r.total_claimed_amount)),
+				"employee": r.employee,
+				"employee_name": r.employee_name,
+				"date": str(r.posting_date) if r.posting_date else None,
+				"action_type": "status",
+			}
+		)
+	return out
+
+
+def _pending_advance_approvals(user: str) -> list[dict]:
+	"""Employee Advances awaiting approval (Draft, docstatus 0) whose employee
+	reports to this manager. Employee Advance has no approver field — the
+	manager authority is the reporting line."""
+	reports = _resignation_reports_to_user(user)
+	if not reports:
+		return []
+	rows = frappe.get_all(
+		"Employee Advance",
+		filters={"status": "Draft", "docstatus": 0, "employee": ("in", list(reports))},
+		fields=[
+			"name",
+			"employee",
+			"employee_name",
+			"purpose",
+			"advance_amount",
+			"posting_date",
+		],
+		order_by="posting_date desc",
+	)
+	out = []
+	for r in rows:
+		out.append(
+			{
+				"doctype": "Employee Advance",
+				"name": r.name,
+				"category": "Advance",
+				"title": _("Advance: {0}").format(flt(r.advance_amount)),
+				"subtitle": strip_html(r.purpose or "").strip()[:120],
+				"employee": r.employee,
+				"employee_name": r.employee_name,
+				"date": str(r.posting_date) if r.posting_date else None,
+				"action_type": "status",
+			}
+		)
+	return out
+
+
+def _pending_shift_approvals(user: str) -> list[dict]:
+	rows = frappe.get_all(
+		"Shift Request",
+		filters={"status": "Draft", "approver": user, "docstatus": 0},
+		fields=[
+			"name",
+			"employee",
+			"employee_name",
+			"shift_type",
+			"from_date",
+			"to_date",
+			"creation",
+		],
+		order_by="creation desc",
+	)
+	out = []
+	for r in rows:
+		out.append(
+			{
+				"doctype": "Shift Request",
+				"name": r.name,
+				"category": "Shift",
+				"title": _("Shift: {0}").format(r.shift_type),
+				"subtitle": f"{getdate(r.from_date)} → {getdate(r.to_date)}"
+				if r.to_date
+				else str(getdate(r.from_date)),
+				"employee": r.employee,
+				"employee_name": r.employee_name,
+				"date": str(getdate(r.creation)) if r.creation else None,
+				"action_type": "status",
+			}
+		)
+	return out
+
+
+def _pending_attendance_approvals(user: str) -> list[dict]:
+	"""Attendance Requests (no approver field) awaiting submission, scoped to
+	this manager's direct reports."""
+	reports = _resignation_reports_to_user(user)
+	if not reports:
+		return []
+	rows = frappe.get_all(
+		"Attendance Request",
+		filters={"docstatus": 0, "employee": ("in", list(reports))},
+		fields=[
+			"name",
+			"employee",
+			"employee_name",
+			"reason",
+			"from_date",
+			"to_date",
+			"creation",
+		],
+		order_by="creation desc",
+	)
+	out = []
+	for r in rows:
+		out.append(
+			{
+				"doctype": "Attendance Request",
+				"name": r.name,
+				"category": "Attendance",
+				"title": _("Attendance Request"),
+				"subtitle": f"{getdate(r.from_date)} → {getdate(r.to_date)}"
+				if r.to_date
+				else str(getdate(r.from_date)),
+				"employee": r.employee,
+				"employee_name": r.employee_name,
+				"date": str(getdate(r.creation)) if r.creation else None,
+				"action_type": "status",
+			}
+		)
+	return out
+
+
+def _pending_task_approvals(user: str) -> list[dict]:
+	"""Task Instances (Goal goal_type='Task Instance') submitted for approval
+	where the resolved approver_user is the current user. Submitted-but-pending
+	instances sit at status 'In Progress' with a non-null submitted_at."""
+	rows = frappe.get_all(
+		"Goal",
+		filters={
+			"goal_type": "Task Instance",
+			"approver_user": user,
+			"status": "In Progress",
+			"submitted_at": ("is", "set"),
+		},
+		fields=[
+			"name",
+			"employee",
+			"employee_name",
+			"goal_name",
+			"period_label",
+			"due_date",
+			"submitted_at",
+		],
+		order_by="submitted_at desc",
+	)
+	out = []
+	for r in rows:
+		out.append(
+			{
+				"doctype": "Goal",
+				"name": r.name,
+				"category": "Task",
+				"title": _("Task: {0}").format(r.goal_name),
+				"subtitle": r.period_label or "",
+				"employee": r.employee,
+				"employee_name": r.employee_name,
+				"date": str(getdate(r.submitted_at)) if r.submitted_at else None,
+				"action_type": "workflow",
+			}
+		)
+	return out
+
+
+def _pending_resignation_approvals(user: str) -> list[dict]:
+	reports = _resignation_reports_to_user(user)
+	if not reports:
+		return []
+	rows = frappe.get_all(
+		"Resignation Request",
+		filters={
+			"workflow_state": "Pending Manager Acknowledgement",
+			"employee": ("in", list(reports)),
+		},
+		fields=[
+			"name",
+			"employee",
+			"employee_name",
+			"intended_last_working_date",
+			"submission_date",
+		],
+		order_by="submission_date desc",
+	)
+	out = []
+	for r in rows:
+		out.append(
+			{
+				"doctype": "Resignation Request",
+				"name": r.name,
+				"category": "Resignation",
+				"title": _("Resignation"),
+				"subtitle": _("Last working day: {0}").format(r.intended_last_working_date)
+				if r.intended_last_working_date
+				else _("Last working day: —"),
+				"employee": r.employee,
+				"employee_name": r.employee_name,
+				"date": str(r.submission_date) if r.submission_date else None,
+				"action_type": "workflow",
+			}
+		)
+	return out
+
+
+_APPROVAL_PROVIDERS = (
+	_pending_leave_approvals,
+	_pending_expense_approvals,
+	_pending_advance_approvals,
+	_pending_shift_approvals,
+	_pending_attendance_approvals,
+	_pending_task_approvals,
+	_pending_resignation_approvals,
+)
+
+
+@frappe.whitelist()
+def get_pending_approvals() -> list[dict]:
+	"""Unified inbox of every request awaiting the current user's action as an
+	approver (Leave, Expense, Advance, Shift, Attendance, Task Instance,
+	Resignation). Flat list, newest first."""
+	user = frappe.session.user
+	items: list[dict] = []
+	for provider in _APPROVAL_PROVIDERS:
+		try:
+			items.extend(provider(user))
+		except Exception:
+			frappe.log_error(
+				title=f"Pending approvals provider failed: {provider.__name__}",
+				message=frappe.get_traceback(),
+			)
+	items.sort(key=lambda i: (i.get("date") or ""), reverse=True)
+	return items
+
+
+@frappe.whitelist()
+def get_approvals_summary() -> dict:
+	"""Per-category counts (+ total) for the inbox header badges."""
+	items = get_pending_approvals()
+	counts = {cat: 0 for cat in _APPROVAL_CATEGORIES}
+	for item in items:
+		cat = item.get("category")
+		if cat in counts:
+			counts[cat] += 1
+	counts["total"] = len(items)
+	return counts
+
+
+def _assert_leave_approver(doc):
+	user = frappe.session.user
+	if doc.leave_approver != user:
+		frappe.throw(_("You are not the approver for this leave application."), frappe.PermissionError)
+	if doc.employee in _approver_employees_for_user(user) and frappe.db.get_single_value(
+		"HR Settings", "prevent_self_leave_approval"
+	):
+		frappe.throw(_("You cannot approve your own leave application."), frappe.PermissionError)
+
+
+def _assert_expense_approver(doc):
+	if doc.expense_approver != frappe.session.user:
+		frappe.throw(_("You are not the approver for this expense claim."), frappe.PermissionError)
+
+
+def _assert_shift_approver(doc):
+	if doc.approver != frappe.session.user:
+		frappe.throw(_("You are not the approver for this shift request."), frappe.PermissionError)
+
+
+def _assert_reports_to_approver(doc, label: str):
+	"""For doctypes without an explicit approver field (Advance, Attendance,
+	Resignation) — the authority is the employee's reporting manager."""
+	if doc.employee not in _resignation_reports_to_user(frappe.session.user):
+		frappe.throw(_("You are not the approver for this {0}.").format(label), frappe.PermissionError)
+
+
+def _assert_task_approver(doc):
+	if doc.goal_type != "Task Instance" or doc.approver_user != frappe.session.user:
+		frappe.throw(_("You are not the approver for this task."), frappe.PermissionError)
+
+
+def _validate_approver(doc) -> None:
+	"""Authorization gate: raises PermissionError unless the current user is the
+	legitimate approver for ``doc``. Called by both approve and reject."""
+	dt = doc.doctype
+	if dt == "Leave Application":
+		_assert_leave_approver(doc)
+	elif dt == "Expense Claim":
+		_assert_expense_approver(doc)
+	elif dt == "Shift Request":
+		_assert_shift_approver(doc)
+	elif dt == "Employee Advance":
+		_assert_reports_to_approver(doc, "advance")
+	elif dt == "Attendance Request":
+		_assert_reports_to_approver(doc, "attendance request")
+	elif dt == "Resignation Request":
+		_assert_reports_to_approver(doc, "resignation request")
+	elif dt == "Goal":
+		_assert_task_approver(doc)
+	else:
+		frappe.throw(_("Unsupported approval document type: {0}").format(dt))
+
+
+def _add_comment_if_any(doc, comment: str | None) -> None:
+	if comment:
+		try:
+			doc.add_comment("Comment", strip_html(comment).strip())
+		except Exception:
+			frappe.log_error(title="Approval comment failed", message=frappe.get_traceback())
+
+
+@frappe.whitelist()
+def approve_request(doctype: str, name: str, comment: str | None = None) -> dict:
+	"""Approve one inbox item. Re-derives and enforces approver authorization
+	server-side before acting, then applies the correct approval mechanic for
+	the doctype."""
+	if doctype not in (
+		"Leave Application",
+		"Expense Claim",
+		"Employee Advance",
+		"Shift Request",
+		"Attendance Request",
+		"Resignation Request",
+		"Goal",
+	):
+		frappe.throw(_("Unsupported approval document type: {0}").format(doctype))
+
+	doc = frappe.get_doc(doctype, name)
+	_validate_approver(doc)
+
+	if doctype == "Leave Application":
+		doc.status = "Approved"
+		doc.save(ignore_permissions=True)
+		if doc.docstatus == 0:
+			doc.submit()
+	elif doctype == "Expense Claim":
+		doc.approval_status = "Approved"
+		doc.save(ignore_permissions=True)
+		if doc.docstatus == 0:
+			doc.submit()
+	elif doctype == "Shift Request":
+		doc.status = "Approved"
+		doc.save(ignore_permissions=True)
+		if doc.docstatus == 0:
+			doc.submit()
+	elif doctype in ("Employee Advance", "Attendance Request"):
+		# No approval status — approval = submission of the request.
+		if doc.docstatus == 0:
+			doc.submit()
+	elif doctype == "Goal":
+		# Approve the task-instance completion.
+		doc.status = "Completed"
+		doc.progress = 100
+		doc.save(ignore_permissions=True)
+	elif doctype == "Resignation Request":
+		from frappe.model.workflow import apply_workflow
+
+		apply_workflow(doc, "Acknowledge")
+
+	_add_comment_if_any(doc, comment)
+	frappe.db.commit()
+	state = doc.get("workflow_state") or doc.get("status") or doc.get("approval_status")
+	return {"name": doc.name, "doctype": doctype, "state": state}
+
+
+@frappe.whitelist()
+def reject_request(doctype: str, name: str, comment: str | None = None) -> dict:
+	"""Reject one inbox item. A comment is REQUIRED (rejections need a reason).
+	Enforces approver authorization server-side."""
+	if not comment or not strip_html(comment).strip():
+		frappe.throw(_("A comment is required when rejecting a request."))
+
+	if doctype not in (
+		"Leave Application",
+		"Expense Claim",
+		"Employee Advance",
+		"Shift Request",
+		"Attendance Request",
+		"Resignation Request",
+		"Goal",
+	):
+		frappe.throw(_("Unsupported approval document type: {0}").format(doctype))
+
+	doc = frappe.get_doc(doctype, name)
+	_validate_approver(doc)
+
+	if doctype == "Leave Application":
+		doc.status = "Rejected"
+		doc.save(ignore_permissions=True)
+		if doc.docstatus == 0:
+			doc.submit()
+	elif doctype == "Expense Claim":
+		doc.approval_status = "Rejected"
+		doc.save(ignore_permissions=True)
+		if doc.docstatus == 0:
+			doc.submit()
+	elif doctype == "Shift Request":
+		doc.status = "Rejected"
+		doc.save(ignore_permissions=True)
+		if doc.docstatus == 0:
+			doc.submit()
+	elif doctype in ("Employee Advance", "Attendance Request"):
+		# No reject status — cancel the draft request.
+		if doc.docstatus == 0:
+			doc.delete(ignore_permissions=True)
+	elif doctype == "Goal":
+		# Reject the completion — bounce back to In Progress, clear submission stamp.
+		doc.status = "In Progress"
+		doc.progress = 0
+		doc.submitted_at = None
+		doc.save(ignore_permissions=True)
+	elif doctype == "Resignation Request":
+		from frappe.model.workflow import apply_workflow, get_transitions
+
+		actions = {t.get("action") for t in get_transitions(doc)}
+		if "Reject" in actions:
+			apply_workflow(doc, "Reject")
+		elif "Withdraw" in actions:
+			apply_workflow(doc, "Withdraw")
+		else:
+			frappe.throw(
+				_("No rejection transition is available for this resignation request.")
+			)
+
+	# Goal still exists after reject; for deleted docs add_comment would fail.
+	if frappe.db.exists(doctype, name):
+		doc = frappe.get_doc(doctype, name)
+		_add_comment_if_any(doc, comment)
+	frappe.db.commit()
+	return {"name": name, "doctype": doctype, "rejected": True}
