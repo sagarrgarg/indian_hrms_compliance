@@ -29,6 +29,7 @@ import ExitIcon from "@/components/icons/ExitIcon.vue"
 import GrievanceIcon from "@/components/icons/GrievanceIcon.vue"
 import POSHIcon from "@/components/icons/POSHIcon.vue"
 import PrivacyIcon from "@/components/icons/PrivacyIcon.vue"
+import ApprovalsIcon from "@/components/icons/ApprovalsIcon.vue"
 
 const __ = inject("$translate")
 
@@ -92,6 +93,11 @@ const quickLinks = [
 		icon: markRaw(PrivacyIcon),
 		title: __("Privacy & Consent"),
 		route: "PrivacyDashboard",
+	},
+	{
+		icon: markRaw(ApprovalsIcon),
+		title: __("Approvals"),
+		route: "ApprovalsInbox",
 	},
 ]
 </script>
