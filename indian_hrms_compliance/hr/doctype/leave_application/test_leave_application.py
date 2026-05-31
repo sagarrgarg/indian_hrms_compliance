@@ -905,11 +905,11 @@ class TestLeaveApplication(HRMSTestSuite):
 	def test_leave_approver_perms(self):
 		employee = get_employee()
 		user = "test_approver_perm_emp@example.com"
-		make_employee(user, "_Test Company")
+		approver = make_employee(user, "_Test Company")
 
 		# set approver for employee
 		employee.reload()
-		employee.leave_approver = user
+		employee.leave_approver = approver
 		employee.save()
 		self.assertTrue("Leave Approver" in frappe.get_roles(user))
 
@@ -964,11 +964,11 @@ class TestLeaveApplication(HRMSTestSuite):
 	def test_self_leave_approval_allowed(self):
 		frappe.db.set_single_value("HR Settings", "prevent_self_leave_approval", 0)
 
+		# port: Employee.leave_approver is an Employee link in indian_hrms_compliance
+		approver = make_employee("test@example.com", "_Test Company")
 		employee = frappe.get_doc(
 			"Employee",
-			make_employee(
-				"test_self_leave_approval@example.com", "_Test Company", leave_approver="test@example.com"
-			),
+			make_employee("test_self_leave_approval@example.com", "_Test Company", leave_approver=approver),
 		)
 
 		from frappe.utils.user import add_role
@@ -999,13 +999,11 @@ class TestLeaveApplication(HRMSTestSuite):
 		frappe.db.set_single_value("HR Settings", "prevent_self_leave_approval", 1)
 
 		leave_approver = "test_leave_approver@example.com"
-		make_employee(leave_approver, "_Test Company")
+		approver = make_employee(leave_approver, "_Test Company")
 
 		employee = frappe.get_doc(
 			"Employee",
-			make_employee(
-				"test_self_leave_approval@example.com", "_Test Company", leave_approver=leave_approver
-			),
+			make_employee("test_self_leave_approval@example.com", "_Test Company", leave_approver=approver),
 		)
 
 		from frappe.utils.user import add_role

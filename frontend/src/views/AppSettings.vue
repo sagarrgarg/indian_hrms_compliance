@@ -2,7 +2,7 @@
 	<ion-page>
 		<ion-content class="ion-padding">
 			<div class="flex flex-col h-screen w-screen">
-				<div class="w-full sm:w-96">
+				<div class="w-full sm:max-w-3xl sm:mx-auto">
 					<header
 						class="flex flex-row bg-white shadow-sm py-4 px-3 items-center justify-between border-b sticky top-0 z-10"
 					>

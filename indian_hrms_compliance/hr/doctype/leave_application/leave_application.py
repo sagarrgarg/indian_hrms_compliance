@@ -1576,7 +1576,11 @@ def get_leave_approver(employee: str, leave_application: str | None = None) -> s
 
 
 def get_employee_leave_approver(employee: str) -> str:
+	from indian_hrms_compliance.overrides.employee_master import resolve_employee_approver
+
 	leave_approver, department = frappe.db.get_value("Employee", employee, ["leave_approver", "department"])
+	# Employee-level approver is now an Employee link; resolve to its User for the approval doc.
+	leave_approver = resolve_employee_approver(leave_approver)
 
 	if not leave_approver and department:
 		leave_approver = frappe.db.get_value(

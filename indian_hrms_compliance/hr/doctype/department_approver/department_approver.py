@@ -8,6 +8,8 @@ from frappe.model.document import Document
 from frappe.query_builder import Order
 from frappe.utils import get_link_to_form
 
+from indian_hrms_compliance.overrides.employee_master import resolve_employee_approver
+
 
 class DepartmentApprover(Document):
 	pass
@@ -49,14 +51,18 @@ def get_approvers(doctype: str, txt: str, searchfield: str, start: int, page_len
 
 	if filters.get("doctype") == "Leave Application" and employee.leave_approver:
 		approver = frappe.db.get_value(
-			"User", {"name": employee.leave_approver, "enabled": 1}, ["name", "first_name", "last_name"]
+			"User",
+			{"name": resolve_employee_approver(employee.leave_approver), "enabled": 1},
+			["name", "first_name", "last_name"],
 		)
 		if approver:
 			approvers.append(approver)
 
 	if filters.get("doctype") == "Expense Claim" and employee.expense_approver:
 		approver = frappe.db.get_value(
-			"User", {"name": employee.expense_approver, "enabled": 1}, ["name", "first_name", "last_name"]
+			"User",
+			{"name": resolve_employee_approver(employee.expense_approver), "enabled": 1},
+			["name", "first_name", "last_name"],
 		)
 		if approver:
 			approvers.append(approver)
@@ -64,7 +70,7 @@ def get_approvers(doctype: str, txt: str, searchfield: str, start: int, page_len
 	if filters.get("doctype") == "Shift Request" and employee.shift_request_approver:
 		approver = frappe.db.get_value(
 			"User",
-			{"name": employee.shift_request_approver, "enabled": 1},
+			{"name": resolve_employee_approver(employee.shift_request_approver), "enabled": 1},
 			["name", "first_name", "last_name"],
 		)
 		if approver:

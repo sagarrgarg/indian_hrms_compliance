@@ -256,6 +256,7 @@ doc_events = {
 		],
 		"on_update": [
 			"indian_hrms_compliance.overrides.employee_master.update_approver_role",
+			"indian_hrms_compliance.overrides.employee_master.auto_assign_leave_policy_on_activation",
 			"indian_hrms_compliance.overrides.employee_master.publish_update",
 		],
 		"after_insert": [

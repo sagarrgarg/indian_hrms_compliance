@@ -1,7 +1,7 @@
 <template>
 	<ion-page>
 		<ion-header class="ion-no-border">
-			<div class="w-full sm:w-96">
+			<div class="w-full sm:max-w-3xl sm:mx-auto">
 				<div
 					class="flex flex-row bg-white shadow-sm py-4 px-3 items-center border-b"
 				>
@@ -20,7 +20,7 @@
 		</ion-header>
 
 		<ion-content class="ion-no-padding">
-			<div class="flex flex-col h-full w-screen sm:w-96">
+			<div class="flex flex-col h-full w-full sm:max-w-3xl sm:mx-auto">
 				<div class="flex flex-col gap-5 p-4 pb-28">
 					<div
 						class="flex flex-row items-start gap-2 bg-amber-50 rounded p-4 border border-amber-200"

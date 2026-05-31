@@ -97,7 +97,30 @@ def read_data_file(file_path):
 		return "{}"
 
 
+# Default salary-component links, sourced from the app's seeded component list
+# (regional/india/data/salary_components.json). Set only when empty so manual
+# overrides are preserved.
+DEFAULT_SALARY_COMPONENTS = {
+	"basic_component": "Basic",
+	"hra_component": "House Rent Allowance",
+	"arrear_component": "Arrear",
+}
+
+
+def set_default_salary_components(doc, method=None):
+	changed = False
+	for field, component in DEFAULT_SALARY_COMPONENTS.items():
+		if doc.meta.get_field(field) and not doc.get(field) and frappe.db.exists("Salary Component", component):
+			doc.db_set(field, component)
+			changed = True
+	return changed
+
+
 def set_default_hr_accounts(doc, method=None):
+	# Salary component defaults aren't tied to the chart of accounts, so set them
+	# before the CoA guard below.
+	set_default_salary_components(doc)
+
 	if frappe.local.flags.ignore_chart_of_accounts:
 		return
 

@@ -1,0 +1,72 @@
+<div style="font-family: 'Helvetica Neue', Arial, sans-serif; color: #1f272e; max-width: 560px; margin: 0 auto; line-height: 1.6;">
+	<p style="font-size: 15px; margin-bottom: 4px;">Namaste {{ employee_name }} ji,</p>
+
+	{% if status == 'Approved' %}
+	<p style="font-size: 14px;">
+		We are pleased to inform you that your leave application has been
+		<strong style="color:#1f8c4d;">approved</strong>. We wish you a restful and
+		rejuvenating time, and look forward to welcoming you back.
+	</p>
+	{% elif status == 'Rejected' %}
+	<p style="font-size: 14px;">
+		We regret to inform you that your leave application could not be
+		<strong style="color:#c0392b;">approved</strong> at this time. We kindly
+		request you to connect with
+		{% if leave_approver_name %}<strong>{{ leave_approver_name }} ji</strong>{% else %}your reporting manager{% endif %}
+		for further clarification.
+	</p>
+	{% elif status == 'Cancelled' %}
+	<p style="font-size: 14px;">
+		This is to inform you that your leave application has been
+		<strong>cancelled</strong>. Should this be unexpected, please reach out to
+		the HR team.
+	</p>
+	{% else %}
+	<p style="font-size: 14px;">
+		The current status of your leave application is <strong>{{ status }}</strong>.
+	</p>
+	{% endif %}
+
+	<table class="table table-bordered small" style="max-width: 520px; font-size: 13px;">
+		<tr>
+			<td style="width: 40%;">Leave Type</td>
+			<td>{{ leave_type }}</td>
+		</tr>
+		<tr>
+			<td>From Date</td>
+			<td>{{ frappe.utils.formatdate(from_date) }}</td>
+		</tr>
+		<tr>
+			<td>To Date</td>
+			<td>{{ frappe.utils.formatdate(to_date) }}</td>
+		</tr>
+		<tr>
+			<td>Total Days</td>
+			<td>{{ total_leave_days }}{% if half_day %} (Half Day on {{ frappe.utils.formatdate(half_day_date) }}){% endif %}</td>
+		</tr>
+		<tr>
+			<td>Status</td>
+			<td>{{ status }}</td>
+		</tr>
+	</table>
+
+	{% set doc_link = frappe.utils.get_url_to_form('Leave Application', name) %}
+
+	<p style="margin: 20px 0;">
+		<a class="btn btn-primary" href="{{ doc_link }}" target="_blank"
+			style="background:#2c3e50; color:#fff; padding:8px 18px; border-radius:4px; text-decoration:none;">
+			View Application
+		</a>
+	</p>
+
+	<p style="font-size: 14px;">
+		For any assistance, please feel free to reach out to the HR team. We are
+		always happy to help.
+	</p>
+
+	<p style="font-size: 14px; margin-bottom: 0;">
+		Warm regards,<br>
+		<strong>HR Team</strong><br>
+		{{ company }}
+	</p>
+</div>
