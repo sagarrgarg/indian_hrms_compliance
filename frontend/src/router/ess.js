@@ -57,6 +57,22 @@ const routes = [
 		props: true,
 		component: () => import("@/views/posh/POSHDetailView.vue"),
 	},
+	{
+		name: "PrivacyDashboard",
+		path: "/privacy",
+		component: () => import("@/views/privacy/Dashboard.vue"),
+	},
+	{
+		name: "ConsentNoticeView",
+		path: "/privacy/consent/:purposeCode",
+		props: true,
+		component: () => import("@/views/privacy/ConsentNoticeView.vue"),
+	},
+	{
+		name: "ErasureRequestForm",
+		path: "/privacy/erasure",
+		component: () => import("@/views/privacy/ErasureRequestForm.vue"),
+	},
 ]
 
 export default routes
