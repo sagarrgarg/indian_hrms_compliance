@@ -149,6 +149,13 @@ frappe.ui.form.on("Salary Structure Assignment", {
 				{ fieldname: "variable", fieldtype: "Currency", label: __("Variable"), default: frm.doc.variable || 0 },
 				{ fieldname: "cb", fieldtype: "Column Break" },
 				{ fieldname: "leave_encashment", fieldtype: "Currency", label: __("Leave Encashment"), default: 0 },
+				{
+					fieldname: "income_tax_slab",
+					fieldtype: "Link",
+					options: "Income Tax Slab",
+					label: __("Income Tax Slab"),
+					default: frm.doc.income_tax_slab,
+				},
 				{ fieldname: "sb", fieldtype: "Section Break" },
 				{ fieldname: "results", fieldtype: "HTML" },
 			],
@@ -191,6 +198,31 @@ frappe.ui.form.on("Salary Structure Assignment", {
 								m.net,
 							)}</td></tr></table>
 							<div style="color:#999;font-size:11px;margin-top:6px;">* ${__("statistical / CTC component, not paid in net")}</div>`;
+						if (m.tax) {
+							const t = m.tax;
+							html += `<hr><div style="font-weight:600;margin-bottom:4px;">${__(
+								"Income Tax (estimate)",
+							)}</div><table style="width:100%;border-collapse:collapse;">
+								${row(__("Annual Gross"), t.annual_gross)}
+								${row(__("Standard Deduction"), -t.standard_deduction)}
+								${row(__("Taxable Income"), t.taxable_income)}
+								${
+									t.rebate_applied
+										? `<tr><td colspan="2" style="padding:3px 8px;color:#1f8c4d;">${__(
+												"Within 87A rebate (up to {0}) — nil tax",
+												[format_currency(t.relief_limit, frm.doc.currency)],
+											)}</td></tr>`
+										: (t.marginal_relief
+												? row(__("Tax (after marginal relief)"), t.annual_tax)
+												: row(__("Annual Tax"), t.annual_tax)) + row(__("Cess"), t.cess)
+								}
+								${row(__("Annual Tax + Cess"), t.annual_total)}
+								${row(__("Monthly TDS"), t.monthly_tds)}
+							</table>
+							<div style="color:#999;font-size:11px;margin-top:6px;">${__(
+								"Estimate — excludes surcharge & Chapter VI-A.",
+							)}</div>`;
+						}
 						dialog.fields_dict.results.$wrapper.html(html);
 					},
 				});

@@ -222,21 +222,41 @@ def _annual_income_tax(slab, taxable):
 	return tax
 
 
-def _estimate_monthly_tds(slab_name, monthly_gross):
-	"""Rough monthly TDS estimate from an Income Tax Slab. Annualises gross,
-	applies the slab's standard deduction, new-regime 87A rebate (nil up to
-	₹12L taxable) and 4% cess. Excludes surcharge / marginal relief / chapter
-	VI-A — it's an estimate, not the payroll-engine figure."""
+def _income_tax_breakup(slab_name, monthly_gross):
+	"""Income-tax breakup for the preview. Annualises gross, applies the slab's
+	standard deduction, 87A relief limit (nil up to that taxable) and cess.
+	Estimate only — excludes surcharge / marginal relief / chapter VI-A."""
 	slab = frappe.get_cached_doc("Income Tax Slab", slab_name)
-	taxable = max(flt(monthly_gross) * 12 - flt(slab.standard_tax_exemption_amount), 0)
-	# 87A rebate: the engine charges tax only above tax_relief_limit.
-	if slab.tax_relief_limit and taxable <= flt(slab.tax_relief_limit):
-		return 0.0
-	annual_tax = _annual_income_tax(slab, taxable)
-	# cess / surcharge rows (e.g. 4% Health & Education Cess)
-	for c in slab.other_taxes_and_charges or []:
-		annual_tax += annual_tax * flt(c.percent) / 100.0
-	return flt(annual_tax / 12, 2)
+	annual_gross = flt(monthly_gross) * 12
+	std = flt(slab.standard_tax_exemption_amount)
+	taxable = max(annual_gross - std, 0)
+	rebate = bool(slab.tax_relief_limit and taxable <= flt(slab.tax_relief_limit))
+	base_tax = 0.0 if rebate else _annual_income_tax(slab, taxable)
+
+	# 87A marginal relief: just above the rebate limit, tax can't exceed the
+	# income over that limit.
+	marginal_relief = 0.0
+	if not rebate and slab.tax_relief_limit:
+		cap = taxable - flt(slab.tax_relief_limit)
+		if base_tax > cap:
+			marginal_relief = base_tax - cap
+			base_tax = cap
+
+	cess = sum(base_tax * flt(c.percent) / 100.0 for c in (slab.other_taxes_and_charges or []))
+	annual_total = base_tax + cess
+	return {
+		"slab": slab_name,
+		"annual_gross": flt(annual_gross, 2),
+		"standard_deduction": flt(std, 2),
+		"taxable_income": flt(taxable, 2),
+		"rebate_applied": rebate,
+		"relief_limit": flt(slab.tax_relief_limit),
+		"marginal_relief": flt(marginal_relief, 2),
+		"annual_tax": flt(base_tax, 2),
+		"cess": flt(cess, 2),
+		"annual_total": flt(annual_total, 2),
+		"monthly_tds": flt(annual_total / 12, 2),
+	}
 
 
 @frappe.whitelist()
@@ -287,6 +307,7 @@ def preview_salary(salary_structure, base=0, variable=0, leave_encashment=0, emp
 
 	data["gross_pay"] = gross
 	emp_uan = frappe.db.get_value("Employee", employee, "uan_number") if employee else None
+	tax_detail = None
 
 	deductions, total_ded = [], 0.0
 	for r in ss.deductions:
@@ -295,11 +316,17 @@ def preview_salary(salary_structure, base=0, variable=0, leave_encashment=0, emp
 		# TDS — estimate from the linked Income Tax Slab.
 		if r.variable_based_on_taxable_salary:
 			if income_tax_slab:
-				tds = _estimate_monthly_tds(income_tax_slab, gross)
-				deductions.append({"component": comp, "amount": tds, "note": _("estimated from {0}").format(income_tax_slab)})
+				tax_detail = _income_tax_breakup(income_tax_slab, gross)
+				tds = tax_detail["monthly_tds"]
+				note = (
+					_("nil — taxable within rebate / standard deduction")
+					if not tds
+					else _("on taxable {0}/yr").format(tax_detail["taxable_income"])
+				)
+				deductions.append({"component": comp, "amount": tds, "note": note})
 				total_ded += tds
 			else:
-				deductions.append({"component": comp, "amount": 0, "note": _("no Income Tax Slab selected")})
+				deductions.append({"component": comp, "amount": 0, "note": _("select an Income Tax Slab to estimate TDS")})
 			continue
 
 		# PF — needs the employee to be UAN-registered.
@@ -323,4 +350,5 @@ def preview_salary(salary_structure, base=0, variable=0, leave_encashment=0, emp
 		"gross": flt(gross, 2),
 		"total_deduction": flt(total_ded, 2),
 		"net": flt(gross - total_ded, 2),
+		"tax": tax_detail,
 	}
