@@ -1111,3 +1111,286 @@ def complete_task_instance(
 
 	goal.save(ignore_permissions=True)
 	return {"name": goal.name, "status": goal.status, "requires_approval": bool(requires_approval)}
+
+
+# ---------------------------------------------------------------------------
+# Phase 7C — Resignation & Exit (ESS)
+# ---------------------------------------------------------------------------
+
+# States from which an employee may still withdraw their own resignation.
+_RESIGNATION_WITHDRAWABLE_STATES = (
+	"Draft",
+	"Pending Manager Acknowledgement",
+)
+# Resignation Requests in these states are considered "closed" — a new one is allowed.
+_RESIGNATION_CLOSED_STATES = ("Withdrawn", "Rejected")
+
+_RESIGNATION_STATUS_FIELDS = [
+	"name",
+	"request_type",
+	"initiated_by",
+	"submission_date",
+	"reason_category",
+	"reason_details",
+	"notice_required_days",
+	"notice_offered_days",
+	"intended_last_working_date",
+	"notice_disposition",
+	"workflow_state",
+	"linked_employee_separation",
+	"linked_full_and_final",
+]
+
+
+@frappe.whitelist()
+def get_my_resignation_status() -> dict:
+	"""The current employee's most-recent Resignation Request, or {} if none.
+
+	Surfaces only the fields the ESS exit tracker needs. The newest request
+	(by submission_date, then creation) wins so a withdrawn-then-refiled
+	employee sees the live one.
+	"""
+	employee = get_current_employee()
+	rows = frappe.get_all(
+		"Resignation Request",
+		filters={"employee": employee},
+		fields=_RESIGNATION_STATUS_FIELDS,
+		order_by="submission_date desc, creation desc",
+		limit=1,
+	)
+	if not rows:
+		return {}
+	row = rows[0]
+	row["can_withdraw"] = row.get("workflow_state") in _RESIGNATION_WITHDRAWABLE_STATES
+	return row
+
+
+@frappe.whitelist()
+def get_resignation_form_defaults() -> dict:
+	"""Pre-fill values + Select options for the ESS resignation create form."""
+	employee = get_current_employee()
+	emp = frappe.db.get_value(
+		"Employee",
+		employee,
+		["employee_name", "company", "notice_number_of_days", "date_of_joining"],
+		as_dict=True,
+	) or frappe._dict()
+
+	reason_options = _select_options("Resignation Request", "reason_category")
+	disposition_options = _select_options("Resignation Request", "notice_disposition")
+	# Pay in Lieu of Notice is employer-only — never offer it to the employee.
+	disposition_options = [d for d in disposition_options if d != "Pay in Lieu of Notice"]
+
+	return {
+		"employee": employee,
+		"employee_name": emp.get("employee_name"),
+		"company": emp.get("company"),
+		"notice_required_days": emp.get("notice_number_of_days") or 0,
+		"date_of_joining": emp.get("date_of_joining"),
+		"reason_category_options": reason_options,
+		"notice_disposition_options": disposition_options,
+	}
+
+
+def _select_options(doctype: str, fieldname: str) -> list[str]:
+	"""Return the non-empty Select options for a doctype field."""
+	meta = frappe.get_meta(doctype)
+	field = meta.get_field(fieldname)
+	if not field or not field.options:
+		return []
+	return [opt for opt in field.options.split("\n") if opt.strip()]
+
+
+@frappe.whitelist()
+def submit_resignation_request(
+	reason_category: str,
+	reason_details: str | None = None,
+	notice_offered_days: int | None = None,
+	notice_disposition: str | None = None,
+	intended_last_working_date: str | None = None,
+) -> dict:
+	"""Create + submit an employee-initiated Resignation Request.
+
+	Builds a request_type='Resignation' record for the active Employee with
+	submission_date=today, then advances the workflow Draft → Pending Manager
+	Acknowledgement via 'Submit Resignation'. Guards against a second active
+	request and against the employer-only 'Pay in Lieu of Notice' disposition.
+	"""
+	from frappe.model.workflow import apply_workflow
+
+	employee = get_current_employee()
+
+	# Guard: one active resignation at a time.
+	existing = frappe.get_all(
+		"Resignation Request",
+		filters={"employee": employee},
+		fields=["name", "workflow_state"],
+		order_by="submission_date desc, creation desc",
+		limit=1,
+	)
+	if existing and existing[0].get("workflow_state") not in _RESIGNATION_CLOSED_STATES:
+		frappe.throw(
+			_(
+				"You already have an active Resignation Request ({0}) in state '{1}'. "
+				"Withdraw it before filing a new one."
+			).format(existing[0].name, existing[0].get("workflow_state"))
+		)
+
+	if notice_disposition == "Pay in Lieu of Notice":
+		# Surface the controller rule cleanly before it throws on insert.
+		frappe.throw(
+			_(
+				"'Pay in Lieu of Notice' is for employer-initiated cases. "
+				"Choose 'Will Serve in Full' or 'Short Notice (recovery)'."
+			)
+		)
+
+	doc = frappe.get_doc(
+		{
+			"doctype": "Resignation Request",
+			"request_type": "Resignation",
+			"employee": employee,
+			"submission_date": getdate(),
+			"reason_category": reason_category,
+			"reason_details": reason_details,
+			"notice_offered_days": notice_offered_days,
+			"notice_disposition": notice_disposition or "Will Serve in Full",
+			"intended_last_working_date": intended_last_working_date,
+		}
+	)
+	doc.insert(ignore_permissions=True)
+
+	# Advance Draft → Pending Manager Acknowledgement.
+	apply_workflow(doc, "Submit Resignation")
+
+	return {"name": doc.name, "workflow_state": doc.workflow_state}
+
+
+@frappe.whitelist()
+def withdraw_resignation_request(name: str) -> dict:
+	"""Ownership-guarded withdrawal of the employee's own Resignation Request."""
+	from frappe.model.workflow import apply_workflow
+
+	employee = get_current_employee()
+	doc = frappe.get_doc("Resignation Request", name)
+	if doc.employee != employee:
+		frappe.throw(
+			_("You are not permitted to withdraw this Resignation Request."),
+			frappe.PermissionError,
+		)
+	if doc.workflow_state not in _RESIGNATION_WITHDRAWABLE_STATES:
+		frappe.throw(
+			_("This Resignation Request can no longer be withdrawn (state: {0}).").format(
+				doc.workflow_state
+			)
+		)
+	apply_workflow(doc, "Withdraw")
+	return {"name": doc.name, "workflow_state": doc.workflow_state}
+
+
+@frappe.whitelist()
+def get_my_exit_clearance() -> dict:
+	"""Read-only no-dues clearance view for the active Employee.
+
+	Resolves the Employee Separation linked to the employee's latest
+	Resignation Request (falling back to the most-recent Separation for the
+	employee), and returns its no_dues_items + overall boarding_status.
+	Returns {} when there's no separation yet.
+	"""
+	employee = get_current_employee()
+
+	sep_name = None
+	status = get_my_resignation_status()
+	if status.get("linked_employee_separation"):
+		sep_name = status["linked_employee_separation"]
+	if not sep_name:
+		rows = frappe.get_all(
+			"Employee Separation",
+			filters={"employee": employee},
+			fields=["name"],
+			order_by="creation desc",
+			limit=1,
+		)
+		if rows:
+			sep_name = rows[0].name
+	if not sep_name:
+		return {}
+
+	sep = frappe.get_doc("Employee Separation", sep_name)
+	items = []
+	for row in sep.get("no_dues_items") or []:
+		owner_name = None
+		if row.clearance_owner:
+			owner_name = frappe.db.get_value("User", row.clearance_owner, "full_name")
+		items.append(
+			{
+				"clearance_area": row.clearance_area,
+				"clearance_owner": owner_name or row.clearance_owner,
+				"description": row.description,
+				"status": row.status,
+				"blocking": int(row.blocking or 0),
+			}
+		)
+
+	return {
+		"name": sep.name,
+		"boarding_status": sep.get("boarding_status"),
+		"no_dues_items": items,
+	}
+
+
+@frappe.whitelist()
+def get_my_exit_documents() -> dict:
+	"""Downloadable exit documents for the active Employee.
+
+	- Exit letters: finalised Appointment Letter records (Relieving / Experience
+	  / Service Certificate) for this employee, exposed via the print view URL.
+	- Form 16: only those with issue_status='Issued' that carry a signed PDF.
+	"""
+	employee = get_current_employee()
+
+	exit_letter_types = ("Relieving Letter", "Experience Letter", "Service Certificate")
+	letters = []
+	for row in frappe.get_all(
+		"Appointment Letter",
+		filters={
+			"employee": employee,
+			"letter_type": ["in", exit_letter_types],
+		},
+		fields=["name", "letter_type", "company", "appointment_date"],
+		order_by="appointment_date desc, creation desc",
+	):
+		letters.append(
+			{
+				"name": row.name,
+				"letter_type": row.letter_type,
+				"company": row.company,
+				"date": row.appointment_date,
+				"print_url": (
+					f"/printview?doctype=Appointment%20Letter&name={frappe.utils.quote(row.name)}"
+					"&format=Standard%20Appointment%20Letter&trigger_print=1"
+				),
+			}
+		)
+
+	form16 = []
+	for row in frappe.get_all(
+		"Form 16",
+		filters={"employee": employee, "issue_status": "Issued"},
+		fields=["name", "fiscal_year", "company", "issue_status", "issued_on", "signed_pdf"],
+		order_by="fiscal_year desc",
+	):
+		if not row.signed_pdf:
+			continue
+		form16.append(
+			{
+				"name": row.name,
+				"fiscal_year": row.fiscal_year,
+				"company": row.company,
+				"issue_status": row.issue_status,
+				"issued_on": row.issued_on,
+				"signed_pdf": row.signed_pdf,
+			}
+		)
+
+	return {"letters": letters, "form16": form16}
