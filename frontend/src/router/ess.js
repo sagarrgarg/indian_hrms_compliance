@@ -73,6 +73,11 @@ const routes = [
 		path: "/privacy/erasure",
 		component: () => import("@/views/privacy/ErasureRequestForm.vue"),
 	},
+	{
+		name: "ApprovalsInbox",
+		path: "/approvals",
+		component: () => import("@/views/approvals/Inbox.vue"),
+	},
 ]
 
 export default routes
