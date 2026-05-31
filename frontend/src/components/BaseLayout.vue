@@ -8,6 +8,7 @@
 							<h2 class="text-xl font-bold text-gray-900">
 								{{ props.pageTitle || __("Frappe HR") }}
 							</h2>
+							<EmployeeSwitcher />
 						</div>
 						<div class="flex flex-row items-center gap-3 ml-auto">
 							<router-link
@@ -52,6 +53,7 @@
 import { IonHeader, IonContent, IonPage } from "@ionic/vue"
 import { FeatherIcon, Avatar } from "frappe-ui"
 
+import EmployeeSwitcher from "@/components/EmployeeSwitcher.vue"
 import { unreadNotificationsCount } from "@/data/notifications"
 
 import { inject } from "vue"

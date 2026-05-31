@@ -38,25 +38,96 @@ def get_current_user_info() -> dict:
 	return user
 
 
+EMPLOYEE_CONTEXT_FIELDS = [
+	"name",
+	"first_name",
+	"employee_name",
+	"designation",
+	"department",
+	"company",
+	"reports_to",
+	"user_id",
+	"image",
+	"is_primary_employer",
+]
+
+
+@frappe.whitelist()
+def get_my_employees() -> list[dict]:
+	"""All Active Employee records linked to the current user.
+
+	A single User may map to multiple Employees across Companies
+	(see multi-employee architecture). The PWA uses this to populate the
+	company/employee switcher. Primary Employer is surfaced first.
+	"""
+	return frappe.get_all(
+		"Employee",
+		filters={"user_id": frappe.session.user, "status": "Active"},
+		fields=EMPLOYEE_CONTEXT_FIELDS,
+		order_by="is_primary_employer desc, creation asc",
+	)
+
+
+def get_active_employee_name() -> str | None:
+	"""Resolve the Employee the PWA currently operates as, for a multi-employed
+	user. Resolution order:
+	  1. The user's stored 'active_employee' default, if still valid
+	     (Active + still linked to this user).
+	  2. The Primary Employer Employee.
+	  3. The earliest-created Active Employee.
+	Returns None when the user has no Active Employee.
+	"""
+	employees = get_my_employees()
+	if not employees:
+		return None
+
+	valid_names = {e.name for e in employees}
+	selected = frappe.defaults.get_user_default("active_employee")
+	if selected and selected in valid_names:
+		return selected
+
+	for e in employees:
+		if e.get("is_primary_employer"):
+			return e.name
+	return employees[0].name
+
+
 @frappe.whitelist()
 def get_current_employee_info() -> dict:
-	current_user = frappe.session.user
+	"""The active Employee context for the PWA. Multi-employment aware —
+	resolves via get_active_employee_name() rather than picking an arbitrary
+	row, and tags whether the user has more than one employment so the
+	frontend knows to show the switcher."""
+	name = get_active_employee_name()
+	if not name:
+		return {}
+
 	employee = frappe.db.get_value(
-		"Employee",
-		{"user_id": current_user, "status": "Active"},
-		[
-			"name",
-			"first_name",
-			"employee_name",
-			"designation",
-			"department",
-			"company",
-			"reports_to",
-			"user_id",
-		],
-		as_dict=True,
+		"Employee", name, EMPLOYEE_CONTEXT_FIELDS, as_dict=True
 	)
+	if employee:
+		all_employees = get_my_employees()
+		employee["employment_count"] = len(all_employees)
+		employee["has_multiple_employments"] = len(all_employees) > 1
 	return employee
+
+
+@frappe.whitelist()
+def set_active_employee(employee: str) -> dict:
+	"""Switch the PWA's active Employee context. Validates that the chosen
+	Employee is Active and belongs to the current user, then persists the
+	choice as a per-user default so it survives across sessions."""
+	is_owned = frappe.db.exists(
+		"Employee",
+		{"name": employee, "user_id": frappe.session.user, "status": "Active"},
+	)
+	if not is_owned:
+		frappe.throw(
+			_("You are not linked to an Active Employee record {0}.").format(employee),
+			frappe.PermissionError,
+		)
+	frappe.defaults.set_user_default("active_employee", employee)
+	return get_current_employee_info()
 
 
 @frappe.whitelist()
@@ -79,7 +150,9 @@ def get_all_employees() -> list[dict]:
 
 
 def get_current_employee() -> str:
-	employee = get_current_employee_info().get("name")
+	"""The active Employee name for the current user (multi-employment aware).
+	Used by every employee-scoped API method below."""
+	employee = get_active_employee_name()
 	if not employee:
 		frappe.throw(_("Employee not found"), frappe.PermissionError)
 	return employee
