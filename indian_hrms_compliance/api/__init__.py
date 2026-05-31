@@ -3,7 +3,7 @@ from frappe import _
 from frappe.model import get_permitted_fields
 from frappe.model.workflow import get_workflow_name
 from frappe.query_builder import Order
-from frappe.utils import add_days, date_diff, getdate, strip_html
+from frappe.utils import add_days, date_diff, flt, getdate, strip_html
 
 from erpnext.setup.doctype.employee.employee import get_holiday_list_for_employee
 
@@ -898,3 +898,216 @@ def get_allowed_states_for_workflow(workflow: dict, user_id: str) -> list[str]:
 @frappe.whitelist()
 def get_permitted_fields_for_write(doctype: str) -> list[str]:
 	return get_permitted_fields(doctype, permission_type="write")
+
+
+# Policy Acknowledgement (Phase 7B — surfaced in the ESS PWA)
+def _get_policy_acknowledgements(status: str) -> list[dict]:
+	"""Employee Policy Acknowledgements for the active Employee in the given
+	status, joined with the HRMS Policy content. Employee-scoped so it
+	refetches the right employment when the user switches employer."""
+	employee = get_current_employee()
+	acknowledgements = frappe.get_list(
+		"Employee Policy Acknowledgement",
+		filters={"employee": employee, "status": status},
+		fields=[
+			"name",
+			"employee",
+			"company",
+			"policy",
+			"policy_name_fetched",
+			"policy_version",
+			"policy_category",
+			"due_date",
+			"signed_text",
+			"status",
+			"acknowledged_at",
+		],
+		order_by="due_date asc",
+	)
+
+	for ack in acknowledgements:
+		content = frappe.db.get_value(
+			"HRMS Policy",
+			ack.policy,
+			["content_html", "attachment", "effective_date"],
+			as_dict=True,
+		)
+		if content:
+			ack["content_html"] = content.content_html
+			ack["attachment"] = content.attachment
+			ack["effective_date"] = content.effective_date
+
+	return acknowledgements
+
+
+@frappe.whitelist()
+def get_pending_policy_acknowledgements() -> list[dict]:
+	"""Pending policies awaiting acknowledgement by the active Employee."""
+	return _get_policy_acknowledgements("Pending")
+
+
+@frappe.whitelist()
+def get_acknowledged_policies() -> list[dict]:
+	"""Already-acknowledged policies for the active Employee (history tab)."""
+	return _get_policy_acknowledgements("Acknowledged")
+
+
+@frappe.whitelist()
+def acknowledge_policy(acknowledgement_name: str) -> dict:
+	"""The active Employee acknowledges one of their pending policies.
+
+	Validates the acknowledgement belongs to the current employee before
+	marking it Acknowledged (via PWA). Throws if not owned."""
+	employee = get_current_employee()
+	ack = frappe.get_doc("Employee Policy Acknowledgement", acknowledgement_name)
+	if ack.employee != employee:
+		frappe.throw(
+			_("You are not permitted to acknowledge this policy."),
+			frappe.PermissionError,
+		)
+	ack.acknowledge(via="PWA")
+	return {
+		"name": ack.name,
+		"status": ack.status,
+		"acknowledged_at": str(ack.acknowledged_at),
+	}
+
+
+# My Tasks (Phase 7B — surfaced in the ESS PWA)
+TASK_INSTANCE_FIELDS = [
+	"name",
+	"goal_name",
+	"kra",
+	"task_template",
+	"period_label",
+	"due_date",
+	"status",
+	"completion_type",
+	"numeric_value",
+	"task_notes",
+	"task_attachment",
+	"approver_user",
+]
+
+
+@frappe.whitelist()
+def get_my_task_instances(status_filter: str | None = None, period: str | None = None) -> list[dict]:
+	"""Task Instances (Goal rows with goal_type='Task Instance') for the active
+	Employee. Optionally narrowed by status, or by a due-date window:
+	  - 'today'    : due today
+	  - 'overdue'  : due before today and not yet Completed/Archived/Closed
+	  - 'upcoming' : due after today and not yet Completed/Archived/Closed
+	  - 'completed': status Completed
+	"""
+	employee = get_current_employee()
+	filters = frappe._dict({"goal_type": "Task Instance", "employee": employee})
+	today_d = getdate()
+
+	if status_filter:
+		filters.status = status_filter
+
+	if period == "today":
+		filters.due_date = today_d
+	elif period == "overdue":
+		filters.due_date = ("<", today_d)
+		filters.status = ("in", ["Pending", "In Progress"])
+	elif period == "upcoming":
+		filters.due_date = (">", today_d)
+		filters.status = ("in", ["Pending", "In Progress"])
+	elif period == "completed":
+		filters.status = "Completed"
+
+	tasks = frappe.get_list(
+		"Goal",
+		filters=filters,
+		fields=TASK_INSTANCE_FIELDS,
+		order_by="due_date asc",
+	)
+
+	# requires_approval comes from the task template — surface it so the PWA
+	# knows whether completion routes to approval or finishes outright.
+	template_cache: dict[str, int] = {}
+	for task in tasks:
+		template = task.get("task_template")
+		if template and template not in template_cache:
+			template_cache[template] = (
+				frappe.db.get_value("HRMS Task", template, "requires_approval") or 0
+			)
+		task["requires_approval"] = template_cache.get(template, 0)
+
+	return tasks
+
+
+@frappe.whitelist()
+def get_my_task_summary() -> dict:
+	"""Counts for the Tasks dashboard cards (active Employee scope)."""
+	employee = get_current_employee()
+	today_d = getdate()
+	week_start = add_days(today_d, -getdate(today_d).weekday())
+
+	Goal = frappe.qb.DocType("Goal")
+	base = (Goal.goal_type == "Task Instance") & (Goal.employee == employee)
+	open_states = ["Pending", "In Progress"]
+
+	def _count(condition) -> int:
+		return (
+			frappe.qb.from_(Goal).select(frappe.qb.terms.PseudoColumn("COUNT(*)")).where(base & condition)
+		).run()[0][0]
+
+	return {
+		"due_today": _count((Goal.due_date == today_d) & (Goal.status.isin(open_states))),
+		"overdue": _count((Goal.due_date < today_d) & (Goal.status.isin(open_states))),
+		"completed_this_week": _count(
+			(Goal.status == "Completed") & (Goal.modified >= week_start)
+		),
+		"pending": _count(Goal.status.isin(open_states)),
+	}
+
+
+@frappe.whitelist()
+def complete_task_instance(
+	goal_name: str,
+	numeric_value: float | None = None,
+	notes: str | None = None,
+	attachment: str | None = None,
+) -> dict:
+	"""The active Employee completes one of their Task Instances.
+
+	Validates ownership, records numeric_value/notes/attachment when supplied,
+	stamps the submission, and sets status: tasks whose template requires
+	approval move to 'In Progress' (pending approval); others go to 'Completed'.
+	"""
+	employee = get_current_employee()
+	goal = frappe.get_doc("Goal", goal_name)
+	if goal.goal_type != "Task Instance" or goal.employee != employee:
+		frappe.throw(
+			_("You are not permitted to complete this task."),
+			frappe.PermissionError,
+		)
+
+	if numeric_value is not None:
+		goal.numeric_value = numeric_value
+	if notes is not None:
+		goal.task_notes = notes
+	if attachment is not None:
+		goal.task_attachment = attachment
+
+	requires_approval = 0
+	if goal.task_template:
+		requires_approval = frappe.db.get_value("HRMS Task", goal.task_template, "requires_approval") or 0
+
+	goal.submitted_at = frappe.utils.now()
+	goal.submitted_by = frappe.session.user
+	# Goal.validate() derives status from progress via set_status(); set both so the
+	# intended state survives. Approval-gated tasks sit at 'In Progress' (pending
+	# the approver); others complete outright at progress=100.
+	if requires_approval:
+		goal.status = "In Progress"
+		if not flt(goal.progress):
+			goal.progress = 99
+	else:
+		goal.status = "Completed"
+		goal.progress = 100
+
+	goal.save(ignore_permissions=True)
+	return {"name": goal.name, "status": goal.status, "requires_approval": bool(requires_approval)}
