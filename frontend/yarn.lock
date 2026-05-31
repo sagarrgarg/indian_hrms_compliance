@@ -5442,6 +5442,11 @@ thenify-all@^1.0.0:
   dependencies:
     any-promise "^1.0.0"
 
+three@^0.184.0:
+  version "0.184.0"
+  resolved "https://registry.yarnpkg.com/three/-/three-0.184.0.tgz#5bca0a3851eea5345e4c205567b40dfa49b791b5"
+  integrity sha512-wtTRjG92pM5eUg/KuUnHsqSAlPM296brTOcLgMRqEeylYTh/CdtvKUvCyyCQTzFuStieWxvZb8mVTMvdPyUpxg==
+
 throttle-debounce@^3.0.1:
   version "3.0.1"
   resolved "https://registry.yarnpkg.com/throttle-debounce/-/throttle-debounce-3.0.1.tgz#32f94d84dfa894f786c9a1f290e7a645b6a19abb"
