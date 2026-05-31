@@ -147,7 +147,21 @@
   "dpdp_section",
   "dpdp_aadhaar_consent_required",
   "column_break_dpdp_1",
-  "dpdp_data_retention_years"
+  "dpdp_data_retention_years",
+  "compliance_assistant_tab",
+  "statutory_defaults_section",
+  "statutory_defaults_help",
+  "apply_indian_statutory_defaults",
+  "statutory_defaults_applied_on",
+  "recommended_policy_section",
+  "recommended_policy_help",
+  "apply_recommended_policy_settings",
+  "policy_settings_applied_on",
+  "ai_assistant_section",
+  "ai_assistant_help",
+  "run_ai_compliance_analysis",
+  "last_ran",
+  "ai_remarks"
  ],
  "fields": [
   {
@@ -1034,6 +1048,80 @@
    "fieldtype": "Int",
    "label": "Data Retention (years)",
    "description": "Default retention period for ex-employee personal data after relieving (typical 7-8 years for IT Act and Companies Act compliance)."
+  },
+  {
+   "fieldname": "compliance_assistant_tab",
+   "fieldtype": "Tab Break",
+   "label": "Compliance Assistant"
+  },
+  {
+   "fieldname": "statutory_defaults_section",
+   "fieldtype": "Section Break",
+   "label": "Indian Statutory Defaults"
+  },
+  {
+   "fieldname": "statutory_defaults_help",
+   "fieldtype": "HTML",
+   "options": "<p class='text-muted'>Re-applies this app's India-law-aligned HR defaults as of today: statutory HR Settings (PF/ESI, Professional Tax, Labour Codes, exit/gratuity), Indian States &amp; PT slabs, and the default notification templates. Safe and idempotent.</p>"
+  },
+  {
+   "fieldname": "apply_indian_statutory_defaults",
+   "fieldtype": "Button",
+   "label": "Apply Indian Statutory Defaults (as of Today)"
+  },
+  {
+   "fieldname": "statutory_defaults_applied_on",
+   "fieldtype": "Date",
+   "label": "Statutory Defaults Last Applied On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "recommended_policy_section",
+   "fieldtype": "Section Break",
+   "label": "Recommended Policy Settings"
+  },
+  {
+   "fieldname": "recommended_policy_help",
+   "fieldtype": "HTML",
+   "options": "<p class='text-muted'>Hard-sets the governance controls below to their recommended (ON) state: leave/expense approver mandatory, restrict back-dated leave, prevent self-approval of leaves &amp; expense claims, and auto-assign leave policy on activation. Use to enforce a compliant baseline.</p>"
+  },
+  {
+   "fieldname": "apply_recommended_policy_settings",
+   "fieldtype": "Button",
+   "label": "Apply Recommended Policy Settings"
+  },
+  {
+   "fieldname": "policy_settings_applied_on",
+   "fieldtype": "Date",
+   "label": "Policy Settings Last Applied On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ai_assistant_section",
+   "fieldtype": "Section Break",
+   "label": "AI Compliance & Retention Assistant"
+  },
+  {
+   "fieldname": "ai_assistant_help",
+   "fieldtype": "HTML",
+   "options": "<p class='text-muted'>Uses the AI Interface app to analyse this organisation's HR configuration against current Indian labour law, surfacing compliance gaps and employee-retention suggestions. Results are written below.</p>"
+  },
+  {
+   "fieldname": "run_ai_compliance_analysis",
+   "fieldtype": "Button",
+   "label": "Run AI Compliance & Retention Analysis"
+  },
+  {
+   "fieldname": "last_ran",
+   "fieldtype": "Datetime",
+   "label": "Last Ran",
+   "read_only": 1
+  },
+  {
+   "fieldname": "ai_remarks",
+   "fieldtype": "Markdown Editor",
+   "label": "AI Remarks",
+   "read_only": 1
   }
  ],
  "icon": "fa fa-cog",

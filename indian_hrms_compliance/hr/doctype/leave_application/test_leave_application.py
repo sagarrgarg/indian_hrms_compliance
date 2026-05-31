@@ -930,11 +930,11 @@ class TestLeaveApplication(FrappeTestCase):
 	def test_leave_approver_perms(self):
 		employee = get_employee()
 		user = "test_approver_perm_emp@example.com"
-		make_employee(user, "_Test Company")
+		approver = make_employee(user, "_Test Company")
 
 		# set approver for employee
 		employee.reload()
-		employee.leave_approver = user
+		employee.leave_approver = approver
 		employee.save()
 		self.assertTrue("Leave Approver" in frappe.get_roles(user))
 
@@ -972,12 +972,12 @@ class TestLeaveApplication(FrappeTestCase):
 		frappe.db.set_single_value("HR Settings", "prevent_self_leave_approval", 0)
 
 		leave_approver = "test_leave_approver@example.com"
-		make_employee(leave_approver, "_Test Company")
+		approver = make_employee(leave_approver, "_Test Company")
 
 		employee = get_employee()
 		if not employee.user_id:
 			employee.user_id = "test_employee@example.com"
-		employee.leave_approver = leave_approver
+		employee.leave_approver = approver
 		employee.save()
 
 		from frappe.utils.user import add_role
@@ -1010,10 +1010,10 @@ class TestLeaveApplication(FrappeTestCase):
 		frappe.db.set_single_value("HR Settings", "prevent_self_leave_approval", 1)
 
 		leave_approver = "test_leave_approver@example.com"
-		make_employee(leave_approver, "_Test Company")
+		approver = make_employee(leave_approver, "_Test Company")
 
 		employee = get_employee()
-		employee.leave_approver = leave_approver
+		employee.leave_approver = approver
 		if not employee.user_id:
 			employee.user_id = "test_employee@example.com"
 		employee.save()

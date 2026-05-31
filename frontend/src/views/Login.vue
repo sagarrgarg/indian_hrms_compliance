@@ -9,7 +9,7 @@
 					</div>
 				</div>
 
-				<div class="mx-auto mt-10 w-full px-8 sm:w-96">
+				<div class="mx-auto mt-10 w-full px-8 sm:max-w-3xl sm:mx-auto">
 					<form v-if="!user_pass_login_disabled.data" class="flex flex-col space-y-4" @submit.prevent="submit">
 						<Input
 							:label="__('Email')"

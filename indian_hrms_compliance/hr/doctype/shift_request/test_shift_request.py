@@ -52,11 +52,11 @@ class TestShiftRequest(FrappeTestCase):
 		setup_shift_type(shift_type="Day Shift")
 		employee = frappe.get_doc("Employee", "_T-Employee-00001")
 		user = "test_approver_perm_emp@example.com"
-		make_employee(user, "_Test Company")
+		approver = make_employee(user, "_Test Company")
 
 		# set approver for employee
 		employee.reload()
-		employee.shift_request_approver = user
+		employee.shift_request_approver = approver
 		employee.save()
 
 		shift_request = make_shift_request(user, do_not_submit=True)
@@ -92,7 +92,8 @@ class TestShiftRequest(FrappeTestCase):
 	def test_overlap_for_request_without_to_date(self):
 		# shift should be Ongoing if Only from_date is present
 		user = "test_shift_request@example.com"
-		employee = make_employee(user, company="_Test Company", shift_request_approver=user)
+		employee = make_employee(user, company="_Test Company")
+		frappe.db.set_value("Employee", employee, "shift_request_approver", employee)
 		setup_shift_type(shift_type="Day Shift")
 
 		shift_request = frappe.get_doc(
@@ -123,7 +124,8 @@ class TestShiftRequest(FrappeTestCase):
 
 	def test_overlap_for_request_with_from_and_to_dates(self):
 		user = "test_shift_request@example.com"
-		employee = make_employee(user, company="_Test Company", shift_request_approver=user)
+		employee = make_employee(user, company="_Test Company")
+		frappe.db.set_value("Employee", employee, "shift_request_approver", employee)
 		setup_shift_type(shift_type="Day Shift")
 
 		shift_request = frappe.get_doc(
@@ -156,7 +158,8 @@ class TestShiftRequest(FrappeTestCase):
 
 	def test_overlapping_for_a_fixed_period_shift_and_ongoing_shift(self):
 		user = "test_shift_request@example.com"
-		employee = make_employee(user, company="_Test Company", shift_request_approver=user)
+		employee = make_employee(user, company="_Test Company")
+		frappe.db.set_value("Employee", employee, "shift_request_approver", employee)
 
 		# shift setup for 8-12
 		shift_type = setup_shift_type(shift_type="Shift 1", start_time="08:00:00", end_time="12:00:00")
@@ -195,7 +198,8 @@ class TestShiftRequest(FrappeTestCase):
 	@change_settings("HR Settings", {"allow_multiple_shift_assignments": 1})
 	def test_allow_non_overlapping_shift_requests_for_same_day(self):
 		user = "test_shift_request@example.com"
-		employee = make_employee(user, company="_Test Company", shift_request_approver=user)
+		employee = make_employee(user, company="_Test Company")
+		frappe.db.set_value("Employee", employee, "shift_request_approver", employee)
 
 		# shift setup for 8-12
 		shift_type = setup_shift_type(shift_type="Shift 1", start_time="08:00:00", end_time="12:00:00")
@@ -248,7 +252,11 @@ def make_shift_request(
 ):
 	from_date = from_date or nowdate()
 	to_date = to_date or add_days(nowdate(), 10)
-	approver = approver or frappe.db.get_value("Employee", employee, "shift_request_approver")
+	from indian_hrms_compliance.overrides.employee_master import resolve_employee_approver
+
+	approver = approver or resolve_employee_approver(
+		frappe.db.get_value("Employee", employee, "shift_request_approver")
+	)
 
 	shift_request = frappe.get_doc(
 		{

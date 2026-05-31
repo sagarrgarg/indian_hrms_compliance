@@ -1,15 +1,15 @@
 <template>
-	<div class="flex flex-col bg-white rounded w-full py-6 px-4 border-none">
-		<h2 class="text-lg font-bold text-gray-900">
+	<div class="flex flex-col bg-indigo-600 rounded-2xl w-full py-6 px-5 shadow-md">
+		<h2 class="text-xl font-bold text-white">
 			{{ __("Hey, {0} 👋", [employee?.data?.first_name]) }}
 		</h2>
 
 		<template v-if="settings.data?.allow_employee_checkin_from_mobile_app">
-			<div class="font-medium text-sm text-gray-500 mt-1.5" v-if="lastLog">
+			<div class="font-medium text-sm text-white/80 mt-1.5" v-if="lastLog">
 				<span>{{ __("Last {0} was at {1}", [__(lastLogType), formatTimestamp(lastLog.time)]) }}</span>
 				<span class="whitespace-pre"> &middot; </span>
 				<router-link :to="{ name: 'EmployeeCheckinListView' }" v-slot="{ navigate }">
-					<span @click="navigate" class="underline">View List</span>
+					<span @click="navigate" class="underline text-white">View List</span>
 				</router-link>
 			</div>
 			<Button
@@ -27,7 +27,7 @@
 			</Button>
 		</template>
 
-		<div v-else class="font-medium text-sm text-gray-500 mt-1.5">
+		<div v-else class="font-medium text-sm text-white/80 mt-1.5">
 			{{ dayjs().format("ddd, D MMMM, YYYY") }}
 		</div>
 	</div>

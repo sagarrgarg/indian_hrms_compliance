@@ -78,3 +78,8 @@ indian_hrms_compliance.patches.v15_0.dpdp_setup_data_erasure_workflow #2026-06-0
 indian_hrms_compliance.patches.v15_0.dpdp_add_hr_settings #2026-06-03
 indian_hrms_compliance.patches.v15_0.dpdp_seed_defaults #2026-06-03
 indian_hrms_compliance.patches.v15_0.dpdp_seed_data_retention_rules #2026-06-03
+indian_hrms_compliance.patches.v15_0.convert_approvers_to_employee #2026-05-31
+indian_hrms_compliance.patches.v15_0.add_employee_onboarding_defaults #2026-05-31
+indian_hrms_compliance.patches.v15_0.update_leave_notification_templates #2026-05-31
+indian_hrms_compliance.patches.v15_0.add_company_salary_component_defaults #2026-05-31
+indian_hrms_compliance.patches.v15_0.add_employee_readiness_tab #2026-05-31

@@ -199,6 +199,25 @@ def _sum_amounts(rows):
 	return sum(flt(r.amount) for r in (rows or []))
 
 
+# Proportional (% of base) structures store no rupee amount on the row — the
+# base only arrives via the Salary Structure Assignment. To judge ratio-based
+# rules (e.g. the Wage Code 50%) we evaluate formula rows against a notional
+# base; the ratio is independent of the actual base.
+NOTIONAL_BASE = 100000.0
+
+
+def _row_monthly_amount(row, base=NOTIONAL_BASE):
+	"""Best-effort monthly amount for a salary row. Flat rows use row.amount;
+	formula rows are evaluated against a notional base (falling back to
+	row.amount if the formula references things we can't resolve here)."""
+	if getattr(row, "amount_based_on_formula", 0) and (row.formula or "").strip():
+		try:
+			return flt(frappe.safe_eval(row.formula.strip(), None, {"base": base, "gross_pay": base}))
+		except Exception:
+			return flt(row.amount)
+	return flt(row.amount)
+
+
 def _component_names(rows):
 	return {r.salary_component for r in (rows or []) if r.salary_component}
 
@@ -209,8 +228,13 @@ def _earnings_total_monthly(doc):
 
 	Frappe stores amount_based_on_formula structures as formulas but the
 	default amount column is still set when previewing — for the validator
-	we trust whatever is in row.amount."""
-	return _sum_amounts(doc.earnings)
+	we trust whatever is in row.amount.
+
+	Statistical components (employer PF/ESI, gratuity provision, etc.) are part
+	of CTC but not paid wages, so they're excluded from the Wage-Code denominator."""
+	return sum(
+		_row_monthly_amount(r) for r in (doc.earnings or []) if not getattr(r, "statistical_component", 0)
+	)
 
 
 def _basic_plus_da(doc, mapping=None):
@@ -227,13 +251,13 @@ def _basic_plus_da(doc, mapping=None):
 	for row in doc.earnings or []:
 		comp = row.salary_component or ""
 		if comp in basic_names or comp in da_names:
-			total += flt(row.amount)
+			total += _row_monthly_amount(row)
 			continue
 		# Fallback substring match — case-insensitive
 		lower = comp.lower()
 		if not (basic_names or da_names):
 			if "basic" in lower or "dearness" in lower or lower == "da":
-				total += flt(row.amount)
+				total += _row_monthly_amount(row)
 	return total
 
 

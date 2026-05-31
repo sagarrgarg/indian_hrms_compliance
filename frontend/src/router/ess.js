@@ -78,6 +78,20 @@ const routes = [
 		path: "/approvals",
 		component: () => import("@/views/approvals/Inbox.vue"),
 	},
+	{
+		name: "Cockpit",
+		path: "/cockpit",
+		component: () => import("@/views/Cockpit.vue"),
+		beforeEnter: async (to, from, next) => {
+			const { canViewCockpit } = await import("@/data/cockpit")
+			try {
+				await (canViewCockpit.promise || canViewCockpit.reload())
+			} catch (e) {
+				// fall through — backend get_hr_cockpit still enforces access
+			}
+			next(canViewCockpit.data === false ? { name: "Home" } : true)
+		},
+	},
 ]
 
 export default routes

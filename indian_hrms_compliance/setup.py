@@ -97,6 +97,55 @@ def get_custom_fields():
 				"options": "Account",
 				"insert_after": "column_break_10",
 			},
+			{
+				"fieldname": "salary_components_tab",
+				"fieldtype": "Tab Break",
+				"label": _("Salary Components"),
+				"insert_after": "registration_details_for_printing",
+			},
+			{
+				"fieldname": "employee_onboarding_defaults_section",
+				"fieldtype": "Section Break",
+				"label": _("Employee Onboarding Defaults"),
+				"description": _(
+					"Defaults applied when a new employee of this company is activated. "
+					"The Leave Policy is auto-assigned if enabled in HR Settings."
+				),
+				"insert_after": "default_payroll_payable_account",
+			},
+			{
+				"fieldname": "default_leave_policy",
+				"fieldtype": "Link",
+				"label": _("Default Leave Policy"),
+				"options": "Leave Policy",
+				"insert_after": "employee_onboarding_defaults_section",
+			},
+			{
+				"fieldname": "default_leave_period",
+				"fieldtype": "Link",
+				"label": _("Default Leave Period"),
+				"options": "Leave Period",
+				"insert_after": "default_leave_policy",
+			},
+			{
+				"fieldname": "employee_onboarding_defaults_column",
+				"fieldtype": "Column Break",
+				"insert_after": "default_leave_period",
+			},
+			{
+				"fieldname": "default_shift_type",
+				"fieldtype": "Link",
+				"label": _("Default Shift"),
+				"options": "Shift Type",
+				"insert_after": "employee_onboarding_defaults_column",
+			},
+			{
+				"fieldname": "default_salary_structure",
+				"fieldtype": "Link",
+				"label": _("Default Salary Structure"),
+				"options": "Salary Structure",
+				"insert_after": "default_shift_type",
+			},
 		],
 		"Department": [
 			{
@@ -179,6 +228,17 @@ def get_custom_fields():
 		],
 		"Employee": [
 			{
+				"fieldname": "setup_status_tab",
+				"fieldtype": "Tab Break",
+				"label": _("Setup Status"),
+				"insert_after": "connections_tab",
+			},
+			{
+				"fieldname": "employee_readiness_html",
+				"fieldtype": "HTML",
+				"insert_after": "setup_status_tab",
+			},
+			{
 				"fieldname": "employment_type",
 				"fieldtype": "Link",
 				"ignore_user_permissions": 1,
@@ -238,7 +298,7 @@ def get_custom_fields():
 				"fieldname": "expense_approver",
 				"fieldtype": "Link",
 				"label": _("Expense Approver"),
-				"options": "User",
+				"options": "Employee",
 				"insert_after": "approvers_section",
 				"ignore_user_permissions": 1,
 			},
@@ -246,7 +306,7 @@ def get_custom_fields():
 				"fieldname": "leave_approver",
 				"fieldtype": "Link",
 				"label": _("Leave Approver"),
-				"options": "User",
+				"options": "Employee",
 				"insert_after": "expense_approver",
 				"ignore_user_permissions": 1,
 			},
@@ -259,7 +319,7 @@ def get_custom_fields():
 				"fieldname": "shift_request_approver",
 				"fieldtype": "Link",
 				"label": _("Shift Request Approver"),
-				"options": "User",
+				"options": "Employee",
 				"insert_after": "column_break_45",
 				"ignore_user_permissions": 1,
 			},
@@ -643,24 +703,25 @@ def setup_notifications():
 	base_path = frappe.get_app_path("indian_hrms_compliance", "hr", "doctype")
 
 	# Leave Application
-	response = frappe.read_file(
-		os.path.join(base_path, "leave_application/leave_application_email_template.html")
-	)
 	records = [
 		{
 			"doctype": "Email Template",
-			"name": _("Leave Approval Notification"),
-			"response": response,
-			"subject": _("Leave Approval Notification"),
+			"name": _("Default Leave Approval Notification"),
+			"response": frappe.read_file(
+				os.path.join(base_path, "leave_application/leave_approval_notification_template.html")
+			),
+			"subject": _("Leave Approval Request from {{ employee_name }} — {{ company }}"),
 			"owner": frappe.session.user,
 		}
 	]
 	records += [
 		{
 			"doctype": "Email Template",
-			"name": _("Leave Status Notification"),
-			"response": response,
-			"subject": _("Leave Status Notification"),
+			"name": _("Default Leave Status Notification"),
+			"response": frappe.read_file(
+				os.path.join(base_path, "leave_application/leave_status_notification_template.html")
+			),
+			"subject": _("Your Leave Application has been {{ status }} — {{ company }}"),
 			"owner": frappe.session.user,
 		}
 	]
@@ -711,8 +772,8 @@ def setup_notifications():
 def update_hr_defaults():
 	hr_settings = frappe.get_doc("HR Settings")
 	hr_settings.emp_created_by = "Naming Series"
-	hr_settings.leave_approval_notification_template = _("Leave Approval Notification")
-	hr_settings.leave_status_notification_template = _("Leave Status Notification")
+	hr_settings.leave_approval_notification_template = _("Default Leave Approval Notification")
+	hr_settings.leave_status_notification_template = _("Default Leave Status Notification")
 
 	hr_settings.send_interview_reminder = 1
 	hr_settings.interview_reminder_template = _("Interview Reminder")

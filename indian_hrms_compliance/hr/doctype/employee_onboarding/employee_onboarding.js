@@ -30,6 +30,7 @@ frappe.ui.form.on("Employee Onboarding", {
 				},
 				__("View"),
 			);
+			frm.trigger("render_setup_status");
 		}
 		if (frm.doc.project) {
 			frm.add_custom_button(
@@ -108,6 +109,40 @@ frappe.ui.form.on("Employee Onboarding", {
 		} else {
 			frm.set_value("employee", "");
 		}
+	},
+
+	render_setup_status(frm) {
+		if (!frm.doc.employee) return;
+		frappe.call({
+			method: "indian_hrms_compliance.overrides.employee_master.get_employee_setup_status",
+			args: { employee: frm.doc.employee },
+			callback: function (r) {
+				if (!r.message || !r.message.items) return;
+				const rows = r.message.items
+					.map((item) => {
+						const icon = item.done
+							? '<span style="color:var(--green-600)">&#10003;</span>'
+							: '<span style="color:var(--gray-500)">&#9675;</span>';
+						const action = item.done ? __("View") : __("Set up");
+						const route = encodeURIComponent(JSON.stringify(item.route));
+						return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0">
+								${icon}
+								<span style="flex:1">${frappe.utils.escape_html(item.label)}</span>
+								<a href="#" data-route="${route}" class="ihc-setup-link">${action}</a>
+							</div>`;
+					})
+					.join("");
+				const $section = frm.dashboard.add_section(
+					`<div class="ihc-setup-status">${rows}</div>`,
+					__("HR Setup Status"),
+				);
+				$section.find(".ihc-setup-link").on("click", function (e) {
+					e.preventDefault();
+					const route = JSON.parse(decodeURIComponent($(this).attr("data-route")));
+					frappe.set_route(...route);
+				});
+			},
+		});
 	},
 
 	mark_as_completed(frm) {

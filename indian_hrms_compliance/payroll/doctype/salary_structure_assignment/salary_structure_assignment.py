@@ -210,3 +210,117 @@ def get_tax_component(salary_structure: str) -> str | None:
 		if cint(d.variable_based_on_taxable_salary) and not d.formula and not flt(d.amount):
 			return d.salary_component
 	return None
+
+
+def _annual_income_tax(slab, taxable):
+	tax = 0.0
+	for s in slab.slabs:
+		frm_a = flt(s.from_amount)
+		to_a = flt(s.to_amount) or taxable  # 0 to_amount = no upper bound
+		if taxable > frm_a:
+			tax += (min(taxable, to_a) - frm_a) * flt(s.percent_deduction) / 100.0
+	return tax
+
+
+def _estimate_monthly_tds(slab_name, monthly_gross):
+	"""Rough monthly TDS estimate from an Income Tax Slab. Annualises gross,
+	applies the slab's standard deduction, new-regime 87A rebate (nil up to
+	₹12L taxable) and 4% cess. Excludes surcharge / marginal relief / chapter
+	VI-A — it's an estimate, not the payroll-engine figure."""
+	slab = frappe.get_cached_doc("Income Tax Slab", slab_name)
+	taxable = max(flt(monthly_gross) * 12 - flt(slab.standard_tax_exemption_amount), 0)
+	# 87A rebate: the engine charges tax only above tax_relief_limit.
+	if slab.tax_relief_limit and taxable <= flt(slab.tax_relief_limit):
+		return 0.0
+	annual_tax = _annual_income_tax(slab, taxable)
+	# cess / surcharge rows (e.g. 4% Health & Education Cess)
+	for c in slab.other_taxes_and_charges or []:
+		annual_tax += annual_tax * flt(c.percent) / 100.0
+	return flt(annual_tax / 12, 2)
+
+
+@frappe.whitelist()
+def preview_salary(salary_structure, base=0, variable=0, leave_encashment=0, employee=None, income_tax_slab=None):
+	"""Interactive payslip preview — evaluates the Salary Structure's formulas
+	against the supplied base / variable / leave-encashment.
+
+	Employee-aware where context is given:
+	  - PF is skipped (flagged) when the employee has no UAN.
+	  - TDS is estimated from the linked Income Tax Slab (else shown as 0).
+	Earnings are evaluated first, then deductions with `gross_pay` available."""
+	from datetime import date as _date
+	from math import ceil, floor
+
+	from frappe.utils import get_first_day, get_last_day, rounded
+
+	from indian_hrms_compliance.payroll.doctype.salary_slip.salary_slip import _safe_eval
+
+	base, variable, le = flt(base), flt(variable), flt(leave_encashment)
+	ss = frappe.get_doc("Salary Structure", salary_structure)
+
+	g = {
+		"int": int, "float": float, "long": int, "round": round, "rounded": rounded,
+		"date": _date, "getdate": getdate, "get_first_day": get_first_day,
+		"get_last_day": get_last_day, "ceil": ceil, "floor": floor,
+	}
+	data = {a: 0 for a in frappe.get_all("Salary Component", pluck="salary_component_abbr") if a}
+	data.update({"base": base, "variable": variable, "leave_encashment": le, "gross_pay": 0})
+
+	def row_amount(r):
+		if r.condition and not _safe_eval(r.condition, g, data):
+			return None
+		amt = flt(_safe_eval(r.formula, g, data), 2) if (r.amount_based_on_formula and r.formula) else flt(r.amount)
+		data[r.abbr] = amt
+		return amt
+
+	earnings, gross = [], 0.0
+	for r in ss.earnings:
+		amt = row_amount(r)
+		if amt is None:
+			continue
+		earnings.append({"component": r.salary_component, "amount": amt, "statistical": bool(r.statistical_component)})
+		if not r.statistical_component:
+			gross += amt
+	if le:
+		earnings.append({"component": _("Leave Encashment"), "amount": le, "statistical": False})
+		gross += le
+
+	data["gross_pay"] = gross
+	emp_uan = frappe.db.get_value("Employee", employee, "uan_number") if employee else None
+
+	deductions, total_ded = [], 0.0
+	for r in ss.deductions:
+		comp = r.salary_component or ""
+
+		# TDS — estimate from the linked Income Tax Slab.
+		if r.variable_based_on_taxable_salary:
+			if income_tax_slab:
+				tds = _estimate_monthly_tds(income_tax_slab, gross)
+				deductions.append({"component": comp, "amount": tds, "note": _("estimated from {0}").format(income_tax_slab)})
+				total_ded += tds
+			else:
+				deductions.append({"component": comp, "amount": 0, "note": _("no Income Tax Slab selected")})
+			continue
+
+		# PF — needs the employee to be UAN-registered.
+		is_pf = "provident" in comp.lower() or comp.lower() in ("pf", "pf employee", "employee pf")
+		if is_pf and employee and not emp_uan:
+			data[r.abbr] = 0
+			deductions.append({"component": comp, "amount": 0, "note": _("employee has no UAN — PF not applicable")})
+			continue
+
+		amt = row_amount(r)
+		if amt is None:
+			continue
+		deductions.append({"component": comp, "amount": amt})
+		if not r.statistical_component:
+			total_ded += amt
+
+	return {
+		"currency": ss.currency,
+		"earnings": earnings,
+		"deductions": deductions,
+		"gross": flt(gross, 2),
+		"total_deduction": flt(total_ded, 2),
+		"net": flt(gross - total_ded, 2),
+	}

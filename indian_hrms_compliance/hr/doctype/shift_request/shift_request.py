@@ -80,8 +80,16 @@ class ShiftRequest(Document, PWANotificationsMixin):
 			)
 
 	def validate_approver(self):
+		from indian_hrms_compliance.overrides.employee_master import resolve_employee_approver
+
 		department = frappe.get_value("Employee", self.employee, "department")
-		shift_approver = frappe.get_value("Employee", self.employee, "shift_request_approver")
+		# Employee-level approver is now an Employee link; compare against its User.
+		shift_approver = resolve_employee_approver(
+			frappe.get_value("Employee", self.employee, "shift_request_approver")
+		)
+		# The approver field is a User; replaces the old fetch_from the Employee approver.
+		if not self.approver:
+			self.approver = shift_approver
 		approvers = frappe.db.sql(
 			"""select approver from `tabDepartment Approver` where parent= %s and parentfield = 'shift_request_approver'""",
 			(department),

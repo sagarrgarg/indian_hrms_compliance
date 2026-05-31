@@ -115,7 +115,7 @@ class TestShiftAssignmentTool(FrappeTestCase):
 
 		for emp in [self.emp1, self.emp2, self.emp3, self.emp4, self.emp5]:
 			employee = frappe.get_doc("Employee", emp)
-			employee.shift_request_approver = "employee1@test.com"
+			employee.shift_request_approver = self.emp1
 			employee.save()
 
 		request1 = make_shift_request(
@@ -248,7 +248,7 @@ class TestShiftAssignmentTool(FrappeTestCase):
 	def test_bulk_process_shift_requests(self):
 		for emp in [self.emp1, self.emp2, self.emp3]:
 			employee = frappe.get_doc("Employee", emp)
-			employee.shift_request_approver = "employee1@test.com"
+			employee.shift_request_approver = self.emp1
 			employee.save()
 
 		request1 = make_shift_request(

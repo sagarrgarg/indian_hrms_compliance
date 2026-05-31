@@ -1,0 +1,390 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "naming_series:",
+ "creation": "2026-05-31 17:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "employee_details_section",
+  "first_name",
+  "middle_name",
+  "last_name",
+  "col_break_basic",
+  "company",
+  "department",
+  "designation",
+  "grade",
+  "dates_section",
+  "date_of_joining",
+  "date_of_birth",
+  "col_break_dates",
+  "gender",
+  "employment_type",
+  "login_section",
+  "create_user",
+  "user_email",
+  "col_break_login",
+  "send_welcome_email",
+  "create_user_permission",
+  "statutory_section",
+  "pan_number",
+  "aadhaar_last_4",
+  "uan_number",
+  "col_break_statutory",
+  "provident_fund_account",
+  "esic_ip_number",
+  "bank_section",
+  "bank_name",
+  "bank_ac_no",
+  "col_break_bank",
+  "ifsc_code",
+  "approvers_section",
+  "reports_to",
+  "leave_approver",
+  "col_break_approvers",
+  "expense_approver",
+  "shift_request_approver",
+  "payroll_section",
+  "salary_structure",
+  "base",
+  "col_break_payroll",
+  "payroll_effective_date",
+  "default_shift",
+  "result_section",
+  "created_employee",
+  "created_user",
+  "col_break_result",
+  "setup_log"
+ ],
+ "fields": [
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Series",
+   "options": "HR-NES-.YYYY.-",
+   "default": "HR-NES-.YYYY.-"
+  },
+  {
+   "fieldname": "employee_details_section",
+   "fieldtype": "Section Break",
+   "label": "Employee Details"
+  },
+  {
+   "fieldname": "first_name",
+   "fieldtype": "Data",
+   "label": "First Name",
+   "reqd": 1
+  },
+  {
+   "fieldname": "middle_name",
+   "fieldtype": "Data",
+   "label": "Middle Name"
+  },
+  {
+   "fieldname": "last_name",
+   "fieldtype": "Data",
+   "label": "Last Name"
+  },
+  {
+   "fieldname": "col_break_basic",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Company",
+   "reqd": 1
+  },
+  {
+   "fieldname": "department",
+   "fieldtype": "Link",
+   "label": "Department",
+   "options": "Department"
+  },
+  {
+   "fieldname": "designation",
+   "fieldtype": "Link",
+   "label": "Designation",
+   "options": "Designation"
+  },
+  {
+   "fieldname": "grade",
+   "fieldtype": "Link",
+   "label": "Employee Grade",
+   "options": "Employee Grade"
+  },
+  {
+   "fieldname": "dates_section",
+   "fieldtype": "Section Break",
+   "label": "Dates & Type"
+  },
+  {
+   "fieldname": "date_of_joining",
+   "fieldtype": "Date",
+   "label": "Date of Joining",
+   "reqd": 1
+  },
+  {
+   "fieldname": "date_of_birth",
+   "fieldtype": "Date",
+   "label": "Date of Birth"
+  },
+  {
+   "fieldname": "col_break_dates",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "gender",
+   "fieldtype": "Link",
+   "label": "Gender",
+   "options": "Gender",
+   "reqd": 1
+  },
+  {
+   "fieldname": "employment_type",
+   "fieldtype": "Link",
+   "label": "Employment Type",
+   "options": "Employment Type"
+  },
+  {
+   "fieldname": "login_section",
+   "fieldtype": "Section Break",
+   "label": "Login & Access"
+  },
+  {
+   "fieldname": "create_user",
+   "fieldtype": "Check",
+   "label": "Create User Login",
+   "default": "1"
+  },
+  {
+   "fieldname": "user_email",
+   "fieldtype": "Data",
+   "label": "User Email",
+   "options": "Email",
+   "depends_on": "create_user",
+   "mandatory_depends_on": "create_user"
+  },
+  {
+   "fieldname": "col_break_login",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "send_welcome_email",
+   "fieldtype": "Check",
+   "label": "Send Welcome Email",
+   "default": "1",
+   "depends_on": "create_user"
+  },
+  {
+   "fieldname": "create_user_permission",
+   "fieldtype": "Check",
+   "label": "Restrict User to this Company",
+   "default": "1",
+   "depends_on": "create_user",
+   "description": "Adds Company-scoped User Permissions so the user only sees their own company's data."
+  },
+  {
+   "fieldname": "statutory_section",
+   "fieldtype": "Section Break",
+   "label": "Statutory IDs",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "pan_number",
+   "fieldtype": "Data",
+   "label": "PAN"
+  },
+  {
+   "fieldname": "aadhaar_last_4",
+   "fieldtype": "Data",
+   "label": "Aadhaar (last 4)"
+  },
+  {
+   "fieldname": "uan_number",
+   "fieldtype": "Data",
+   "label": "UAN"
+  },
+  {
+   "fieldname": "col_break_statutory",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "provident_fund_account",
+   "fieldtype": "Data",
+   "label": "PF Account"
+  },
+  {
+   "fieldname": "esic_ip_number",
+   "fieldtype": "Data",
+   "label": "ESIC IP Number"
+  },
+  {
+   "fieldname": "bank_section",
+   "fieldtype": "Section Break",
+   "label": "Bank"
+  },
+  {
+   "fieldname": "bank_name",
+   "fieldtype": "Data",
+   "label": "Bank Name"
+  },
+  {
+   "fieldname": "bank_ac_no",
+   "fieldtype": "Data",
+   "label": "Bank A/C No"
+  },
+  {
+   "fieldname": "col_break_bank",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "ifsc_code",
+   "fieldtype": "Data",
+   "label": "IFSC Code"
+  },
+  {
+   "fieldname": "approvers_section",
+   "fieldtype": "Section Break",
+   "label": "Reporting & Approvers"
+  },
+  {
+   "fieldname": "reports_to",
+   "fieldtype": "Link",
+   "label": "Reports To",
+   "options": "Employee"
+  },
+  {
+   "fieldname": "leave_approver",
+   "fieldtype": "Link",
+   "label": "Leave Approver",
+   "options": "Employee"
+  },
+  {
+   "fieldname": "col_break_approvers",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "expense_approver",
+   "fieldtype": "Link",
+   "label": "Expense Approver",
+   "options": "Employee"
+  },
+  {
+   "fieldname": "shift_request_approver",
+   "fieldtype": "Link",
+   "label": "Shift Request Approver",
+   "options": "Employee"
+  },
+  {
+   "fieldname": "payroll_section",
+   "fieldtype": "Section Break",
+   "label": "Payroll & Shift"
+  },
+  {
+   "fieldname": "salary_structure",
+   "fieldtype": "Link",
+   "label": "Salary Structure",
+   "options": "Salary Structure"
+  },
+  {
+   "fieldname": "base",
+   "fieldtype": "Currency",
+   "label": "Base Amount",
+   "depends_on": "salary_structure"
+  },
+  {
+   "fieldname": "col_break_payroll",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "payroll_effective_date",
+   "fieldtype": "Date",
+   "label": "Payroll Effective From",
+   "depends_on": "salary_structure"
+  },
+  {
+   "fieldname": "default_shift",
+   "fieldtype": "Link",
+   "label": "Default Shift",
+   "options": "Shift Type"
+  },
+  {
+   "fieldname": "result_section",
+   "fieldtype": "Section Break",
+   "label": "Result",
+   "depends_on": "created_employee"
+  },
+  {
+   "fieldname": "created_employee",
+   "fieldtype": "Link",
+   "label": "Created Employee",
+   "options": "Employee",
+   "read_only": 1
+  },
+  {
+   "fieldname": "created_user",
+   "fieldtype": "Link",
+   "label": "Created User",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "col_break_result",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "setup_log",
+   "fieldtype": "Small Text",
+   "label": "Setup Log",
+   "read_only": 1
+  }
+ ],
+ "icon": "fa fa-user-plus",
+ "links": [],
+ "modified": "2026-05-31 17:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "HR",
+ "name": "New Employee Setup",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR User",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

@@ -7,6 +7,8 @@ from frappe.utils import add_days, date_diff, flt, getdate, strip_html
 
 from erpnext.setup.doctype.employee.employee import get_holiday_list_for_employee
 
+from indian_hrms_compliance.overrides.employee_master import resolve_employee_approver
+
 SUPPORTED_FIELD_TYPES = [
 	"Link",
 	"Select",
@@ -352,6 +354,8 @@ def get_shift_request_approvers(employee: str) -> str | list[str]:
 		employee,
 		["shift_request_approver", "department"],
 	)
+	# Employee-level approver is now an Employee link; resolve to its User.
+	shift_request_approver = resolve_employee_approver(shift_request_approver)
 
 	department_approvers = []
 	if department:
@@ -502,6 +506,8 @@ def get_leave_approval_details(employee: str) -> dict:
 		employee,
 		["leave_approver", "department"],
 	)
+	# Employee-level approver is now an Employee link; resolve to its User.
+	leave_approver = resolve_employee_approver(leave_approver)
 
 	if not leave_approver and department:
 		leave_approver = frappe.db.get_value(
@@ -677,6 +683,8 @@ def get_expense_approval_details(employee: str) -> dict:
 		employee,
 		["expense_approver", "department"],
 	)
+	# Employee-level approver is now an Employee link; resolve to its User.
+	expense_approver = resolve_employee_approver(expense_approver)
 
 	if not expense_approver and department:
 		expense_approver = frappe.db.get_value(

@@ -2,7 +2,7 @@
 	<ion-page>
 		<ion-content class="ion-padding">
 			<div class="flex flex-col h-screen w-screen">
-				<div class="w-full sm:w-96">
+				<div class="w-full sm:max-w-3xl sm:mx-auto">
 					<header
 						class="flex flex-row bg-white shadow-sm py-4 px-3 items-center justify-between border-b sticky top-0 z-10"
 					>
@@ -40,7 +40,13 @@
 							<span v-if="employee" class="font-normal text-sm text-gray-500">{{
 								employee?.data?.designation
 							}}</span>
+							<span v-if="employee" class="font-normal text-xs text-gray-400">{{
+								employee?.data?.company
+							}}</span>
 						</div>
+
+						<!-- Actions kept out of the daily Home view -->
+						<QuickLinks :items="actionLinks" :title="__('Requests & Privacy')" />
 
 						<!-- Profile Links -->
 						<div class="flex flex-col gap-5 my-4 w-full">
@@ -137,7 +143,7 @@
 </template>
 
 <script setup>
-import { computed, inject, ref, onMounted, onBeforeUnmount } from "vue"
+import { computed, inject, markRaw, ref, onMounted, onBeforeUnmount } from "vue"
 import { useRouter } from "vue-router"
 import { IonModal, IonPage, IonContent } from "@ionic/vue"
 import { FeatherIcon, createDocumentResource, createResource } from "frappe-ui"
@@ -146,6 +152,11 @@ import { showErrorAlert } from "@/utils/dialogs"
 import { formatCurrency } from "@/utils/formatters"
 
 import ProfileInfoModal from "@/components/ProfileInfoModal.vue"
+import QuickLinks from "@/components/QuickLinks.vue"
+import LeaveIcon from "@/components/icons/LeaveIcon.vue"
+import EmployeeAdvanceIcon from "@/components/icons/EmployeeAdvanceIcon.vue"
+import PrivacyIcon from "@/components/icons/PrivacyIcon.vue"
+import ExitIcon from "@/components/icons/ExitIcon.vue"
 
 import { arePushNotificationsEnabled } from "@/data/notifications"
 
@@ -158,6 +169,14 @@ const employee = inject("$employee")
 const __ = inject("$translate")
 
 const router = useRouter()
+
+// Moved off the daily Home: one-time / non-daily / sensitive actions.
+const actionLinks = [
+	{ icon: markRaw(LeaveIcon), title: __("Request Leave"), route: "LeaveApplicationFormView", color: "emerald" },
+	{ icon: markRaw(EmployeeAdvanceIcon), title: __("Request an Advance"), route: "EmployeeAdvanceFormView", color: "teal" },
+	{ icon: markRaw(PrivacyIcon), title: __("Privacy & Consent"), route: "PrivacyDashboard", color: "lime" },
+	{ icon: markRaw(ExitIcon), title: __("Resignation & Exit"), route: "ExitDashboard", color: "rose" },
+]
 
 const profileLinks = [
 	{

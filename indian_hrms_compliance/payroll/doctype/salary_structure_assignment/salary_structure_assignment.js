@@ -55,6 +55,14 @@ frappe.ui.form.on("Salary Structure Assignment", {
 	refresh: function (frm) {
 		frm.trigger("toggle_opening_balances_section");
 
+		// Available pre-save: tweak base / variable / leave encashment and see
+		// the formula-computed payslip.
+		frm.add_custom_button(
+			__("Preview Salary"),
+			() => frm.trigger("open_salary_preview"),
+			__("Actions"),
+		);
+
 		if (frm.doc.docstatus != 1) return;
 
 		frm.add_custom_button(
@@ -126,6 +134,69 @@ frappe.ui.form.on("Salary Structure Assignment", {
 				});
 			},
 		);
+	},
+
+	open_salary_preview: function (frm) {
+		if (!frm.doc.salary_structure) {
+			frappe.msgprint(__("Please select a Salary Structure first."));
+			return;
+		}
+		const fmt = (v) => format_currency(v, frm.doc.currency);
+		const dialog = new frappe.ui.Dialog({
+			title: __("Salary Preview"),
+			fields: [
+				{ fieldname: "base", fieldtype: "Currency", label: __("Base"), default: frm.doc.base || 0 },
+				{ fieldname: "variable", fieldtype: "Currency", label: __("Variable"), default: frm.doc.variable || 0 },
+				{ fieldname: "cb", fieldtype: "Column Break" },
+				{ fieldname: "leave_encashment", fieldtype: "Currency", label: __("Leave Encashment"), default: 0 },
+				{ fieldname: "sb", fieldtype: "Section Break" },
+				{ fieldname: "results", fieldtype: "HTML" },
+			],
+			primary_action_label: __("Compute"),
+			primary_action(values) {
+				frappe.call({
+					method: "indian_hrms_compliance.payroll.doctype.salary_structure_assignment.salary_structure_assignment.preview_salary",
+					args: {
+						salary_structure: frm.doc.salary_structure,
+						base: values.base || 0,
+						variable: values.variable || 0,
+						leave_encashment: values.leave_encashment || 0,
+						employee: frm.doc.employee,
+						income_tax_slab: frm.doc.income_tax_slab,
+					},
+					freeze: true,
+					callback: function (r) {
+						const m = r.message;
+						if (!m) return;
+						const row = (label, amt, note) =>
+							`<tr><td style="padding:3px 8px;">${frappe.utils.escape_html(label)}${
+								note ? ` <span style="color:#999;font-size:11px;">(${note})</span>` : ""
+							}</td><td style="padding:3px 8px;text-align:right;">${fmt(amt)}</td></tr>`;
+						let html = `<div style="display:flex;gap:16px;flex-wrap:wrap;">`;
+						html += `<div style="flex:1;min-width:220px;"><div style="font-weight:600;color:#1f8c4d;margin-bottom:4px;">${__(
+							"Earnings",
+						)}</div><table style="width:100%;border-collapse:collapse;">${m.earnings
+							.map((e) => row(e.component + (e.statistical ? " *" : ""), e.amount))
+							.join("")}</table></div>`;
+						html += `<div style="flex:1;min-width:220px;"><div style="font-weight:600;color:#c0392b;margin-bottom:4px;">${__(
+							"Deductions",
+						)}</div><table style="width:100%;border-collapse:collapse;">${m.deductions
+							.map((d) => row(d.component, d.amount, d.note))
+							.join("")}</table></div>`;
+						html += `</div><hr>`;
+						html += `<table style="width:100%;border-collapse:collapse;font-weight:600;">
+							${row(__("Gross Pay"), m.gross)}
+							${row(__("Total Deductions"), m.total_deduction)}
+							<tr><td style="padding:6px 8px;font-size:15px;">${__("Net Pay")}</td><td style="padding:6px 8px;text-align:right;font-size:15px;color:#1f8c4d;">${fmt(
+								m.net,
+							)}</td></tr></table>
+							<div style="color:#999;font-size:11px;margin-top:6px;">* ${__("statistical / CTC component, not paid in net")}</div>`;
+						dialog.fields_dict.results.$wrapper.html(html);
+					},
+				});
+			},
+		});
+		dialog.show();
 	},
 
 	set_payroll_cost_centers: function (frm) {

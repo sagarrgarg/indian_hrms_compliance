@@ -7,6 +7,8 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.utils import get_link_to_form
 
+from indian_hrms_compliance.overrides.employee_master import resolve_employee_approver
+
 
 class DepartmentApprover(Document):
 	pass
@@ -45,17 +47,25 @@ def get_approvers(doctype, txt, searchfield, start, page_len, filters):
 
 	if filters.get("doctype") == "Leave Application" and employee.leave_approver:
 		approvers.append(
-			frappe.db.get_value("User", employee.leave_approver, ["name", "first_name", "last_name"])
+			frappe.db.get_value(
+				"User", resolve_employee_approver(employee.leave_approver), ["name", "first_name", "last_name"]
+			)
 		)
 
 	if filters.get("doctype") == "Expense Claim" and employee.expense_approver:
 		approvers.append(
-			frappe.db.get_value("User", employee.expense_approver, ["name", "first_name", "last_name"])
+			frappe.db.get_value(
+				"User", resolve_employee_approver(employee.expense_approver), ["name", "first_name", "last_name"]
+			)
 		)
 
 	if filters.get("doctype") == "Shift Request" and employee.shift_request_approver:
 		approvers.append(
-			frappe.db.get_value("User", employee.shift_request_approver, ["name", "first_name", "last_name"])
+			frappe.db.get_value(
+				"User",
+				resolve_employee_approver(employee.shift_request_approver),
+				["name", "first_name", "last_name"],
+			)
 		)
 
 	if filters.get("doctype") == "Leave Application":

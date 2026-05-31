@@ -40,5 +40,46 @@
         "description": "Leave Encashment",
         "type": "Earning",
         "is_tax_applicable": 1
+    },
+    {
+        "doctype": "Salary Component",
+        "salary_component": "Conveyance Allowance",
+        "description": "Conveyance / Transport Allowance",
+        "type": "Earning",
+        "is_tax_applicable": 1
+    },
+    {
+        "doctype": "Salary Component",
+        "salary_component": "Employee State Insurance",
+        "description": "ESI employee contribution (0.75% of gross, up to the ESI wage ceiling)",
+        "type": "Deduction"
+    },
+    {
+        "doctype": "Salary Component",
+        "salary_component": "TDS",
+        "description": "Tax Deducted at Source (income tax), computed from taxable salary",
+        "type": "Deduction",
+        "variable_based_on_taxable_salary": 1
+    },
+    {
+        "doctype": "Salary Component",
+        "salary_component": "Gratuity",
+        "description": "Employer gratuity provision (CTC component, not paid monthly)",
+        "type": "Earning",
+        "statistical_component": 1
+    },
+    {
+        "doctype": "Salary Component",
+        "salary_component": "Employer Provident Fund",
+        "description": "Employer PF contribution (12% of Basic, capped) — CTC component, not paid in net",
+        "type": "Earning",
+        "statistical_component": 1
+    },
+    {
+        "doctype": "Salary Component",
+        "salary_component": "Employer ESI",
+        "description": "Employer ESI contribution (3.25% of gross up to ESI ceiling) — CTC component",
+        "type": "Earning",
+        "statistical_component": 1
     }
 ]
