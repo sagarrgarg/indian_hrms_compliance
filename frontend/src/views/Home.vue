@@ -25,6 +25,7 @@ import EmployeeAdvanceIcon from "@/components/icons/EmployeeAdvanceIcon.vue"
 import SalaryIcon from "@/components/icons/SalaryIcon.vue"
 import PolicyIcon from "@/components/icons/PolicyIcon.vue"
 import TaskIcon from "@/components/icons/TaskIcon.vue"
+import ExitIcon from "@/components/icons/ExitIcon.vue"
 
 const __ = inject("$translate")
 
@@ -68,6 +69,11 @@ const quickLinks = [
 		icon: markRaw(TaskIcon),
 		title: __("My Tasks"),
 		route: "TasksDashboard",
+	},
+	{
+		icon: markRaw(ExitIcon),
+		title: __("Resignation & Exit"),
+		route: "ExitDashboard",
 	},
 ]
 </script>

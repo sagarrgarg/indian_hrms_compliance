@@ -21,6 +21,16 @@ const routes = [
 		props: true,
 		component: () => import("@/views/task/TaskDetailView.vue"),
 	},
+	{
+		name: "ExitDashboard",
+		path: "/exit",
+		component: () => import("@/views/exit/Dashboard.vue"),
+	},
+	{
+		name: "ResignationForm",
+		path: "/exit/resign",
+		component: () => import("@/views/exit/ResignationForm.vue"),
+	},
 ]
 
 export default routes
