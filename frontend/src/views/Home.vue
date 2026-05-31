@@ -64,13 +64,6 @@ const allLinks = [
 		color: "amber",
 	},
 	{
-		icon: markRaw(CockpitIcon),
-		title: __("3D Org Chart"),
-		route: "OrgChart3D",
-		color: "violet",
-		hrOnly: true,
-	},
-	{
 		icon: markRaw(AttendanceIcon),
 		title: __("Request Attendance"),
 		route: "AttendanceRequestFormView",
