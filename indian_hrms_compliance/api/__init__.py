@@ -1394,3 +1394,269 @@ def get_my_exit_documents() -> dict:
 		)
 
 	return {"letters": letters, "form16": form16}
+
+
+# ---------------------------------------------------------------------------
+# Phase 7D — Grievance + POSH (ESS PWA)
+# ---------------------------------------------------------------------------
+
+_GRIEVANCE_LIST_FIELDS = [
+	"name",
+	"subject",
+	"grievance_type",
+	"severity",
+	"status",
+	"workflow_state",
+	"sla_due_date",
+	"creation",
+	"description",
+	"resolution_detail",
+	"date",
+]
+
+_GRIEVANCE_SEVERITY_OPTIONS = ["Low", "Medium", "High", "Critical"]
+
+
+@frappe.whitelist()
+def get_my_grievances() -> list[dict]:
+	"""The current employee's grievances (raised_by = active Employee).
+
+	Newest first. Returns the subset of fields the ESS grievance tracker
+	needs — never anyone else's grievances."""
+	employee = get_current_employee()
+	return frappe.get_all(
+		"Employee Grievance",
+		filters={"raised_by": employee},
+		fields=_GRIEVANCE_LIST_FIELDS,
+		order_by="creation desc",
+	)
+
+
+@frappe.whitelist()
+def get_grievance_form_options() -> dict:
+	"""Select options for the ESS grievance create form: grievance types
+	(with their default severity so the form can pre-fill) + severities."""
+	grievance_types = frappe.get_all(
+		"Grievance Type",
+		fields=["name", "default_severity"],
+		order_by="name asc",
+	)
+	return {
+		"grievance_types": grievance_types,
+		"severity_options": _GRIEVANCE_SEVERITY_OPTIONS,
+	}
+
+
+@frappe.whitelist()
+def file_grievance(
+	subject: str,
+	grievance_type: str,
+	description: str,
+	severity: str | None = None,
+) -> dict:
+	"""Create an employee-raised Employee Grievance in the Open state.
+
+	raised_by = active Employee, company from that Employee. The grievance
+	is filed about the organisation (grievance_against_party='Company',
+	grievance_against=company) by default so the employee never has to
+	name an individual to lodge a concern. Severity falls back to the
+	Grievance Type default, then 'Medium'."""
+	employee = get_current_employee()
+	emp = frappe.db.get_value(
+		"Employee", employee, ["company", "employee_name"], as_dict=True
+	) or frappe._dict()
+
+	if not severity and grievance_type:
+		severity = (
+			frappe.db.get_value("Grievance Type", grievance_type, "default_severity")
+			or "Medium"
+		)
+
+	doc = frappe.get_doc(
+		{
+			"doctype": "Employee Grievance",
+			"subject": subject,
+			"raised_by": employee,
+			"date": getdate(),
+			"status": "Open",
+			"grievance_type": grievance_type,
+			"severity": severity or "Medium",
+			"description": description,
+			"grievance_against_party": "Company",
+			"grievance_against": emp.get("company"),
+		}
+	)
+	doc.insert(ignore_permissions=True)
+
+	return {
+		"name": doc.name,
+		"workflow_state": doc.workflow_state or doc.status,
+		"status": doc.status,
+	}
+
+
+# ---- POSH (confidential) ----
+
+_POSH_LIST_FIELDS = [
+	"name",
+	"filing_date",
+	"workflow_state",
+	"sla_due_date",
+	"anonymous",
+	"incident_date",
+]
+
+_POSH_STEPS = [
+	"Filed",
+	"Acknowledged",
+	"Inquiry",
+	"Findings Recorded",
+	"Action Recommended",
+	"Closed",
+]
+
+
+@frappe.whitelist()
+def get_my_posh_complaints() -> list[dict]:
+	"""The current employee's own POSH complaints (complainant = active
+	Employee).
+
+	Confidentiality: the hard guard is the explicit ``complainant`` filter —
+	the user can only ever receive their own complaints. We pass
+	``ignore_permissions=True`` deliberately: the standard user-permission
+	link-field filter would otherwise drop a complaint because its ``accused``
+	Employee is one the complainant has no User Permission for. Our own
+	per-record check (get_posh_complaint_detail → has_permission) and the
+	permission_query_conditions hook remain the gate for detail access.
+	The list is deliberately lean — no accused identity, no incident
+	description here."""
+	employee = get_current_employee()
+	return frappe.get_list(
+		"POSH Complaint",
+		filters={"complainant": employee},
+		fields=_POSH_LIST_FIELDS,
+		order_by="filing_date desc, creation desc",
+		ignore_permissions=True,
+	)
+
+
+@frappe.whitelist()
+def get_posh_complaint_detail(name: str) -> dict:
+	"""Detail for a single POSH complaint, gated by the confidentiality hook.
+
+	Verifies the current user may read this specific record (complainant,
+	accused, or active IC member per overrides/posh_access.py) before
+	returning any incident detail. Throws PermissionError otherwise so the
+	PWA can never leak a complaint to the wrong person.
+
+	We call posh_complaint_has_permission directly rather than
+	frappe.has_permission: the latter additionally ANDs standard
+	user-permission link-field checks, which spuriously deny the legitimate
+	complainant when the ``accused`` Employee is one they hold no User
+	Permission for. The hook IS the authoritative confidentiality rule."""
+	from indian_hrms_compliance.overrides.posh_access import posh_complaint_has_permission
+
+	doc = frappe.get_doc("POSH Complaint", name)
+	if not posh_complaint_has_permission(doc, frappe.session.user):
+		frappe.throw(
+			_("You are not permitted to view this complaint."),
+			frappe.PermissionError,
+		)
+	return {
+		"name": doc.name,
+		"workflow_state": doc.workflow_state,
+		"filing_date": doc.filing_date,
+		"sla_due_date": doc.sla_due_date,
+		"anonymous": doc.anonymous,
+		"incident_date": doc.incident_date,
+		"incident_location": doc.incident_location,
+		"incident_description": doc.incident_description,
+		"steps": _POSH_STEPS,
+	}
+
+
+@frappe.whitelist()
+def file_posh_complaint(
+	accused: str,
+	incident_date: str,
+	incident_description: str,
+	incident_location: str | None = None,
+	anonymous: int | str = 0,
+) -> dict:
+	"""File a confidential POSH complaint for the active Employee.
+
+	complainant = active Employee, company from that Employee, filing_date
+	= today. The controller auto-links the company's Active Internal
+	Committee on insert. If no Active IC exists for the company we surface
+	a clear, non-crashing message asking the employee to contact HR."""
+	employee = get_current_employee()
+	emp = frappe.db.get_value(
+		"Employee", employee, ["company"], as_dict=True
+	) or frappe._dict()
+	company = emp.get("company")
+
+	# Guard: an Active IC must exist for the complainant's Company.
+	has_ic = frappe.db.exists(
+		"POSH Internal Committee", {"company": company, "status": "Active"}
+	)
+	if not has_ic:
+		frappe.throw(
+			_(
+				"No active Internal Committee (IC) is currently constituted for {0}. "
+				"Please contact HR — a complaint cannot be filed until an IC exists."
+			).format(company or _("your company"))
+		)
+
+	doc = frappe.get_doc(
+		{
+			"doctype": "POSH Complaint",
+			"company": company,
+			"complainant": employee,
+			"filing_date": getdate(),
+			"accused": accused,
+			"incident_date": incident_date,
+			"incident_description": incident_description,
+			"incident_location": incident_location,
+			"anonymous": 1 if str(anonymous) in ("1", "true", "True") else 0,
+		}
+	)
+	doc.insert(ignore_permissions=True)
+
+	return {"name": doc.name, "workflow_state": doc.workflow_state}
+
+
+@frappe.whitelist()
+def get_posh_help_info() -> dict:
+	"""Statutory help + IC availability for the active Employee's Company.
+
+	Confidentiality: exposes only whether an Active IC exists and its
+	member count — never member identities. Used to gate the 'File a
+	Complaint' action and show statutory guidance."""
+	employee = get_current_employee()
+	company = frappe.db.get_value("Employee", employee, "company")
+
+	ic = frappe.db.get_value(
+		"POSH Internal Committee",
+		{"company": company, "status": "Active"},
+		"name",
+		order_by="constitution_date desc",
+	)
+	member_count = 0
+	if ic:
+		member_count = frappe.db.count(
+			"POSH IC Member", {"parent": ic, "is_active": 1}
+		)
+
+	return {
+		"company": company,
+		"has_active_ic": bool(ic),
+		"ic_member_count": member_count,
+		"sla_days": 90,
+		"help_text": _(
+			"Complaints under the Sexual Harassment of Women at Workplace "
+			"(Prevention, Prohibition and Redressal) Act, 2013 are handled in "
+			"strict confidence by the Internal Committee (IC). The IC must "
+			"complete its inquiry within 90 days. Only you, the respondent, and "
+			"active IC members can access your complaint — not HR or your manager."
+		),
+	}
