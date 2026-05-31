@@ -83,3 +83,4 @@ indian_hrms_compliance.patches.v15_0.add_employee_onboarding_defaults #2026-05-3
 indian_hrms_compliance.patches.v15_0.update_leave_notification_templates #2026-05-31
 indian_hrms_compliance.patches.v15_0.add_company_salary_component_defaults #2026-05-31
 indian_hrms_compliance.patches.v15_0.add_employee_readiness_tab #2026-05-31
+indian_hrms_compliance.patches.v15_0.add_task_delegation_fields #2026-05-31

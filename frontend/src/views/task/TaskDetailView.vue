@@ -75,6 +75,19 @@
 							</span>
 						</div>
 
+						<div v-if="task.delegated_from" class="flex flex-col gap-2">
+							<div class="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded p-2">
+								{{ __("Leave cover — delegated from {0}. Record who actually performed it.", [task.delegated_from]) }}
+							</div>
+							<FormControl
+								type="autocomplete"
+								:label="__('Performed by')"
+								:options="employeeOptions"
+								v-model="performedBy"
+								:placeholder="__('Select employee')"
+							/>
+						</div>
+
 						<FormControl
 							type="textarea"
 							:label="__('Notes')"
@@ -139,6 +152,7 @@ import EmptyState from "@/components/EmptyState.vue"
 import { FileAttachment } from "@/composables"
 
 import { myTasks as tasks, myTaskSummary, completeTask } from "@/data/tasks"
+import { employees } from "@/data/employees"
 
 const props = defineProps({
 	id: {
@@ -155,6 +169,13 @@ const numericValue = ref(null)
 const notes = ref("")
 const uploadedFileUrl = ref("")
 const isUploading = ref(false)
+const performedBy = ref(null)
+
+const employeeOptions = computed(() =>
+	(employees.data || [])
+		.filter((e) => e.status === "Active")
+		.map((e) => ({ label: `${e.employee_name} (${e.name})`, value: e.name })),
+)
 
 const task = computed(() => tasks.data?.find((t) => t.name === props.id))
 const requiresApproval = computed(() => !!task.value?.requires_approval)
@@ -163,6 +184,9 @@ const isClosed = computed(() =>
 )
 
 const isSubmitDisabled = computed(() => {
+	if (task.value?.delegated_from && !performedBy.value?.value) {
+		return true
+	}
 	if (task.value?.completion_type === "Numeric Entry") {
 		return numericValue.value === null || numericValue.value === ""
 	}
@@ -200,6 +224,7 @@ function onComplete() {
 	}
 	if (notes.value) params.notes = notes.value
 	if (uploadedFileUrl.value) params.attachment = uploadedFileUrl.value
+	if (task.value?.delegated_from) params.performed_by = performedBy.value?.value
 
 	completeTask.submit(params, {
 		onSuccess() {

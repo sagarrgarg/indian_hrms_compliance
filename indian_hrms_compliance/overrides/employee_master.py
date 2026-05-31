@@ -359,7 +359,7 @@ def get_employee_readiness(employee: str) -> dict:
 		"Employee",
 		employee,
 		[
-			"name", "employee_name", "company", "user_id", "status",
+			"name", "employee_name", "company", "user_id", "status", "designation",
 			"pan_number", "aadhaar_last_4", "uan_number", "bank_ac_no", "ifsc_code",
 			"reports_to", "leave_approver", "expense_approver", "default_shift", "holiday_list",
 		],
@@ -375,6 +375,13 @@ def get_employee_readiness(employee: str) -> dict:
 	holiday_ok = bool(emp.holiday_list) or bool(
 		frappe.db.get_value("Company", emp.company, "default_holiday_list")
 	)
+	# KRAs/Tasks for this role: an Active HRMS Task targeting all-active or the
+	# employee's designation, or a Task Instance already assigned to them.
+	role_tasks = has("HRMS Task", {"company": emp.company, "status": "Active", "applicable_to_all_active": 1}) or (
+		emp.designation
+		and has("HRMS Task", {"company": emp.company, "status": "Active", "assigned_to_designation": emp.designation})
+	)
+	has_task_instances = has("Goal", {"goal_type": "Task Instance", "employee": employee})
 	policies_pending = frappe.db.count(
 		"Employee Policy Acknowledgement", {"employee": employee, "status": "Pending"}
 	)
@@ -441,6 +448,16 @@ def get_employee_readiness(employee: str) -> dict:
 					"route": ["List", "Shift Assignment", {"employee": employee}],
 					"hint": shift_hint,
 				},
+			],
+		},
+		{
+			"name": _("KRAs & Tasks"),
+			"items": [
+				item("KRAs / Tasks defined for role", role_tasks, False,
+					 ["List", "HRMS Task", {"company": emp.company}],
+					 "Active HRMS Task for this designation or all-active"),
+				item("Task instances assigned", has_task_instances, False,
+					 ["List", "Goal", {"goal_type": "Task Instance", "employee": employee}]),
 			],
 		},
 		{

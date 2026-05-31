@@ -995,6 +995,8 @@ TASK_INSTANCE_FIELDS = [
 	"task_notes",
 	"task_attachment",
 	"approver_user",
+	"delegated_from",
+	"performed_by",
 ]
 
 
@@ -1078,12 +1080,16 @@ def complete_task_instance(
 	numeric_value: float | None = None,
 	notes: str | None = None,
 	attachment: str | None = None,
+	performed_by: str | None = None,
 ) -> dict:
 	"""The active Employee completes one of their Task Instances.
 
 	Validates ownership, records numeric_value/notes/attachment when supplied,
 	stamps the submission, and sets status: tasks whose template requires
 	approval move to 'In Progress' (pending approval); others go to 'Completed'.
+
+	Leave cover: a task delegated to the reporting manager (``delegated_from``
+	set) requires ``performed_by`` — the manager records who actually did it.
 	"""
 	employee = get_current_employee()
 	goal = frappe.get_doc("Goal", goal_name)
@@ -1092,6 +1098,11 @@ def complete_task_instance(
 			_("You are not permitted to complete this task."),
 			frappe.PermissionError,
 		)
+
+	if goal.get("delegated_from"):
+		if not performed_by:
+			frappe.throw(_("This task was delegated to you for leave cover. Please record who performed it."))
+		goal.performed_by = performed_by
 
 	if numeric_value is not None:
 		goal.numeric_value = numeric_value

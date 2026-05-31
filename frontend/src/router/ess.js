@@ -92,6 +92,20 @@ const routes = [
 			next(canViewCockpit.data === false ? { name: "Home" } : true)
 		},
 	},
+	{
+		name: "OrgChart3D",
+		path: "/org-chart-3d",
+		component: () => import("@/views/OrgChart3D.vue"),
+		beforeEnter: async (to, from, next) => {
+			const { canViewCockpit } = await import("@/data/cockpit")
+			try {
+				await (canViewCockpit.promise || canViewCockpit.reload())
+			} catch (e) {
+				/* backend get_org_graph still enforces access */
+			}
+			next(canViewCockpit.data === false ? { name: "Home" } : true)
+		},
+	},
 ]
 
 export default routes

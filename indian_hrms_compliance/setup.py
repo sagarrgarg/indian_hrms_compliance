@@ -444,6 +444,23 @@ def get_custom_fields():
 		],
 		"Goal": [
 			{
+				"fieldname": "delegated_from",
+				"fieldtype": "Link",
+				"label": _("Delegated From"),
+				"options": "Employee",
+				"insert_after": "status",
+				"read_only": 1,
+				"description": _("Original assignee — set when a task is routed to the manager for leave cover."),
+			},
+			{
+				"fieldname": "performed_by",
+				"fieldtype": "Link",
+				"label": _("Performed By"),
+				"options": "Employee",
+				"insert_after": "delegated_from",
+				"description": _("Who actually performed the task (captured when a delegated task is completed)."),
+			},
+			{
 				"fieldname": "goal_type",
 				"fieldtype": "Select",
 				"label": _("Goal Type"),

@@ -110,6 +110,8 @@ class LeaveApplication(Document, PWANotificationsMixin):
 		if frappe.db.get_single_value("HR Settings", "send_leave_notification"):
 			self.notify_employee()
 
+		self.delegate_tasks_for_leave_cover()
+
 		self.create_leave_ledger_entry()
 		# create a reverse ledger entry for backdated leave applications for whom expiry entry already exists
 		leave_allocation = self.get_leave_allocation()
@@ -651,6 +653,40 @@ class LeaveApplication(Document, PWANotificationsMixin):
 
 		if self.half_day == 0:
 			self.half_day_date = None
+
+	def delegate_tasks_for_leave_cover(self):
+		"""On approval, route the employee's open Task Instances due on/before the
+		leave end date to their reporting manager (leave cover). The manager
+		records who actually performed each task when completing it."""
+		if self.status != "Approved":
+			return
+		manager = frappe.db.get_value("Employee", self.employee, "reports_to")
+		if not manager:
+			return
+		tasks = frappe.get_all(
+			"Goal",
+			filters={
+				"goal_type": "Task Instance",
+				"employee": self.employee,
+				"status": ("in", ["Pending", "In Progress"]),
+				"due_date": ("<=", self.to_date),
+			},
+			pluck="name",
+		)
+		moved = 0
+		for name in tasks:
+			if frappe.db.get_value("Goal", name, "delegated_from"):
+				continue  # already delegated
+			# Goal.employee is set-only-once; reassign at the DB level for cover.
+			frappe.db.set_value(
+				"Goal", name, {"delegated_from": self.employee, "employee": manager}, update_modified=False
+			)
+			moved += 1
+		if moved:
+			frappe.msgprint(
+				_("{0} open task(s) routed to the reporting manager for leave cover.").format(moved),
+				alert=True,
+			)
 
 	def notify_employee(self):
 		employee_email = get_employee_email(self.employee)
