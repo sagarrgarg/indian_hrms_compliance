@@ -1660,3 +1660,404 @@ def get_posh_help_info() -> dict:
 			"active IC members can access your complaint — not HR or your manager."
 		),
 	}
+
+
+# ---- DPDP: Consent management + Right-to-access / erasure (Phase 7E) ----
+
+# Static map of the personal-data categories the organisation holds about an
+# employee, with the DPDP lawful basis + retention guidance. Informational only
+# — get_my_data_summary never returns actual field VALUES, just the categories.
+_DPDP_DATA_CATEGORIES = [
+	{
+		"category": "Identity",
+		"examples": "Name, date of birth, gender",
+		"lawful_basis": "Contract Performance",
+		"retention": "Duration of employment + statutory period",
+	},
+	{
+		"category": "Contact",
+		"examples": "Personal email, phone, address",
+		"lawful_basis": "Contract Performance",
+		"retention": "Duration of employment + statutory period",
+	},
+	{
+		"category": "Statutory IDs",
+		"examples": "PAN, UAN, ESIC, Aadhaar (last 4 digits)",
+		"lawful_basis": "Statutory Obligation",
+		"retention": "Up to 8 years (Income Tax Act) / 7 years (PF & ESI)",
+	},
+	{
+		"category": "Financial",
+		"examples": "Bank account details, salary structure",
+		"lawful_basis": "Contract Performance",
+		"retention": "Up to 8 years (Income Tax Act)",
+	},
+	{
+		"category": "Employment",
+		"examples": "Designation, department, joining & relieving dates",
+		"lawful_basis": "Contract Performance",
+		"retention": "Duration of employment + statutory period",
+	},
+	{
+		"category": "Performance",
+		"examples": "Appraisals, goals, review notes",
+		"lawful_basis": "Legitimate Interest",
+		"retention": "Duration of employment",
+	},
+	{
+		"category": "Attendance",
+		"examples": "Check-in/out, attendance records",
+		"lawful_basis": "Contract Performance",
+		"retention": "Duration of employment + statutory period",
+	},
+	{
+		"category": "Leave",
+		"examples": "Leave applications, balances",
+		"lawful_basis": "Contract Performance",
+		"retention": "Duration of employment + statutory period",
+	},
+]
+
+
+def _dpdp_consent_status(consent_status: str | None) -> str:
+	"""Normalise a Data Consent.consent_status into the 3 states the ESS
+	consent dashboard shows: 'Active', 'Withdrawn' or 'Not Given'."""
+	if consent_status == "Active":
+		return "Active"
+	if consent_status == "Withdrawn":
+		return "Withdrawn"
+	return "Not Given"
+
+
+def _get_dpo_email() -> str | None:
+	"""Data Protection Officer contact email from the (Single) DPDP Compliance
+	Profile, used as the rights-request contact. None if unset."""
+	try:
+		return frappe.db.get_single_value("DPDP Compliance Profile", "dpo_email") or None
+	except Exception:
+		return None
+
+
+@frappe.whitelist()
+def get_my_consent_overview() -> list[dict]:
+	"""DPDP consent dashboard for the current employee.
+
+	Lists every Active Data Consent Purpose and overlays the employee's
+	current consent status for each (Active / Withdrawn / Not Given). Reads
+	the latest Data Consent row per purpose so a re-grant after a withdrawal
+	shows as Active again. Never exposes other employees' consents."""
+	employee = get_current_employee()
+
+	purposes = frappe.get_all(
+		"Data Consent Purpose",
+		filters={"is_active": 1},
+		fields=[
+			"name",
+			"purpose_code",
+			"purpose_name",
+			"description",
+			"data_categories",
+			"lawful_basis",
+			"requires_explicit_consent",
+			"withdrawal_consequences",
+			"retention_period_years",
+		],
+		order_by="purpose_name asc",
+	)
+
+	overview = []
+	for p in purposes:
+		consent = frappe.db.get_value(
+			"Data Consent",
+			{"employee": employee, "purpose": p.name},
+			["name", "consent_status", "granted_on", "expires_on"],
+			as_dict=True,
+			order_by="granted_on desc, creation desc",
+		)
+		overview.append(
+			{
+				"purpose_code": p.purpose_code,
+				"purpose_name": p.purpose_name,
+				"description": p.description,
+				"data_categories": p.data_categories,
+				"lawful_basis": p.lawful_basis,
+				"requires_explicit_consent": p.requires_explicit_consent,
+				"withdrawal_consequences": p.withdrawal_consequences,
+				"retention_period_years": p.retention_period_years,
+				"consent_status": _dpdp_consent_status(
+					consent.consent_status if consent else None
+				),
+				"consent_name": consent.name if consent else None,
+				"granted_on": consent.granted_on if consent else None,
+				"expires_on": consent.expires_on if consent else None,
+			}
+		)
+	return overview
+
+
+@frappe.whitelist()
+def get_consent_notice(purpose_code: str) -> dict:
+	"""The DPDP Sec 5 notice for a purpose, rendered for the current employee.
+
+	Renders the purpose's Jinja notice_template with employee context. Falls
+	back to the description when no template is set. Returns the purpose meta
+	the ConsentNoticeView needs to show lawful basis, retention, withdrawal
+	consequences and the current grant/withdraw state."""
+	employee = get_current_employee()
+	purpose = frappe.db.get_value(
+		"Data Consent Purpose",
+		{"purpose_code": purpose_code, "is_active": 1},
+		[
+			"name",
+			"purpose_code",
+			"purpose_name",
+			"description",
+			"data_categories",
+			"lawful_basis",
+			"requires_explicit_consent",
+			"withdrawal_consequences",
+			"retention_period_years",
+			"notice_template",
+		],
+		as_dict=True,
+	)
+	if not purpose:
+		frappe.throw(_("Data processing purpose {0} not found.").format(purpose_code))
+
+	emp = frappe.db.get_value(
+		"Employee", employee, ["employee_name", "company"], as_dict=True
+	) or frappe._dict()
+
+	notice_html = ""
+	if purpose.notice_template:
+		try:
+			notice_html = frappe.render_template(
+				purpose.notice_template,
+				{
+					"employee_name": emp.get("employee_name") or "",
+					"company": emp.get("company") or "",
+					"purpose_name": purpose.purpose_name,
+				},
+			)
+		except Exception:
+			notice_html = purpose.notice_template
+			frappe.log_error(
+				title=f"DPDP notice render failed: {purpose_code}",
+				message=frappe.get_traceback(),
+			)
+
+	consent = frappe.db.get_value(
+		"Data Consent",
+		{"employee": employee, "purpose": purpose.name},
+		["name", "consent_status", "granted_on", "expires_on"],
+		as_dict=True,
+		order_by="granted_on desc, creation desc",
+	)
+
+	return {
+		"purpose_code": purpose.purpose_code,
+		"purpose_name": purpose.purpose_name,
+		"description": purpose.description,
+		"data_categories": purpose.data_categories,
+		"lawful_basis": purpose.lawful_basis,
+		"requires_explicit_consent": purpose.requires_explicit_consent,
+		"withdrawal_consequences": purpose.withdrawal_consequences,
+		"retention_period_years": purpose.retention_period_years,
+		"notice_html": notice_html,
+		"consent_status": _dpdp_consent_status(
+			consent.consent_status if consent else None
+		),
+		"consent_name": consent.name if consent else None,
+		"granted_on": consent.granted_on if consent else None,
+		"expires_on": consent.expires_on if consent else None,
+	}
+
+
+@frappe.whitelist()
+def grant_consent(purpose_code: str) -> dict:
+	"""Capture (or reactivate) the current employee's consent for a purpose.
+
+	Creates a Data Consent row via the Web Form method, snapshotting the
+	rendered notice. If an Active consent already exists it is a no-op and
+	the existing row is returned. A previously-withdrawn row is left intact
+	(audit trail) and a fresh Active row is captured."""
+	employee = get_current_employee()
+	purpose = frappe.db.get_value(
+		"Data Consent Purpose",
+		{"purpose_code": purpose_code, "is_active": 1},
+		["name", "purpose_name"],
+		as_dict=True,
+	)
+	if not purpose:
+		frappe.throw(_("Data processing purpose {0} not found.").format(purpose_code))
+
+	existing = frappe.db.get_value(
+		"Data Consent",
+		{"employee": employee, "purpose": purpose.name, "consent_status": "Active"},
+		"name",
+	)
+	if existing:
+		return {"name": existing, "consent_status": "Active", "created": False}
+
+	notice = get_consent_notice(purpose_code)
+
+	doc = frappe.get_doc(
+		{
+			"doctype": "Data Consent",
+			"employee": employee,
+			"purpose": purpose.name,
+			"granted_on": getdate(),
+			"consent_method": "Web Form",
+			"consent_status": "Active",
+			"notice_shown_html": notice.get("notice_html") or "",
+		}
+	)
+	doc.insert(ignore_permissions=True)
+
+	return {
+		"name": doc.name,
+		"consent_status": doc.consent_status,
+		"granted_on": doc.granted_on,
+		"expires_on": doc.expires_on,
+		"created": True,
+	}
+
+
+@frappe.whitelist()
+def withdraw_consent(purpose_code: str, reason: str | None = None) -> dict:
+	"""Withdraw the current employee's Active consent for a purpose.
+
+	Sets consent_status='Withdrawn', withdrawn_on=today and records the
+	reason. The row is NOT deleted (DPDP Sec 13 audit trail). Statutory
+	Obligation purposes cannot be withdrawn — the organisation must process
+	that data under a legal duty — so we reject with a clear explanation."""
+	employee = get_current_employee()
+	purpose = frappe.db.get_value(
+		"Data Consent Purpose",
+		{"purpose_code": purpose_code},
+		["name", "lawful_basis", "purpose_name"],
+		as_dict=True,
+	)
+	if not purpose:
+		frappe.throw(_("Data processing purpose {0} not found.").format(purpose_code))
+
+	if purpose.lawful_basis == "Statutory Obligation":
+		frappe.throw(
+			_(
+				"Consent for '{0}' cannot be withdrawn. This data is processed "
+				"under a statutory obligation (e.g. payroll, tax and provident "
+				"fund law), not under your consent, so the organisation is "
+				"legally required to continue processing it."
+			).format(purpose.purpose_name)
+		)
+
+	consent = frappe.db.get_value(
+		"Data Consent",
+		{"employee": employee, "purpose": purpose.name, "consent_status": "Active"},
+		"name",
+	)
+	if not consent:
+		frappe.throw(
+			_("You have no active consent to withdraw for '{0}'.").format(
+				purpose.purpose_name
+			)
+		)
+
+	doc = frappe.get_doc("Data Consent", consent)
+	doc.consent_status = "Withdrawn"
+	doc.withdrawn_on = getdate()
+	if reason:
+		doc.withdrawal_reason = reason
+	doc.save(ignore_permissions=True)
+
+	return {
+		"name": doc.name,
+		"consent_status": doc.consent_status,
+		"withdrawn_on": doc.withdrawn_on,
+	}
+
+
+@frappe.whitelist()
+def get_my_data_summary() -> dict:
+	"""DPDP Sec 11 right-to-access summary for the current employee.
+
+	Returns the CATEGORIES of personal data the organisation holds, each with
+	its lawful basis + retention guidance — deliberately NOT the actual values
+	— plus the Data Protection Officer contact for exercising data-principal
+	rights. Informational; pairs with the consent dashboard + erasure flow."""
+	# Resolve employee (ensures an Active employment context exists).
+	get_current_employee()
+	return {
+		"categories": _DPDP_DATA_CATEGORIES,
+		"dpo_email": _get_dpo_email(),
+	}
+
+
+_DPDP_ERASURE_OPEN_STATES = ("Filed", "Under Legal Review", "Decision Made")
+_DPDP_ERASURE_LIST_FIELDS = [
+	"name",
+	"request_date",
+	"scope",
+	"workflow_state",
+	"decision",
+]
+
+
+@frappe.whitelist()
+def request_data_erasure(
+	scope: str,
+	specific_categories: str | None = None,
+	reason: str | None = None,
+) -> dict:
+	"""File a DPDP Sec 12 right-to-erasure request for the current employee.
+
+	requested_by = current user, request_date = today, workflow_state =
+	'Filed' (mandatory legal review follows). Rejects if the employee already
+	has an open (non-terminal) erasure request so duplicates don't pile up.
+	Statutory data may ultimately be retained — that is decided in review."""
+	employee = get_current_employee()
+
+	open_existing = frappe.db.exists(
+		"Data Erasure Request",
+		{"employee": employee, "workflow_state": ["in", _DPDP_ERASURE_OPEN_STATES]},
+	)
+	if open_existing:
+		frappe.throw(
+			_(
+				"You already have an open data erasure request ({0}). Please wait "
+				"for it to be reviewed before filing another."
+			).format(open_existing)
+		)
+
+	if scope not in ("Full Profile", "Specific Data Categories"):
+		frappe.throw(_("Invalid scope."))
+
+	doc = frappe.get_doc(
+		{
+			"doctype": "Data Erasure Request",
+			"employee": employee,
+			"request_date": getdate(),
+			"requested_by": frappe.session.user,
+			"scope": scope,
+			"specific_categories": specific_categories
+			if scope == "Specific Data Categories"
+			else None,
+			"workflow_state": "Filed",
+			"notes": reason,
+		}
+	)
+	doc.insert(ignore_permissions=True)
+
+	return {"name": doc.name, "workflow_state": doc.workflow_state}
+
+
+@frappe.whitelist()
+def get_my_erasure_requests() -> list[dict]:
+	"""The current employee's own Data Erasure Requests, newest first."""
+	employee = get_current_employee()
+	return frappe.get_all(
+		"Data Erasure Request",
+		filters={"employee": employee},
+		fields=_DPDP_ERASURE_LIST_FIELDS,
+		order_by="request_date desc, creation desc",
+	)
