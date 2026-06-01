@@ -347,6 +347,46 @@ def auto_assign_leave_policy_on_activation(doc, method=None):
 	)
 
 
+def enroll_in_active_policies_on_activation(doc, method=None):
+	"""On the transition into Active, create pending acknowledgements for every
+	active policy the new employee is in scope for — closes the gap where joiners
+	added after a policy was published would otherwise never get an ack. Never
+	blocks the Employee save."""
+	if doc.status != "Active":
+		return
+	previous = doc.get_doc_before_save()
+	if previous and previous.status == "Active":
+		return
+
+	from indian_hrms_compliance.hr.doctype.hrms_policy.hrms_policy import (
+		create_acknowledgements_for_employee,
+	)
+
+	savepoint = "enroll_active_policies"
+	try:
+		frappe.db.savepoint(savepoint)
+		created = create_acknowledgements_for_employee(doc.name)
+	except Exception:
+		try:
+			frappe.db.rollback(save_point=savepoint)
+		except Exception:
+			pass
+		frappe.log_error(
+			title="Policy acknowledgement enrollment failed",
+			message=f"Employee: {doc.name}\n{frappe.get_traceback()}",
+		)
+		return
+
+	if created:
+		frappe.msgprint(
+			_("Queued {0} policy acknowledgement(s) for {1}.").format(
+				created, frappe.bold(doc.employee_name or doc.name)
+			),
+			alert=True,
+			indicator="blue",
+		)
+
+
 @frappe.whitelist()
 def get_employee_readiness(employee: str) -> dict:
 	"""Full HR-setup readiness checklist for an Employee, grouped by category.

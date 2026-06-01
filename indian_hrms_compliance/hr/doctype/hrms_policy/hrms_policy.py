@@ -101,6 +101,63 @@ class HRMSPolicy(Document):
 # ---- module-level functions (scheduler hook + shared notification helper) ----
 
 
+def create_acknowledgements_for_employee(employee_name):
+	"""Create pending acknowledgements for ONE Employee across every Active,
+	acknowledgement-requiring policy of their Company — idempotent.
+
+	The policy-side create_acknowledgements() only covers employees who existed
+	when a policy was published; this is the inverse, run on employee activation
+	so new joiners pick up policies published before they joined."""
+	emp = frappe.db.get_value(
+		"Employee", employee_name,
+		["name", "employee_name", "company", "user_id", "status"], as_dict=True,
+	)
+	if not emp or emp.status != "Active" or not emp.company:
+		return 0
+
+	policies = frappe.get_all(
+		"HRMS Policy",
+		filters={"status": "Active", "requires_acknowledgement": 1, "company": emp.company},
+		fields=["name", "policy_name", "version", "effective_date", "acknowledgement_due_days"],
+	)
+	default_due = frappe.db.get_single_value("HR Settings", "default_policy_ack_due_days") or 7
+
+	created = 0
+	for p in policies:
+		if frappe.db.exists("Employee Policy Acknowledgement", {"employee": emp.name, "policy": p.name}):
+			continue
+		due_days = p.acknowledgement_due_days
+		if due_days is None:
+			due_days = default_due
+		due = add_days(p.effective_date, due_days or 0) if p.effective_date else getdate(today())
+		signed_text = _(
+			"I acknowledge that I have read and understood the policy '{0}' version {1} "
+			"effective {2}, and agree to abide by it."
+		).format(p.policy_name, p.version, p.effective_date)
+		ack = frappe.get_doc(
+			{
+				"doctype": "Employee Policy Acknowledgement",
+				"employee": emp.name,
+				"policy": p.name,
+				"due_date": due,
+				"signed_text": signed_text,
+				"status": "Pending",
+			}
+		)
+		ack.insert(ignore_permissions=True)
+		created += 1
+		if emp.user_id:
+			_safe_pwa_notification(
+				to_user=emp.user_id,
+				message=_("New HR Policy '{0}' (v{1}): please review and acknowledge by {2}.").format(
+					p.policy_name, p.version, due
+				),
+				ref_type="Employee Policy Acknowledgement",
+				ref_name=ack.name,
+			)
+	return created
+
+
 def _safe_pwa_notification(to_user, message, ref_type, ref_name):
 	"""Insert a PWA Notification, suppressing/rolling back any messages
 	a sibling chain may emit (e.g., Push Notification decryption errors,
