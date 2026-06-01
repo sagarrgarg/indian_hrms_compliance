@@ -1,0 +1,28 @@
+{
+ "actions": [],
+ "creation": "2026-06-01 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "document_type",
+  "document",
+  "notes"
+ ],
+ "fields": [
+  {"fieldname": "document_type", "fieldtype": "Select", "label": "Document Type", "reqd": 1, "in_list_view": 1, "options": "PAN Card\nAadhaar (masked)\nCancelled Cheque / Passbook\nEducation Certificate\nRelieving Letter\nPrevious Payslip\nAddress Proof\nOther"},
+  {"fieldname": "document", "fieldtype": "Attach", "label": "File", "reqd": 1, "in_list_view": 1},
+  {"fieldname": "notes", "fieldtype": "Data", "label": "Notes", "in_list_view": 1}
+ ],
+ "istable": 1,
+ "links": [],
+ "modified": "2026-06-01 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "HR",
+ "name": "Employee Onboarding Document",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

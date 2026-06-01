@@ -93,6 +93,15 @@ def setup_new_employee(data):
 		else _("Leave Policy not auto-assigned (set company defaults + toggle, or assign manually).")
 	)
 
+	# Launched from a self-service onboarding application? Close the loop.
+	if d.onboarding_application:
+		from indian_hrms_compliance.hr.doctype.employee_onboarding_application.employee_onboarding_application import (
+			mark_converted,
+		)
+
+		mark_converted(d.onboarding_application, emp.name)
+		log.append(_("Onboarding application {0} marked Converted.").format(d.onboarding_application))
+
 	frappe.db.commit()
 	return {"employee": emp.name, "user": emp.user_id, "log": log}
 
