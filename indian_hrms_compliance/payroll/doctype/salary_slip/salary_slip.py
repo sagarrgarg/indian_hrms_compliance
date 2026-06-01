@@ -863,6 +863,15 @@ class SalarySlip(TransactionBase):
 		if self.salary_structure:
 			self.calculate_component_amounts("deductions")
 
+		# State-aware PT/LWF: overwrite mapped deductions with the employee's
+		# state-mandated amounts so one structure works across states.
+		try:
+			from indian_hrms_compliance.overrides.state_statutory import apply_state_statutory_overrides
+
+			apply_state_statutory_overrides(self)
+		except Exception:
+			frappe.log_error(title="State PT/LWF override failed", message=frappe.get_traceback())
+
 		set_loan_repayment(self)
 
 		self.set_precision_for_component_amounts()
