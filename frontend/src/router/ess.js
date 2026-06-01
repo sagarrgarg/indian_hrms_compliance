@@ -107,6 +107,11 @@ const routes = [
 		},
 	},
 	{
+		name: "TaxDeclaration",
+		path: "/tax-declaration",
+		component: () => import("@/views/tax/Declaration.vue"),
+	},
+	{
 		name: "ManageKraTasks",
 		path: "/manage-kra-tasks",
 		component: () => import("@/views/ManageKraTasks.vue"),

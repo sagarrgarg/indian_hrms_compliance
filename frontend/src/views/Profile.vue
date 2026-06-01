@@ -157,6 +157,7 @@ import LeaveIcon from "@/components/icons/LeaveIcon.vue"
 import EmployeeAdvanceIcon from "@/components/icons/EmployeeAdvanceIcon.vue"
 import PrivacyIcon from "@/components/icons/PrivacyIcon.vue"
 import ExitIcon from "@/components/icons/ExitIcon.vue"
+import SalaryIcon from "@/components/icons/SalaryIcon.vue"
 
 import { arePushNotificationsEnabled } from "@/data/notifications"
 
@@ -174,6 +175,7 @@ const router = useRouter()
 const actionLinks = [
 	{ icon: markRaw(LeaveIcon), title: __("Request Leave"), route: "LeaveApplicationFormView", color: "emerald" },
 	{ icon: markRaw(EmployeeAdvanceIcon), title: __("Request an Advance"), route: "EmployeeAdvanceFormView", color: "teal" },
+	{ icon: markRaw(SalaryIcon), title: __("Tax Declaration"), route: "TaxDeclaration", color: "amber" },
 	{ icon: markRaw(PrivacyIcon), title: __("Privacy & Consent"), route: "PrivacyDashboard", color: "lime" },
 	{ icon: markRaw(ExitIcon), title: __("Resignation & Exit"), route: "ExitDashboard", color: "rose" },
 ]
