@@ -16,12 +16,12 @@
  ],
  "fields": [
   {
+   "description": "Leave blank for a national (group-wide) period. A company-specific period overrides the national one for that company.",
    "fieldname": "company",
    "fieldtype": "Link",
    "in_list_view": 1,
    "label": "Company",
-   "options": "Company",
-   "reqd": 1
+   "options": "Company"
   },
   {
    "fieldname": "column_break_2",

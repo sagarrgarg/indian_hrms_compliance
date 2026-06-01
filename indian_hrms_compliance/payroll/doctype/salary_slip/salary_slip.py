@@ -218,7 +218,20 @@ class SalarySlip(TransactionBase):
 					frappe.db.get_single_value("Payroll Settings", "email_salary_slip_to_employee")
 				)
 				if email_salary_slip:
-					self.email_salary_slip()
+					# Emailing the slip is optional — a PDF/mail-infra failure
+					# (e.g. wkhtmltopdf can't resolve the site host to fetch print
+					# assets) must never roll back the payroll submission.
+					try:
+						self.email_salary_slip()
+					except Exception:
+						frappe.log_error(
+							title="Salary Slip email failed on submit", message=frappe.get_traceback()
+						)
+						frappe.msgprint(
+							_("Salary Slip submitted, but emailing it to the employee failed (PDF/email issue). See Error Log."),
+							indicator="orange",
+							alert=True,
+						)
 
 		self.update_payment_status_for_gratuity_and_leave_encashment()
 
@@ -1688,6 +1701,7 @@ class SalarySlip(TransactionBase):
 			.where(sd.is_flexible_benefit == is_flexible_benefit)
 			.where(ss.docstatus == 1)
 			.where(ss.employee == self.employee)
+			.where(ss.company == self.company)
 			.where(ss.start_date.between(start_date, end_date))
 			.where(ss.end_date.between(start_date, end_date))
 		)
@@ -2080,6 +2094,7 @@ class SalarySlip(TransactionBase):
 			fields=["sum(net_pay) as net_sum", "sum(gross_pay) as gross_sum"],
 			filters={
 				"employee": self.employee,
+				"company": self.company,
 				"start_date": [">=", period_start_date],
 				"end_date": ["<", period_end_date],
 				"name": ["!=", self.name],
@@ -2103,6 +2118,7 @@ class SalarySlip(TransactionBase):
 			fields=["sum(net_pay) as sum"],
 			filters={
 				"employee": self.employee,
+				"company": self.company,
 				"start_date": [">=", first_day_of_the_month],
 				"end_date": ["<", self.start_date],
 				"name": ["!=", self.name],
@@ -2131,6 +2147,7 @@ class SalarySlip(TransactionBase):
 					.select(Sum(sd.amount).as_("sum"))
 					.where(
 						(ss.employee == self.employee)
+						& (ss.company == self.company)
 						& (sd.salary_component == component.salary_component)
 						& (ss.start_date >= period_start_date)
 						& (ss.end_date < period_end_date)

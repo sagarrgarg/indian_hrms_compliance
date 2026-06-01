@@ -11,8 +11,7 @@ from indian_hrms_compliance.overrides.company import delete_company_fixtures
 
 
 def after_install():
-	create_custom_fields(get_custom_fields(), ignore_validate=True)
-	create_salary_slip_loan_fields()
+	sync_custom_fields()
 	make_fixtures()
 	setup_notifications()
 	update_hr_defaults()
@@ -46,6 +45,19 @@ def before_app_uninstall(app_name):
 	print("Updating payroll setup for loans")
 	delete_custom_fields(get_salary_slip_loan_fields())
 	remove_lending_docperms_from_ess()
+
+
+def sync_custom_fields():
+	"""Idempotently (re)create all HR/Payroll custom fields.
+
+	Runs on after_install AND after_migrate so field definitions in
+	get_custom_fields() are the single source of truth and self-heal: a site
+	installed before a field was added picks it up on the next migrate, instead
+	of silently drifting (the cause of past 'Company has no attribute
+	default_payroll_payable_account' failures). create_custom_fields upserts, so
+	this is safe to re-run."""
+	create_custom_fields(get_custom_fields(), ignore_validate=True)
+	create_salary_slip_loan_fields()
 
 
 def get_custom_fields():

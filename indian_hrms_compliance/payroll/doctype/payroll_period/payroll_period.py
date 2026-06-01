@@ -58,14 +58,19 @@ class PayrollPeriod(Document):
 def get_payroll_period_days(start_date, end_date, employee, company=None):
 	if not company:
 		company = frappe.db.get_value("Employee", employee, "company")
+	# Prefer a company-specific Payroll Period; fall back to a national
+	# (company-blank) one. `ORDER BY (company=...) DESC` floats the company match
+	# to the top so the LIMIT 1 keeps the most specific period.
 	payroll_period = frappe.db.sql(
 		"""
 		select name, start_date, end_date
 		from `tabPayroll Period`
 		where
-			company=%(company)s
+			(company = %(company)s or company is null or company = '')
 			and %(start_date)s between start_date and end_date
 			and %(end_date)s between start_date and end_date
+		order by (company = %(company)s) desc
+		limit 1
 	""",
 		{"company": company, "start_date": start_date, "end_date": end_date},
 	)
@@ -84,19 +89,63 @@ def get_payroll_period_days(start_date, end_date, employee, company=None):
 
 @redis_cache()
 def get_payroll_period(from_date, to_date, company):
+	"""Resolve the Payroll Period covering [from_date, to_date].
+
+	A company-specific period wins; otherwise a national (company-blank) period
+	applies. This lets an Indian group keep ONE Apr-Mar period for everyone
+	while still allowing a company to define its own when it must differ."""
 	PayrollPeriod = frappe.qb.DocType("Payroll Period")
 
-	payroll_period = (
+	rows = (
 		frappe.qb.from_(PayrollPeriod)
-		.select(PayrollPeriod.name, PayrollPeriod.start_date, PayrollPeriod.end_date)
+		.select(
+			PayrollPeriod.name,
+			PayrollPeriod.start_date,
+			PayrollPeriod.end_date,
+			PayrollPeriod.company,
+		)
 		.where(
 			(PayrollPeriod.start_date <= from_date)
 			& (PayrollPeriod.end_date >= to_date)
-			& (PayrollPeriod.company == company)
+			& (
+				(PayrollPeriod.company == company)
+				| (PayrollPeriod.company.isnull())
+				| (PayrollPeriod.company == "")
+			)
 		)
 	).run(as_dict=1)
 
-	return payroll_period[0] if payroll_period else None
+	if not rows:
+		return None
+	for row in rows:
+		if row.company == company:
+			return row
+	return rows[0]
+
+
+def create_national_payroll_period_from_fiscal_year(doc, method=None):
+	"""Fiscal Year after_insert hook: ensure a national (company-blank) Payroll
+	Period exists for the same dates. Indian FY is national, so payroll/TDS can
+	work group-wide without a per-company Payroll Period for every entity."""
+	if not (doc.get("year_start_date") and doc.get("year_end_date")):
+		return
+	if frappe.db.exists(
+		"Payroll Period",
+		{"start_date": doc.year_start_date, "end_date": doc.year_end_date, "company": ("in", ("", None))},
+	):
+		return
+	# Prompt autoname — reuse the Fiscal Year's name, sidestepping any clash with
+	# a company-specific period that may already carry that name.
+	name = doc.name
+	if frappe.db.exists("Payroll Period", name):
+		name = f"{doc.name} (National)"
+	pp = frappe.new_doc("Payroll Period")
+	pp.name = name
+	pp.company = None
+	pp.start_date = doc.year_start_date
+	pp.end_date = doc.year_end_date
+	pp.flags.ignore_permissions = True
+	pp.insert()
 
 
 def get_period_factor(

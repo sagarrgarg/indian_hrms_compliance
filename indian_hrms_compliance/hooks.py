@@ -120,7 +120,11 @@ jinja = {
 
 # before_install = "indian_hrms_compliance.install.before_install"
 after_install = "indian_hrms_compliance.install.after_install"
-after_migrate = "indian_hrms_compliance.setup.update_select_perm_after_install"
+after_migrate = [
+	"indian_hrms_compliance.setup.sync_custom_fields",
+	"indian_hrms_compliance.regional.india.tax_defaults.seed_all",
+	"indian_hrms_compliance.setup.update_select_perm_after_install",
+]
 
 setup_wizard_complete = "indian_hrms_compliance.subscription_utils.update_erpnext_access"
 
@@ -208,6 +212,9 @@ doc_events = {
 	"Holiday List": {
 		"on_update": "indian_hrms_compliance.utils.holiday_list.invalidate_cache",
 		"on_trash": "indian_hrms_compliance.utils.holiday_list.invalidate_cache",
+	},
+	"Fiscal Year": {
+		"after_insert": "indian_hrms_compliance.payroll.doctype.payroll_period.payroll_period.create_national_payroll_period_from_fiscal_year",
 	},
 	"Timesheet": {"validate": "indian_hrms_compliance.hr.utils.validate_active_employee"},
 	"Payment Entry": {
