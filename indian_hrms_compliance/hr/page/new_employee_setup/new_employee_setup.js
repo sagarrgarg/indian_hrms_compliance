@@ -71,6 +71,33 @@ frappe.pages["new-employee-setup"].on_page_load = function (wrapper) {
 	});
 	fg.make();
 
+	// Prefill from a self-service onboarding application (HR clicked "Convert to
+	// Employee"). The application name is carried via route_options and passed
+	// back on create so the application gets stamped Converted.
+	let onboardingApplication = null;
+	const routedApp = frappe.route_options && frappe.route_options.application;
+	if (routedApp) {
+		frappe.route_options = {};
+		frappe
+			.call({
+				method: "indian_hrms_compliance.hr.doctype.employee_onboarding_application.employee_onboarding_application.get_application_for_setup",
+				args: { name: routedApp },
+			})
+			.then((r) => {
+				const m = r.message;
+				if (!m) return;
+				onboardingApplication = m.onboarding_application;
+				delete m.onboarding_application;
+				Object.keys(m).forEach((k) => {
+					if (m[k]) fg.set_value(k, m[k]);
+				});
+				frappe.show_alert({
+					message: __("Prefilled from onboarding application {0}", [onboardingApplication]),
+					indicator: "blue",
+				});
+			});
+	}
+
 	// default payroll effective date = DOJ
 	fg.get_field("date_of_joining").df.onchange = () => {
 		if (fg.get_value("date_of_joining") && !fg.get_value("payroll_effective_date")) {
@@ -81,6 +108,7 @@ frappe.pages["new-employee-setup"].on_page_load = function (wrapper) {
 	page.set_primary_action(__("Create Employee"), () => {
 		const values = fg.get_values(); // null + highlights if mandatory missing
 		if (!values) return;
+		if (onboardingApplication) values.onboarding_application = onboardingApplication;
 		frappe.confirm(__("Create the Employee, User login and linked records now?"), () => {
 			frappe.dom.freeze(__("Setting up the new employee…"));
 			frappe
