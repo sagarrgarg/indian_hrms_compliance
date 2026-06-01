@@ -66,14 +66,7 @@ frappe.ui.form.on("Bulk Salary Structure Assignment", {
 			};
 		});
 		frm.set_query("income_tax_slab", function () {
-			return {
-				filters: {
-					company: frm.doc.company,
-					disabled: 0,
-					docstatus: 1,
-					currency: frm.doc.currency,
-				},
-			};
+			return { filters: { docstatus: 1 } };
 		});
 		frm.set_query("payroll_payable_account", function () {
 			const company_currency = erpnext.get_currency(frm.doc.company);

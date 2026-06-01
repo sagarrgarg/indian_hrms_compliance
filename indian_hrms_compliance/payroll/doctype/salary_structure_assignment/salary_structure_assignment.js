@@ -20,14 +20,7 @@ frappe.ui.form.on("Salary Structure Assignment", {
 		});
 
 		frm.set_query("income_tax_slab", function () {
-			return {
-				filters: {
-					company: frm.doc.company,
-					docstatus: 1,
-					disabled: 0,
-					currency: frm.doc.currency,
-				},
-			};
+			return { filters: { docstatus: 1 } };
 		});
 
 		frm.set_query("payroll_payable_account", function () {
