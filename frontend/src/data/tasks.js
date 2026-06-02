@@ -15,3 +15,7 @@ export const myTasks = createResource({
 export const completeTask = createResource({
 	url: "indian_hrms_compliance.api.complete_task_instance",
 })
+
+export const reopenTask = createResource({
+	url: "indian_hrms_compliance.api.reopen_task_instance",
+})

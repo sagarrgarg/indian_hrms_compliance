@@ -1132,6 +1132,29 @@ def complete_task_instance(
 	return {"name": goal.name, "status": goal.status, "requires_approval": bool(requires_approval)}
 
 
+@frappe.whitelist()
+def reopen_task_instance(goal_name: str) -> dict:
+	"""Re-open a Task Instance the employee completed by mistake — set it back to
+	Pending and clear the completion stamps/progress. Only the owning employee
+	can reopen, and only their own (non-archived) instance."""
+	employee = get_current_employee()
+	goal = frappe.get_doc("Goal", goal_name)
+	if goal.goal_type != "Task Instance" or goal.employee != employee:
+		frappe.throw(
+			_("You are not permitted to reopen this task."), frappe.PermissionError
+		)
+	if goal.status == "Archived":
+		frappe.throw(_("Archived tasks cannot be reopened."))
+
+	goal.status = "Pending"
+	goal.progress = 0
+	for f in ("submitted_at", "submitted_by", "numeric_value"):
+		if goal.meta.has_field(f):
+			goal.set(f, None)
+	goal.save(ignore_permissions=True)
+	return {"name": goal.name, "status": goal.status}
+
+
 # ---------------------------------------------------------------------------
 # Phase 7C — Resignation & Exit (ESS)
 # ---------------------------------------------------------------------------
