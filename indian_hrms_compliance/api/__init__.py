@@ -872,6 +872,10 @@ def download_salary_slip(name: str):
 		frappe.log_error(title="Salary Slip PDF download failed", message=frappe.get_traceback())
 		frappe.throw(_("Failed to download Salary Slip PDF. See Error Log (often the site host_name / wkhtmltopdf)."))
 
+	# Force a real attachment download (download_pdf serves 'inline', which some
+	# browsers open in-tab); type 'download' sets Content-Disposition: attachment.
+	frappe.local.response.type = "download"
+
 
 # Workflow
 @frappe.whitelist()

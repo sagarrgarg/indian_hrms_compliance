@@ -125,51 +125,26 @@ function getFilteredFields(fields) {
 }
 
 function downloadPDF() {
+	// Let the browser's native download manager fetch the file via a direct,
+	// same-origin URL (session cookie authenticates the GET). This avoids the
+	// fetch+blob+anchor path that truncates / opens in-tab on Safari, iOS and
+	// installed-PWA webviews. The endpoint returns Content-Disposition:
+	// attachment, so every browser downloads a complete <slip>.pdf.
 	const salarySlipName = salarySlip.value.name
-	loading.value = true
+	if (!salarySlipName) return
+	downloadError.value = ""
 
-	let headers = { "X-Frappe-Site-Name": window.location.hostname }
-	if (window.csrf_token) {
-		headers["X-Frappe-CSRF-Token"] = window.csrf_token
-	}
+	const fileLabel = salarySlipName.replace(/[\s/]+/g, "-")
+	const url =
+		"/api/method/indian_hrms_compliance.api.download_salary_slip?name=" +
+		encodeURIComponent(salarySlipName)
 
-	fetch("/api/method/indian_hrms_compliance.api.download_salary_slip", {
-		method: "POST",
-		headers,
-		body: new URLSearchParams({ name: salarySlipName }),
-		responseType: "blob",
-	})
-		.then((response) => {
-			if (response.ok) {
-				return response.blob()
-			} else {
-				downloadError.value = "Failed to download PDF"
-			}
-		})
-		.then((blob) => {
-			if (!blob) return
-			// Guard against a non-PDF body (e.g. a JSON error) being saved as .pdf
-			if (blob.type && blob.type.indexOf("pdf") === -1 && blob.type.indexOf("octet-stream") === -1) {
-				downloadError.value = "Failed to download PDF"
-				return
-			}
-			const blobUrl = window.URL.createObjectURL(blob)
-			const link = document.createElement("a")
-			link.href = blobUrl
-			link.download = `${salarySlipName}.pdf`
-			document.body.appendChild(link)
-			link.click()
-			document.body.removeChild(link)
-
-			setTimeout(() => {
-				window.URL.revokeObjectURL(blobUrl)
-			}, 3000)
-		})
-		.catch((error) => {
-			downloadError.value = `Failed to download PDF: ${error.message}`
-		})
-		.finally(() => {
-			loading.value = false
-		})
+	const link = document.createElement("a")
+	link.href = url
+	link.download = `${fileLabel}.pdf`
+	link.rel = "noopener"
+	document.body.appendChild(link)
+	link.click()
+	document.body.removeChild(link)
 }
 </script>
