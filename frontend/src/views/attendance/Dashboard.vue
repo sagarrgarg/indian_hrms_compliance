@@ -1,5 +1,5 @@
 <template>
-	<BaseLayout pageTitle="Attendance">
+	<BaseLayout pageTitle="Attendance" back>
 		<template #body>
 			<div class="flex flex-col mt-7 mb-7 p-4 gap-7">
 				<AttendanceCalendar />

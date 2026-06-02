@@ -1,5 +1,5 @@
 <template>
-	<BaseLayout :pageTitle="__('Leaves & Holidays')">
+	<BaseLayout :pageTitle="__('Leaves & Holidays')" back>
 		<template #body>
 			<div class="flex flex-col items-center mt-7 mb-7 py-4">
 				<LeaveBalance />

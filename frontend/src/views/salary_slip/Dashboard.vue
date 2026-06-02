@@ -1,5 +1,5 @@
 <template>
-	<BaseLayout :pageTitle="__('Salary Slips')">
+	<BaseLayout :pageTitle="__('Salary Slips')" back>
 		<template #body>
 			<div class="flex flex-col items-center my-7 p-4">
 				<div class="flex flex-col w-full bg-white rounded py-5 px-3.5 gap-5">
