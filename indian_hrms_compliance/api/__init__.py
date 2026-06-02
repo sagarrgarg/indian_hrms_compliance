@@ -855,8 +855,10 @@ def delete_attachment(filename: str):
 
 @frappe.whitelist()
 def download_salary_slip(name: str):
-	import base64
-
+	"""Stream the Salary Slip PDF as a binary download. download_pdf sets
+	frappe.local.response (filename/filecontent/type='pdf'); returning None lets
+	Frappe serve the raw PDF so the PWA's response.blob() gets actual bytes (a
+	base64/JSON wrapper produced a broken .crdownload)."""
 	from frappe.utils.print_format import download_pdf
 
 	# Use the elegant format unless an explicit non-Standard default is configured.
@@ -869,11 +871,6 @@ def download_salary_slip(name: str):
 	except Exception:
 		frappe.log_error(title="Salary Slip PDF download failed", message=frappe.get_traceback())
 		frappe.throw(_("Failed to download Salary Slip PDF. See Error Log (often the site host_name / wkhtmltopdf)."))
-
-	base64content = base64.b64encode(frappe.local.response.filecontent)
-	content_type = frappe.local.response.type
-
-	return f"data:{content_type};base64," + base64content.decode("utf-8")
 
 
 # Workflow
