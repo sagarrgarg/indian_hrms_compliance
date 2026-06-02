@@ -1,15 +1,18 @@
 import { io } from "socket.io-client"
-import { socketio_port } from "../../../../sites/common_site_config.json"
 
 import { getCachedListResource } from "frappe-ui/src/resources/listResource"
 import { getCachedResource } from "frappe-ui/src/resources/resources"
 
 export function initSocket() {
-	let host = window.location.hostname
-	let siteName = window.site_name
-	let port = window.location.port ? `:${socketio_port}` : ""
-	let protocol = port ? "http" : "https"
-	let url = `${protocol}://${host}${port}/${siteName}`
+	// Connect through the SAME origin/port that serves the app, not a hardcoded
+	// socketio port. The reverse proxy (nginx) routes /socket.io to the realtime
+	// server and injects the site header; hitting the raw socketio port directly
+	// bypasses that and 400s. Works on whatever port/host the site runs on.
+	const siteName = window.site_name
+	const protocol = window.location.protocol === "https:" ? "https" : "http"
+	const host = window.location.hostname
+	const port = window.location.port ? `:${window.location.port}` : ""
+	const url = `${protocol}://${host}${port}/${siteName}`
 	let socket = io(url, {
 		withCredentials: true,
 		reconnectionAttempts: 5,
