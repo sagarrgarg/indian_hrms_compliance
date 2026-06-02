@@ -859,12 +859,16 @@ def download_salary_slip(name: str):
 
 	from frappe.utils.print_format import download_pdf
 
-	default_print_format = frappe.get_meta("Salary Slip").default_print_format or "Standard"
+	# Use the elegant format unless an explicit non-Standard default is configured.
+	print_format = frappe.get_meta("Salary Slip").default_print_format
+	if not print_format or print_format == "Standard":
+		print_format = "Salary Slip Elegant"
 
 	try:
-		download_pdf("Salary Slip", name, format=default_print_format)
+		download_pdf("Salary Slip", name, format=print_format)
 	except Exception:
-		frappe.throw(_("Failed to download Salary Slip PDF"))
+		frappe.log_error(title="Salary Slip PDF download failed", message=frappe.get_traceback())
+		frappe.throw(_("Failed to download Salary Slip PDF. See Error Log (often the site host_name / wkhtmltopdf)."))
 
 	base64content = base64.b64encode(frappe.local.response.filecontent)
 	content_type = frappe.local.response.type
