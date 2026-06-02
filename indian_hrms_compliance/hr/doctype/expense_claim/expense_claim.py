@@ -552,17 +552,11 @@ def get_expense_claim_account(expense_claim_type, company):
 	account = frappe.db.get_value(
 		"Expense Claim Account", {"parent": expense_claim_type, "company": company}, "default_account"
 	)
-	# Fall back to the Company's default expense account so a missing per-type
-	# mapping doesn't block the employee from filing a claim (HR can still map a
-	# specific account per Expense Claim Type for precise GL booking).
-	if not account:
-		account = frappe.db.get_value("Company", company, "default_expense_account")
 	if not account:
 		frappe.throw(
-			_("Set the default account for the {0} {1}, or a Default Expense Account on the Company {2}.").format(
+			_("Set the default account for the {0} {1}").format(
 				frappe.bold(_("Expense Claim Type")),
 				get_link_to_form("Expense Claim Type", expense_claim_type),
-				get_link_to_form("Company", company),
 			)
 		)
 
