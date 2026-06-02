@@ -16,6 +16,11 @@ const routes = [
 		component: () => import("@/views/task/Dashboard.vue"),
 	},
 	{
+		name: "AssignTeamTask",
+		path: "/tasks/assign",
+		component: () => import("@/views/task/AssignTeamTask.vue"),
+	},
+	{
 		name: "TaskDetailView",
 		path: "/tasks/:id",
 		props: true,

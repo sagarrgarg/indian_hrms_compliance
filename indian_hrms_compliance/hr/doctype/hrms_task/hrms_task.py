@@ -254,18 +254,10 @@ def _instantiate_for_date(target_d):
 		if task.effective_to and getdate(task.effective_to) < target_d:
 			continue
 
-		if task.frequency == "One-time":
-			# Instantiate exactly once; due on the deadline (effective_to) if set,
-			# else the effective date. Idempotent via the fixed "One-time" label.
-			due = getdate(task.effective_to or task.effective_from or target_d)
-			period_info = {
-				"label": "One-time",
-				"start": getdate(task.effective_from or target_d),
-				"end": due,
-				"due_date": due,
-			}
-		else:
-			period_info = compute_period_for_today(task.frequency, target_d)
+		# One-off work is created directly as a Goal (by a manager/HR), not via a
+		# recurring HRMS Task template — so the scheduler only handles recurring
+		# frequencies here.
+		period_info = compute_period_for_today(task.frequency, target_d)
 		if not period_info:
 			continue
 

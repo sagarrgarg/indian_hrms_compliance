@@ -1155,6 +1155,71 @@ def reopen_task_instance(goal_name: str) -> dict:
 	return {"name": goal.name, "status": goal.status}
 
 
+@frappe.whitelist()
+def get_my_team():
+	"""Active direct reports of the current employee — the people a reporting
+	manager can assign ad-hoc tasks to from the PWA."""
+	employee = get_current_employee()
+	return frappe.get_all(
+		"Employee",
+		filters={"reports_to": employee, "status": "Active"},
+		fields=["name", "employee_name", "designation"],
+		order_by="employee_name asc",
+	)
+
+
+@frappe.whitelist()
+def create_team_task(employee, title, due_date=None, description=None):
+	"""A reporting manager (or HR) assigns a one-off task directly as a Goal
+	(Task Instance) to a team member — one-off work lives as a Goal, not a
+	recurring HRMS Task template."""
+	manager = get_current_employee()
+	if not title or not str(title).strip():
+		frappe.throw(_("A task title is required."))
+
+	target = frappe.db.get_value(
+		"Employee", employee, ["name", "employee_name", "company", "reports_to", "user_id"], as_dict=True
+	)
+	if not target:
+		frappe.throw(_("Employee not found."))
+
+	is_hr = bool({"HR Manager", "HR User", "System Manager"} & set(frappe.get_roles()))
+	if target.reports_to != manager and not is_hr:
+		frappe.throw(_("You can only assign tasks to your team members."), frappe.PermissionError)
+
+	today = frappe.utils.nowdate()
+	due = due_date or today
+	goal = frappe.get_doc(
+		{
+			"doctype": "Goal",
+			"goal_type": "Task Instance",
+			"goal_name": str(title).strip(),
+			"employee": target.name,
+			"employee_name": target.employee_name,
+			"company": target.company,
+			"status": "Pending",
+			"start_date": today,
+			"end_date": due,
+			"due_date": due,
+			"period_label": f"Ad-hoc {today}",
+		}
+	)
+	if description and goal.meta.has_field("description"):
+		goal.description = description
+	goal.insert(ignore_permissions=True)
+
+	if target.user_id:
+		from indian_hrms_compliance.hr.doctype.hrms_task.hrms_task import _safe_pwa_notification
+
+		_safe_pwa_notification(
+			to_user=target.user_id,
+			message=_("New task assigned: {0} (due {1}).").format(goal.goal_name, due),
+			ref_type="Goal",
+			ref_name=goal.name,
+		)
+	return {"name": goal.name, "employee": target.name, "due_date": due}
+
+
 # ---------------------------------------------------------------------------
 # Phase 7C — Resignation & Exit (ESS)
 # ---------------------------------------------------------------------------

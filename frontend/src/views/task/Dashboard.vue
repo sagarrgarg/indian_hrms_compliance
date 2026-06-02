@@ -29,6 +29,15 @@
 					</div>
 				</div>
 
+				<button
+					v-if="myTeam.data?.length"
+					class="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-indigo-600 text-white text-sm font-medium active:scale-[0.99]"
+					@click="$router.push({ name: 'AssignTeamTask' })"
+				>
+					<FeatherIcon name="plus" class="h-4 w-4" />
+					{{ __("Assign Task to Team") }}
+				</button>
+
 				<ion-segment v-model="activeTab" mode="md" scrollable>
 					<ion-segment-button value="today">
 						<ion-label>{{ __("Today") }}</ion-label>
@@ -63,12 +72,13 @@
 <script setup>
 import { ref, watch } from "vue"
 import { IonSegment, IonSegmentButton, IonLabel } from "@ionic/vue"
+import { FeatherIcon } from "frappe-ui"
 
 import BaseLayout from "@/components/BaseLayout.vue"
 import EmptyState from "@/components/EmptyState.vue"
 import TaskCard from "@/components/TaskCard.vue"
 
-import { myTaskSummary, myTasks as tasks } from "@/data/tasks"
+import { myTaskSummary, myTasks as tasks, myTeam } from "@/data/tasks"
 
 const activeTab = ref("today")
 
