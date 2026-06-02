@@ -19,3 +19,13 @@ export const completeTask = createResource({
 export const reopenTask = createResource({
 	url: "indian_hrms_compliance.api.reopen_task_instance",
 })
+
+export const myTeam = createResource({
+	url: "indian_hrms_compliance.api.get_my_team",
+	auto: true,
+	cache: "indian_hrms_compliance:my_team",
+})
+
+export const createTeamTask = createResource({
+	url: "indian_hrms_compliance.api.create_team_task",
+})
