@@ -11,24 +11,9 @@ frappe.ui.form.on("Employee Tax Exemption Declaration", {
 			};
 		});
 
-		frm.set_query("payroll_period", function () {
-			const fields = { employee: "Employee", company: "Company" };
-
-			for (let [field, label] of Object.entries(fields)) {
-				if (!frm.doc[field]) {
-					frappe.msgprint(__("Please select {0}", [label]));
-				}
-			}
-
-			if (frm.doc.employee && frm.doc.company) {
-				return {
-					filters: {
-						company: frm.doc.company,
-					},
-				};
-			}
-		});
-
+		// Payroll Periods are national (company-blank) by default, so do NOT
+		// filter by company here — that would hide the national period and leave
+		// nothing to select. All periods are selectable.
 		frm.set_query("exemption_sub_category", "declarations", function () {
 			return {
 				filters: {
