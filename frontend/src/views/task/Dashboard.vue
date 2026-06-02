@@ -1,5 +1,5 @@
 <template>
-	<BaseLayout :pageTitle="__('My Tasks')">
+	<BaseLayout :pageTitle="__('My Tasks')" back>
 		<template #body>
 			<div class="flex flex-col mt-7 mb-7 px-4 py-4 gap-5">
 				<div class="grid grid-cols-3 gap-3">

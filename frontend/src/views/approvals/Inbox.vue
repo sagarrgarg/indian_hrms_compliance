@@ -1,5 +1,5 @@
 <template>
-	<BaseLayout :pageTitle="__('Approvals')">
+	<BaseLayout :pageTitle="__('Approvals')" back>
 		<template #body>
 			<div class="flex flex-col mt-7 mb-7 px-4 py-4 gap-5">
 				<div class="flex flex-col gap-1 bg-white rounded p-4 items-center">

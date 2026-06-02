@@ -1,5 +1,5 @@
 <template>
-	<BaseLayout :pageTitle="__('POSH Complaint')">
+	<BaseLayout :pageTitle="__('POSH Complaint')" back>
 		<template #body>
 			<div class="flex flex-col mt-7 mb-7 px-4 py-4 gap-5 pb-24">
 				<!-- Confidentiality banner -->

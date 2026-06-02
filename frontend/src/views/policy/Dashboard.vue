@@ -1,5 +1,5 @@
 <template>
-	<BaseLayout :pageTitle="__('HR Policies')">
+	<BaseLayout :pageTitle="__('HR Policies')" back>
 		<template #body>
 			<div class="flex flex-col mt-7 mb-7 px-4 py-4 gap-5">
 				<ion-segment v-model="activeTab" mode="md">
