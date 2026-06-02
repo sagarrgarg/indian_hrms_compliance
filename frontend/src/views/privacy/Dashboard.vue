@@ -1,5 +1,5 @@
 <template>
-	<BaseLayout :pageTitle="__('Privacy & Consent')">
+	<BaseLayout :pageTitle="__('Privacy & Consent')" back>
 		<template #body>
 			<div class="flex flex-col mt-7 mb-7 px-4 py-4 gap-6 pb-24">
 				<!-- (a) Your Consents -->

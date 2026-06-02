@@ -1,5 +1,5 @@
 <template>
-	<BaseLayout :pageTitle="__('Resignation & Exit')">
+	<BaseLayout :pageTitle="__('Resignation & Exit')" back>
 		<template #body>
 			<div class="flex flex-col mt-7 mb-7 px-4 py-4 gap-5 pb-24">
 				<!-- No active resignation: explain process + initiate -->

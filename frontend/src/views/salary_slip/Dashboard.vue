@@ -75,9 +75,8 @@ const __ = inject("$translate")
 const payrollPeriods = createListResource({
 	doctype: "Payroll Period",
 	fields: ["name", "start_date", "end_date"],
-	filters: {
-		company: employee.data?.company,
-	},
+	// Payroll Periods are national (company-blank) by default — don't filter by
+	// company or the dropdown shows no options.
 	orderBy: "start_date desc",
 	auto: true,
 	transform(data) {
