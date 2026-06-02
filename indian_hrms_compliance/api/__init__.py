@@ -874,9 +874,11 @@ def delete_attachment(filename: str):
 
 
 @frappe.whitelist()
-def _download_pdf(doctype: str, docname: str) -> str:
-	import base64
-
+def _download_pdf(doctype: str, docname: str) -> None:
+	"""Stream the PDF as a binary download. download_pdf sets
+	frappe.local.response (filename/filecontent/type='pdf'); returning None lets
+	Frappe serve the raw PDF so the PWA's response.blob() gets actual bytes (a
+	base64/JSON wrapper produced a broken .crdownload)."""
 	from frappe.utils.print_format import download_pdf
 
 	default_print_format = frappe.get_meta(doctype).default_print_format
@@ -894,11 +896,6 @@ def _download_pdf(doctype: str, docname: str) -> str:
 				str(e)
 			)
 		)
-
-	base64content = base64.b64encode(frappe.local.response.filecontent)
-	content_type = frappe.local.response.type
-
-	return f"data:{content_type};base64," + base64content.decode("utf-8")
 
 
 # Workflow

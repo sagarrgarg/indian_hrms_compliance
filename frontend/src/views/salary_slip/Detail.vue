@@ -148,11 +148,18 @@ function downloadPDF() {
 		})
 		.then((blob) => {
 			if (!blob) return
+			// Guard against a non-PDF body (e.g. a JSON error) being saved as .pdf
+			if (blob.type && blob.type.indexOf("pdf") === -1 && blob.type.indexOf("octet-stream") === -1) {
+				downloadError.value = "Failed to download PDF"
+				return
+			}
 			const blobUrl = window.URL.createObjectURL(blob)
 			const link = document.createElement("a")
 			link.href = blobUrl
 			link.download = `${salarySlipName}.pdf`
+			document.body.appendChild(link)
 			link.click()
+			document.body.removeChild(link)
 
 			setTimeout(() => {
 				window.URL.revokeObjectURL(blobUrl)
