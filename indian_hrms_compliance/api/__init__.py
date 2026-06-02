@@ -879,12 +879,21 @@ def _download_pdf(doctype: str, docname: str) -> str:
 
 	from frappe.utils.print_format import download_pdf
 
-	default_print_format = frappe.get_meta(doctype).default_print_format or "Standard"
+	default_print_format = frappe.get_meta(doctype).default_print_format
+	# Salary Slip: use the elegant format unless an explicit non-Standard default is configured.
+	if doctype == "Salary Slip" and (not default_print_format or default_print_format == "Standard"):
+		default_print_format = "Salary Slip Elegant"
+	default_print_format = default_print_format or "Standard"
 
 	try:
 		download_pdf(doctype, docname, format=default_print_format)
 	except Exception as e:
-		frappe.throw(_("Failed to download PDF: {0}").format(str(e)))
+		frappe.log_error(title=f"{doctype} PDF download failed", message=frappe.get_traceback())
+		frappe.throw(
+			_("Failed to download PDF: {0}. See Error Log (often the site host_name / wkhtmltopdf).").format(
+				str(e)
+			)
+		)
 
 	base64content = base64.b64encode(frappe.local.response.filecontent)
 	content_type = frappe.local.response.type
