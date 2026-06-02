@@ -897,6 +897,10 @@ def _download_pdf(doctype: str, docname: str) -> None:
 			)
 		)
 
+	# Force a real attachment download (download_pdf serves 'inline', which some
+	# browsers open in-tab); type 'download' sets Content-Disposition: attachment.
+	frappe.local.response.type = "download"
+
 
 # Workflow
 @frappe.whitelist()
