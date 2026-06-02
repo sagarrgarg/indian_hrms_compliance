@@ -5,6 +5,7 @@
 import frappe
 from frappe import _
 from frappe.model.document import Document
+from frappe.query_builder.functions import IfNull
 from frappe.utils import add_months, cint, date_diff, flt, formatdate, getdate
 from frappe.utils.caching import redis_cache
 
@@ -31,7 +32,9 @@ class PayrollPeriod(Document):
 			.select(DocType.name)
 			.where(
 				(DocType.name != self.name)
-				& (DocType.company == self.company)
+				# Normalise company: a national period is company NULL *or* '' — treat them
+				# as the same scope so two national periods can't overlap each other.
+				& (IfNull(DocType.company, "") == (self.company or ""))
 				& (
 					DocType.start_date.between(self.start_date, self.end_date)
 					| DocType.end_date.between(self.start_date, self.end_date)
