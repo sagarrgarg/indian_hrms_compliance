@@ -67,6 +67,9 @@ def get_my_tax_declaration():
 	employee = get_current_employee()
 	emp = frappe.db.get_value("Employee", employee, ["employee_name", "company"], as_dict=True)
 	period = _current_period(emp.company)
+	period_start = period_end = None
+	if period:
+		period_start, period_end = frappe.db.get_value("Payroll Period", period, ["start_date", "end_date"])
 
 	sub_cats = frappe.get_all(
 		"Employee Tax Exemption Sub Category",
@@ -103,6 +106,8 @@ def get_my_tax_declaration():
 		"employee_name": emp.employee_name,
 		"company": emp.company,
 		"payroll_period": period,
+		"period_start": str(period_start) if period_start else None,
+		"period_end": str(period_end) if period_end else None,
 		"sub_categories": sub_cats,
 		"declaration": existing,
 		"rows": rows,
