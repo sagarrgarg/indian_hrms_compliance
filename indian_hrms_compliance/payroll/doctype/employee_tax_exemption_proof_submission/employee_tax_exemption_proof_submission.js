@@ -11,18 +11,8 @@ frappe.ui.form.on("Employee Tax Exemption Proof Submission", {
 			};
 		});
 
-		frm.set_query("payroll_period", function () {
-			if (frm.doc.employee && frm.doc.company) {
-				return {
-					filters: {
-						company: frm.doc.company,
-					},
-				};
-			} else {
-				frappe.msgprint(__("Please select Employee"));
-			}
-		});
-
+		// Payroll Periods are national (company-blank) by default — don't filter
+		// by company or the national period (and thus all options) disappears.
 		frm.set_query("exemption_sub_category", "tax_exemption_proofs", function () {
 			return {
 				filters: {
