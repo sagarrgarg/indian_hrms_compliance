@@ -139,6 +139,19 @@
 				</Button>
 			</div>
 		</ion-footer>
+
+		<ion-footer v-else-if="task && task.status === 'Completed'" class="ion-no-border">
+			<div class="w-full sm:max-w-3xl sm:mx-auto bg-white p-4 border-t">
+				<Button
+					variant="subtle"
+					class="w-full py-5 text-base"
+					:loading="reopenTask.loading"
+					@click="onReopen"
+				>
+					{{ __("Mark as not completed") }}
+				</Button>
+			</div>
+		</ion-footer>
 	</ion-page>
 </template>
 
@@ -151,7 +164,7 @@ import { Button, FormControl, FeatherIcon, toast } from "frappe-ui"
 import EmptyState from "@/components/EmptyState.vue"
 import { FileAttachment } from "@/composables"
 
-import { myTasks as tasks, myTaskSummary, completeTask } from "@/data/tasks"
+import { myTasks as tasks, myTaskSummary, completeTask, reopenTask } from "@/data/tasks"
 import { employees } from "@/data/employees"
 
 const props = defineProps({
@@ -251,5 +264,34 @@ function onComplete() {
 			})
 		},
 	})
+}
+
+function onReopen() {
+	reopenTask.submit(
+		{ goal_name: props.id },
+		{
+			onSuccess() {
+				toast({
+					title: __("Reopened"),
+					text: __("Task marked as not completed"),
+					icon: "rotate-ccw",
+					position: "bottom-center",
+					iconClasses: "text-amber-500",
+				})
+				tasks.reload()
+				myTaskSummary.reload()
+				router.back()
+			},
+			onError(error) {
+				toast({
+					title: __("Error"),
+					text: __(error?.messages?.[0] || error.message),
+					icon: "alert-circle",
+					position: "bottom-center",
+					iconClasses: "text-red-500",
+				})
+			},
+		}
+	)
 }
 </script>

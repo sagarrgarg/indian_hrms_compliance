@@ -148,62 +148,46 @@ def resolve_assigned_employees(task):
 
 
 def compute_period_for_today(frequency, today_d=None):
-	"""Return dict(label, start, end, due_date) if this frequency 'ticks' today,
-	else None. Daily ticks every day; Weekly on Mondays; Monthly on the 1st;
-	Quarterly on 1st of Jan/Apr/Jul/Oct; Yearly on 1st Jan. One-time and
-	On-demand never auto-tick (instantiated by HR manually)."""
+	"""Return dict(label, start, end, due_date) for the period that CONTAINS the
+	given date, so running the scheduler on any day fills in the current period's
+	instance (idempotent by period_label) — not only on the period's first day.
+
+	Daily = that day; Weekly = the Mon-Sun week containing it; Monthly = its
+	calendar month; Quarterly = its quarter; Yearly = its year. On-demand returns
+	None (HR triggers it). One-time is handled by the caller from the task's
+	effective dates."""
 	today_d = getdate(today_d or today())
 
 	if frequency == "Daily":
-		return {
-			"label": str(today_d),
-			"start": today_d,
-			"end": today_d,
-			"due_date": today_d,
-		}
+		return {"label": str(today_d), "start": today_d, "end": today_d, "due_date": today_d}
+
 	if frequency == "Weekly":
-		if today_d.weekday() != 0:  # Monday=0
-			return None
-		end = add_days(today_d, 6)
+		start = add_days(today_d, -today_d.weekday())  # Monday of this week
+		end = add_days(start, 6)
 		return {
-			"label": f"Week {today_d.isocalendar()[1]} {today_d.year}",
-			"start": today_d,
-			"end": end,
-			"due_date": end,
+			"label": f"Week {start.isocalendar()[1]} {start.year}",
+			"start": start, "end": end, "due_date": end,
 		}
+
 	if frequency == "Monthly":
-		if today_d.day != 1:
-			return None
+		start = today_d.replace(day=1)
 		end = today_d.replace(day=monthrange(today_d.year, today_d.month)[1])
-		return {
-			"label": today_d.strftime("%B %Y"),
-			"start": today_d,
-			"end": end,
-			"due_date": end,
-		}
+		return {"label": today_d.strftime("%B %Y"), "start": start, "end": end, "due_date": end}
+
 	if frequency == "Quarterly":
-		if today_d.day != 1 or today_d.month not in (1, 4, 7, 10):
-			return None
-		end_month = today_d.month + 2
+		q_start_month = ((today_d.month - 1) // 3) * 3 + 1  # 1, 4, 7, 10
+		end_month = q_start_month + 2
+		start = today_d.replace(month=q_start_month, day=1)
 		end = today_d.replace(month=end_month, day=monthrange(today_d.year, end_month)[1])
 		q = (today_d.month - 1) // 3 + 1
-		return {
-			"label": f"Q{q} {today_d.year}",
-			"start": today_d,
-			"end": end,
-			"due_date": end,
-		}
+		return {"label": f"Q{q} {today_d.year}", "start": start, "end": end, "due_date": end}
+
 	if frequency == "Yearly":
-		if today_d.day != 1 or today_d.month != 1:
-			return None
+		start = today_d.replace(month=1, day=1)
 		end = today_d.replace(month=12, day=31)
-		return {
-			"label": str(today_d.year),
-			"start": today_d,
-			"end": end,
-			"due_date": end,
-		}
-	return None  # One-time / On-demand never auto-instantiate
+		return {"label": str(today_d.year), "start": start, "end": end, "due_date": end}
+
+	return None  # On-demand (and One-time, handled by the caller)
 
 
 def instantiate_due_tasks(target_date=None):
@@ -260,6 +244,7 @@ def _instantiate_for_date(target_d):
 			"assigned_to_employment_type",
 			"assigned_to_employee_group",
 			"company",
+			"effective_from",
 			"effective_to",
 		],
 	)
@@ -269,7 +254,18 @@ def _instantiate_for_date(target_d):
 		if task.effective_to and getdate(task.effective_to) < target_d:
 			continue
 
-		period_info = compute_period_for_today(task.frequency, target_d)
+		if task.frequency == "One-time":
+			# Instantiate exactly once; due on the deadline (effective_to) if set,
+			# else the effective date. Idempotent via the fixed "One-time" label.
+			due = getdate(task.effective_to or task.effective_from or target_d)
+			period_info = {
+				"label": "One-time",
+				"start": getdate(task.effective_from or target_d),
+				"end": due,
+				"due_date": due,
+			}
+		else:
+			period_info = compute_period_for_today(task.frequency, target_d)
 		if not period_info:
 			continue
 
