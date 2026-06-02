@@ -14,8 +14,12 @@
 		<ion-content>
 			<div class="min-h-full bg-gray-50">
 				<div class="w-full sm:max-w-3xl sm:mx-auto p-4 flex flex-col gap-4 pb-28">
-					<p v-if="data.payroll_period" class="text-xs text-gray-500">
-						{{ __("Period") }}: {{ data.payroll_period }}
+					<p class="text-xs text-gray-500">
+						<template v-if="data.payroll_period">
+							{{ __("Period") }}: <b>{{ data.payroll_period }}</b>
+							<span v-if="data.period_start">({{ data.period_start }} – {{ data.period_end }})</span>
+						</template>
+						<span v-else class="text-amber-600">{{ __("No active payroll period — ask HR to set one up.") }}</span>
 						<span v-if="!editable" class="ml-2 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600">{{ __("Submitted") }}</span>
 					</p>
 
