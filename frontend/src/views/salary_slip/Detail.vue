@@ -134,17 +134,24 @@ function downloadPDF() {
 	if (!salarySlipName) return
 	downloadError.value = ""
 
-	const fileLabel = salarySlipName.replace(/[\s/]+/g, "-")
 	const url =
 		"/api/method/indian_hrms_compliance.api.download_salary_slip?name=" +
 		encodeURIComponent(salarySlipName)
 
-	const link = document.createElement("a")
-	link.href = url
-	link.download = `${fileLabel}.pdf`
-	link.rel = "noopener"
-	document.body.appendChild(link)
-	link.click()
-	document.body.removeChild(link)
+	// Hand the URL to the browser's native handler. The server sends
+	// Content-Disposition: attachment, so every browser (Chrome, Arc, Firefox,
+	// Safari, iOS, installed PWA) downloads the complete file. window.open in a
+	// click handler is the most reliable trigger and dodges <a download> quirks.
+	const win = window.open(url, "_blank")
+	if (!win) {
+		// Popup blocked — fall back to a same-tab anchor click.
+		const link = document.createElement("a")
+		link.href = url
+		link.target = "_blank"
+		link.rel = "noopener"
+		document.body.appendChild(link)
+		link.click()
+		document.body.removeChild(link)
+	}
 }
 </script>
