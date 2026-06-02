@@ -21,11 +21,13 @@ class PayrollPeriod(Document):
 		return super().clear_cache()
 
 	def validate_overlap(self):
+		# Normalise company: a national period is company NULL *or* '' — treat them
+		# as the same scope so two national periods can't overlap each other.
 		query = """
 			select name
 			from `tab{0}`
 			where name != %(name)s
-			and company = %(company)s and (start_date between %(start_date)s and %(end_date)s \
+			and ifnull(company, '') = ifnull(%(company)s, '') and (start_date between %(start_date)s and %(end_date)s \
 				or end_date between %(start_date)s and %(end_date)s \
 				or (start_date < %(start_date)s and end_date > %(end_date)s))
 			"""
