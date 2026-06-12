@@ -10,7 +10,7 @@
   "notes"
  ],
  "fields": [
-  {"fieldname": "document_type", "fieldtype": "Select", "label": "Document Type", "reqd": 1, "in_list_view": 1, "options": "PAN Card\nAadhaar (masked)\nCancelled Cheque / Passbook\nEducation Certificate\nRelieving Letter\nPrevious Payslip\nAddress Proof\nOther"},
+  {"fieldname": "document_type", "fieldtype": "Select", "label": "Document Type", "reqd": 1, "in_list_view": 1, "options": "PAN Card\nAadhaar Card\nSigned Offer Letter\nCancelled Cheque / Passbook\nEducation Certificate\nRelieving Letter\nPrevious Payslip\nAddress Proof\nOther"},
   {"fieldname": "document", "fieldtype": "Attach", "label": "File", "reqd": 1, "in_list_view": 1},
   {"fieldname": "notes", "fieldtype": "Data", "label": "Notes", "in_list_view": 1}
  ],

@@ -59,7 +59,11 @@ app.provide("$socket", socket)
 app.provide("$dayjs", dayjs)
 
 const registerServiceWorker = async () => {
-	window.frappePushNotification = new FrappePushNotification("indian_hrms_compliance")
+	// "hrms" is the project name on the Frappe push-notification relay
+	// (push-notification-relay.frappe.cloud). The relay keys Firebase + VAPID
+	// config off this name; "indian_hrms_compliance" is not on the allowlist.
+	// Keep this in sync with hr/doctype/pwa_notification/pwa_notification.py.
+	window.frappePushNotification = new FrappePushNotification("hrms")
 
 	if ("serviceWorker" in navigator) {
 		let serviceWorkerURL = "/assets/indian_hrms_compliance/frontend/sw.js"

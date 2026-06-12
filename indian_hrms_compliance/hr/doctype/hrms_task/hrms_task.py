@@ -396,6 +396,10 @@ def send_overdue_task_reminders():
 			"period_label",
 			"due_date",
 			"kra",
+			# `owner` = the User who created the Goal row (Frappe built-in).
+			# For ad-hoc tasks, this is the assigning manager — we ping them
+			# separately so they know their team-mate's task slipped.
+			"owner",
 		],
 	)
 	if not overdue:
@@ -413,6 +417,26 @@ def send_overdue_task_reminders():
 				ref_type="Goal",
 				ref_name=g.name,
 			)
+
+		# Ad-hoc tasks (no template) also notify the creator. Skip if the
+		# creator IS the assignee (self-assigned tasks shouldn't double-ping).
+		is_adhoc = not g.get("task_template")
+		creator = g.get("owner")
+		if (
+			is_adhoc
+			and creator
+			and creator not in ("Administrator", "Guest")
+			and creator != emp_user
+		):
+			_safe_pwa_notification(
+				to_user=creator,
+				message=_("Ad-hoc task you assigned is overdue: {0} → {1} (was due {2}).").format(
+					g.goal_name, g.employee_name or g.employee, g.due_date
+				),
+				ref_type="Goal",
+				ref_name=g.name,
+			)
+
 		frappe.db.set_value(
 			"Goal", g.name, "last_reminder_sent_on", today_d, update_modified=False
 		)

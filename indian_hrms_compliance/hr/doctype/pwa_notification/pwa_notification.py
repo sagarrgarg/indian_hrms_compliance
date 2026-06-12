@@ -17,7 +17,14 @@ class PWANotification(Document):
 		try:
 			from frappe.push_notification import PushNotification
 
-			push_notification = PushNotification("indian_hrms_compliance")
+			# Project name is what Frappe's push-notification relay
+			# (push-notification-relay.frappe.cloud) keys Firebase project + VAPID
+			# config under. The relay only knows pre-registered projects;
+			# "indian_hrms_compliance" isn't on its allowlist but "hrms" is, and
+			# this app is a fork of Frappe HRMS so reusing the official project
+			# is appropriate. Switch to a self-hosted relay if you need
+			# Firebase isolation.
+			push_notification = PushNotification("hrms")
 			if push_notification.is_enabled():
 				push_notification.send_notification_to_user(
 					self.to_user,

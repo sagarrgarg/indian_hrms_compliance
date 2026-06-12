@@ -24,8 +24,12 @@
 </template>
 
 <script setup>
-import { computed, inject, markRaw } from "vue"
+import { computed, inject, markRaw, onMounted } from "vue"
 
+import { useRouter } from "vue-router"
+
+import { maybePromptForPush } from "@/composables/usePushPrompt"
+import { setupNativePush } from "@/composables/useNativePush"
 import CheckInPanel from "@/components/CheckInPanel.vue"
 import QuickLinks from "@/components/QuickLinks.vue"
 import BaseLayout from "@/components/BaseLayout.vue"
@@ -46,6 +50,18 @@ import CockpitIcon from "@/components/icons/CockpitIcon.vue"
 import { canViewCockpit } from "@/data/cockpit"
 
 const __ = inject("$translate")
+const router = useRouter()
+
+// Right after login the user lands here.
+//   • Native (Kaam shell): register for native push + subscribe this device to
+//     the site. The OS permission prompt is shown by the native plugin.
+//   • Web (browser PWA): show the soft web-push prompt instead.
+// Both are deferred a beat so they don't fight the first paint, and both
+// self-gate so they never nag.
+onMounted(() => {
+	setupNativePush(router)
+	setTimeout(() => maybePromptForPush(__), 1200)
+})
 
 // Day-to-day actions only. Privacy/Consent, Resignation & Exit, Leave and
 // Advance live under Profile (deliberate — not daily, and not nudges).
@@ -62,6 +78,13 @@ const allLinks = [
 		title: __("Approvals"),
 		route: "ApprovalsInbox",
 		color: "amber",
+	},
+	{
+		icon: markRaw(AttendanceIcon),
+		title: __("Org Attendance"),
+		route: "OrgAttendance",
+		color: "teal",
+		hrOnly: true,
 	},
 	{
 		icon: markRaw(AttendanceIcon),

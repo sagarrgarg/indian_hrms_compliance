@@ -45,6 +45,42 @@ class POSHComplaint(Document):
 		self._compute_sla()
 		self._stamp_state_dates()
 		self._validate_ic_belongs_to_company()
+		self._guard_accused_link_writes()
+
+	def _guard_accused_link_writes(self):
+		"""accused_employee_link grants the accused system access to read the
+		complaint (natural justice). Only IC members for this Company, HR
+		Manager, or System Manager may set/change it — never the complainant.
+		"""
+		before = self.get_doc_before_save()
+		old_link = (before and before.get("accused_employee_link")) or None
+		new_link = self.accused_employee_link or None
+		if new_link == old_link:
+			return
+
+		user = frappe.session.user
+		if user in ("Administrator",):
+			return
+		roles = set(frappe.get_roles(user))
+		if roles & {"System Manager", "HR Manager"}:
+			return
+		# IC membership for this Company?
+		if self.internal_committee and frappe.db.exists(
+			"POSH IC Member",
+			{
+				"parent": self.internal_committee,
+				"is_active": 1,
+				"employee": (
+					"in",
+					frappe.get_all("Employee", filters={"user_id": user}, pluck="name") or [""],
+				),
+			},
+		):
+			return
+		frappe.throw(
+			_("Only IC members (or HR Manager / System Manager) can set the resolved Employee record for the accused."),
+			title=_("Restricted Field"),
+		)
 
 	def _compute_masked_display(self):
 		"""Populate complainant_name_masked + complainant_employee_id_masked

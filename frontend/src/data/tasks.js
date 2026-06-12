@@ -12,6 +12,14 @@ export const myTasks = createResource({
 	cache: "indian_hrms_compliance:my_tasks",
 })
 
+// Single-call payload for the My Tasks PWA screen (5 partitioned buckets).
+// Returns: { summary, today, adhoc, upcoming, overdue, completed_week }.
+export const myTasksDashboard = createResource({
+	url: "indian_hrms_compliance.api.get_my_tasks_dashboard",
+	auto: true,
+	cache: "indian_hrms_compliance:my_tasks_dashboard",
+})
+
 export const completeTask = createResource({
 	url: "indian_hrms_compliance.api.complete_task_instance",
 })

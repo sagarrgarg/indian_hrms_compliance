@@ -42,7 +42,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from "vue"
+import { ref, computed, inject, onMounted, onBeforeUnmount } from "vue"
 import { IonSegment, IonSegmentButton, IonLabel } from "@ionic/vue"
 
 import BaseLayout from "@/components/BaseLayout.vue"
@@ -51,9 +51,39 @@ import ApprovalCard from "@/components/ApprovalCard.vue"
 
 import { pendingApprovals, approvalsSummary } from "@/data/approvals"
 
+const socket = inject("$socket")
+
 const activeTab = ref("All")
 
-const categories = ["Leave", "Expense", "Advance", "Shift", "Attendance", "Task", "Resignation"]
+const categories = [
+	"Leave",
+	"Expense",
+	"Advance",
+	"Shift",
+	"Attendance",
+	"Task",
+	"Resignation",
+	"Profile Update",
+	"Onboarding",
+	"Grievance",
+]
+
+// The 9 doctypes that can drop a row into the inbox. We subscribe to all so
+// changes initiated outside the PWA (e.g., HR cancelling a Leave on the Desk)
+// still trigger a refresh here — the backend's refetch_resource event covers
+// PWA-initiated mutations, this list_update covers everything else.
+const INBOX_DOCTYPES = [
+	"Leave Application",
+	"Expense Claim",
+	"Employee Advance",
+	"Shift Request",
+	"Attendance Request",
+	"Resignation Request",
+	"Goal",
+	"Employee Profile Change Request",
+	"Employee Onboarding Application",
+	"Employee Grievance",
+]
 
 const filteredItems = computed(() => {
 	const items = pendingApprovals.data || []
@@ -65,4 +95,20 @@ function reload() {
 	pendingApprovals.reload()
 	approvalsSummary.reload()
 }
+
+function onListUpdate(data) {
+	if (INBOX_DOCTYPES.includes(data?.doctype)) {
+		reload()
+	}
+}
+
+onMounted(() => {
+	INBOX_DOCTYPES.forEach((dt) => socket.emit("doctype_subscribe", dt))
+	socket.on("list_update", onListUpdate)
+})
+
+onBeforeUnmount(() => {
+	INBOX_DOCTYPES.forEach((dt) => socket.emit("doctype_unsubscribe", dt))
+	socket.off("list_update", onListUpdate)
+})
 </script>

@@ -59,8 +59,9 @@ def posh_complaint_query(user=None):
 	if emp_names:
 		emp_list = ",".join([frappe.db.escape(e) for e in emp_names])
 		clauses.append(f"`tabPOSH Complaint`.complainant IN ({emp_list})")
-		# (b) accused
-		clauses.append(f"`tabPOSH Complaint`.accused IN ({emp_list})")
+		# (b) accused — granted via the IC-set Employee link (accused itself is
+		#     free-text the complainant typed and cannot drive access).
+		clauses.append(f"`tabPOSH Complaint`.accused_employee_link IN ({emp_list})")
 
 	# (c) IC member: rows whose internal_committee is one this user serves on
 	if ic_member_ics:
@@ -85,7 +86,7 @@ def posh_complaint_has_permission(doc, user=None, permission_type=None):
 
 	emp_names = frappe.get_all("Employee", filters={"user_id": user}, pluck="name")
 
-	if doc.complainant in emp_names or doc.accused in emp_names:
+	if doc.complainant in emp_names or (doc.accused_employee_link and doc.accused_employee_link in emp_names):
 		return True
 
 	# IC member check

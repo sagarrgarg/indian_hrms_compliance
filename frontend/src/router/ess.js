@@ -130,6 +130,21 @@ const routes = [
 			next(canViewCockpit.data === false ? { name: "Home" } : true)
 		},
 	},
+	{
+		name: "EditProfile",
+		path: "/profile/edit",
+		component: () => import("@/views/EditProfile.vue"),
+	},
+	{
+		name: "MyProfileUpdates",
+		path: "/profile/updates",
+		component: () => import("@/views/MyProfileUpdates.vue"),
+	},
+	{
+		name: "OrgAttendance",
+		path: "/attendance/org",
+		component: () => import("@/views/OrgAttendance.vue"),
+	},
 ]
 
 export default routes
