@@ -282,9 +282,15 @@ doc_events = {
 		"on_update_after_submit": "indian_hrms_compliance.api.publish_org_attendance_refetch",
 		"on_submit": "indian_hrms_compliance.api.publish_org_attendance_refetch",
 	},
+	# Back-dated attendance requests beyond the HR-Settings months threshold can
+	# only be submitted by an HRMS Master Manager (the configured approval role).
+	"Attendance Request": {
+		"before_submit": "indian_hrms_compliance.overrides.attendance_backdated.guard_attendance_request",
+	},
 	# Marked Attendance (scheduler overnight + HR mid-day) flips an employee
 	# between Present / Absent / On Leave on the past-date roll-call.
 	"Attendance": {
+		"before_submit": "indian_hrms_compliance.overrides.attendance_backdated.guard_attendance",
 		"on_submit": "indian_hrms_compliance.api.publish_org_attendance_refetch",
 		"on_update_after_submit": "indian_hrms_compliance.api.publish_org_attendance_refetch",
 		"on_cancel": "indian_hrms_compliance.api.publish_org_attendance_refetch",
