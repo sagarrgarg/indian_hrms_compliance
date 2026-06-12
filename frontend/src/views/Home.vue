@@ -5,6 +5,11 @@
 				<div class="flex flex-col my-5 p-4 gap-4">
 					<CheckInPanel />
 
+					<PolicyAckBanner
+						:count="pendingPolicyCount"
+						:overdue-count="overduePolicyCount"
+					/>
+
 					<div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
 						<TaskCalendar :tasks="tasks" />
 						<PreviewList
@@ -30,13 +35,16 @@ import { useRouter } from "vue-router"
 
 import { maybePromptForPush } from "@/composables/usePushPrompt"
 import { setupNativePush } from "@/composables/useNativePush"
+import { maybeShowPolicyAckGate, getOverduePolicies } from "@/composables/usePolicyAckGate"
 import CheckInPanel from "@/components/CheckInPanel.vue"
 import QuickLinks from "@/components/QuickLinks.vue"
+import PolicyAckBanner from "@/components/PolicyAckBanner.vue"
 import BaseLayout from "@/components/BaseLayout.vue"
 import RequestPanel from "@/components/RequestPanel.vue"
 import TaskCalendar from "@/components/home/TaskCalendar.vue"
 import PreviewList from "@/components/home/PreviewList.vue"
 import { myTasks } from "@/data/tasks"
+import { pendingPolicies } from "@/data/policies"
 import AttendanceIcon from "@/components/icons/AttendanceIcon.vue"
 import ShiftIcon from "@/components/icons/ShiftIcon.vue"
 import ExpenseIcon from "@/components/icons/ExpenseIcon.vue"
@@ -60,7 +68,13 @@ const router = useRouter()
 // self-gate so they never nag.
 onMounted(() => {
 	setupNativePush(router)
-	setTimeout(() => maybePromptForPush(__), 1200)
+	setTimeout(async () => {
+		// Hard-stop tier of the policy nudge: if any acknowledgement is overdue,
+		// show the blocking gate. Only fall back to the soft push-permission
+		// prompt when the gate didn't fire, so the two never stack.
+		const gated = await maybeShowPolicyAckGate(__, router)
+		if (!gated) maybePromptForPush(__)
+	}, 1200)
 })
 
 // Day-to-day actions only. Privacy/Consent, Resignation & Exit, Leave and
@@ -136,7 +150,21 @@ const allLinks = [
 	},
 ]
 
-const quickLinks = computed(() => allLinks.filter((l) => !l.hrOnly || canViewCockpit.data))
+// Pending / overdue policy acknowledgements drive the escalating nudge:
+// a count badge on the HR Policies tile, a dismissible Home banner, and (when
+// overdue) the blocking gate fired from onMounted.
+const pendingPolicyCount = computed(() => (pendingPolicies.data || []).length)
+const overduePolicyCount = computed(() => getOverduePolicies().length)
+
+const quickLinks = computed(() =>
+	allLinks
+		.filter((l) => !l.hrOnly || canViewCockpit.data)
+		.map((l) =>
+			l.route === "PoliciesDashboard" && pendingPolicyCount.value
+				? { ...l, badge: pendingPolicyCount.value }
+				: l,
+		),
+)
 
 // --- Dashboard previews ---
 const todayStr = new Date().toISOString().slice(0, 10)

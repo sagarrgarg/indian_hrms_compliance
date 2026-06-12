@@ -17,6 +17,7 @@ HR_SETTINGS_DEFAULTS = {
 	# Policies & Acknowledgements tab
 	"default_policy_ack_due_days": 7,
 	"show_overdue_policy_popup_on_login": 1,
+	"notify_employee_policy_email": 1,
 	"send_overdue_policy_hr_digest": 1,
 	"policy_overdue_recipients_role": "HR Manager",
 	# Probation & Confirmation tab

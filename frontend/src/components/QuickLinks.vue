@@ -7,10 +7,16 @@
 				:key="link.title"
 				:to="{ name: link.route }"
 				:class="[
-					'group flex flex-col gap-2 rounded-2xl p-3.5 border shadow-sm transition active:scale-95 hover:shadow-md',
+					'group relative flex flex-col gap-2 rounded-2xl p-3.5 border shadow-sm transition active:scale-95 hover:shadow-md',
 					tone(link.color).card,
 				]"
 			>
+				<span
+					v-if="link.badge"
+					class="absolute top-2 right-2 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-red-500 text-white text-xs font-semibold leading-none shadow-sm"
+				>
+					{{ link.badge }}
+				</span>
 				<span
 					:class="[
 						'flex items-center justify-center h-10 w-10 rounded-xl',
