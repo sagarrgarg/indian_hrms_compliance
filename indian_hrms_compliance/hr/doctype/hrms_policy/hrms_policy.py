@@ -96,18 +96,27 @@ class HRMSPolicy(Document):
 			ref_type="Employee Policy Acknowledgement",
 			ref_name=ack_doc.name,
 		)
+		_email_employee_about_policy(
+			employee.user_id, self.policy_name, self.version, ack_doc.due_date
+		)
 
 
 # ---- module-level functions (scheduler hook + shared notification helper) ----
 
 
-def create_acknowledgements_for_employee(employee_name):
+def create_acknowledgements_for_employee(employee_name, only_policies=None):
 	"""Create pending acknowledgements for ONE Employee across every Active,
 	acknowledgement-requiring policy of their Company — idempotent.
 
 	The policy-side create_acknowledgements() only covers employees who existed
 	when a policy was published; this is the inverse, run on employee activation
-	so new joiners pick up policies published before they joined."""
+	so new joiners pick up policies published before they joined.
+
+	``only_policies`` (optional) restricts enrolment to that subset of policy
+	names — used by New Employee Setup where HR curates which company policies
+	the joiner acknowledges. The subset is still intersected with the Active,
+	acknowledgement-requiring, same-Company set, so a caller can never enrol an
+	employee in a policy they're out of scope for."""
 	emp = frappe.db.get_value(
 		"Employee", employee_name,
 		["name", "employee_name", "company", "user_id", "status"], as_dict=True,
@@ -115,9 +124,17 @@ def create_acknowledgements_for_employee(employee_name):
 	if not emp or emp.status != "Active" or not emp.company:
 		return 0
 
+	if only_policies is not None:
+		only_policies = {p for p in only_policies if p}
+		if not only_policies:
+			return 0
+
+	filters = {"status": "Active", "requires_acknowledgement": 1, "company": emp.company}
+	if only_policies is not None:
+		filters["name"] = ("in", list(only_policies))
 	policies = frappe.get_all(
 		"HRMS Policy",
-		filters={"status": "Active", "requires_acknowledgement": 1, "company": emp.company},
+		filters=filters,
 		fields=["name", "policy_name", "version", "effective_date", "acknowledgement_due_days"],
 	)
 	default_due = frappe.db.get_single_value("HR Settings", "default_policy_ack_due_days") or 7
@@ -155,6 +172,7 @@ def create_acknowledgements_for_employee(employee_name):
 				ref_type="Employee Policy Acknowledgement",
 				ref_name=ack.name,
 			)
+			_email_employee_about_policy(emp.user_id, p.policy_name, p.version, due)
 	return created
 
 
@@ -182,6 +200,49 @@ def _safe_pwa_notification(to_user, message, ref_type, ref_name):
 		except Exception:
 			pass
 		frappe.log_error(title="PWA Notification dispatch failed", message=frappe.get_traceback())
+
+
+def _email_employee_about_policy(emp_user, policy_name, version, due_date, overdue=False):
+	"""Best-effort email nudging an Employee to acknowledge a policy — sent in
+	addition to the in-app PWA Notification, both on assignment and again once
+	the acknowledgement is overdue. Gated by the HR Setting
+	``notify_employee_policy_email`` (default on).
+
+	The call-to-action deep-links to the PWA Policies dashboard and carries NO
+	policy/employee identifiers in the URL — the employee simply lands on their
+	own pending-acknowledgement list."""
+	if not emp_user or emp_user in ("Administrator", "Guest"):
+		return
+	if not int(frappe.db.get_single_value("HR Settings", "notify_employee_policy_email") or 0):
+		return
+
+	link = frappe.utils.get_url("/indian_hrms_compliance/policies")
+	version_label = f" v{version}" if version else ""
+	if overdue:
+		subject = _("Overdue: please acknowledge HR policy '{0}'").format(policy_name)
+		intro = _(
+			"Your acknowledgement of the HR policy '{0}'{1} is overdue — it was due on {2}."
+		).format(policy_name, version_label, due_date)
+	else:
+		subject = _("Action needed: acknowledge HR policy '{0}'").format(policy_name)
+		intro = _(
+			"The HR policy '{0}'{1} has been assigned to you for acknowledgement. "
+			"Please review and acknowledge it by {2}."
+		).format(policy_name, version_label, due_date)
+
+	body = (
+		f"<p>{frappe.utils.escape_html(intro)}</p>"
+		"<p style='margin-top:16px'>"
+		f"<a href='{link}' style='background:#171717;color:#fff;padding:10px 18px;"
+		"border-radius:6px;text-decoration:none;display:inline-block'>"
+		f"{_('Review and Acknowledge')}</a></p>"
+		"<p style='margin-top:16px;font-size:12px;color:#777'>"
+		f"{_('This is an automated message from your HR system.')}</p>"
+	)
+	try:
+		frappe.sendmail(recipients=[emp_user], subject=subject, message=body, now=False)
+	except Exception:
+		frappe.log_error(title="HRMS employee policy email failed", message=frappe.get_traceback())
 
 
 def send_overdue_policy_ack_reminders():
@@ -238,6 +299,13 @@ def send_overdue_policy_ack_reminders():
 				),
 				ref_type="Employee Policy Acknowledgement",
 				ref_name=ack.name,
+			)
+			_email_employee_about_policy(
+				emp_user,
+				ack.policy_name_fetched or ack.policy,
+				ack.policy_version or "",
+				ack.due_date,
+				overdue=True,
 			)
 		frappe.db.set_value(
 			"Employee Policy Acknowledgement",

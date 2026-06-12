@@ -73,6 +73,7 @@
   "policy_acknowledgement_section",
   "default_policy_ack_due_days",
   "show_overdue_policy_popup_on_login",
+  "notify_employee_policy_email",
   "column_break_pol_1",
   "send_overdue_policy_hr_digest",
   "policy_overdue_recipients_role",
@@ -577,6 +578,13 @@
    "fieldtype": "Check",
    "label": "Show Overdue Policy Popup on Login",
    "description": "When enabled, employees with overdue policy acknowledgements see a Desk popup at app_ready."
+  },
+  {
+   "default": "1",
+   "fieldname": "notify_employee_policy_email",
+   "fieldtype": "Check",
+   "label": "Email Employees on Policy Assignment / Overdue",
+   "description": "When enabled, employees are emailed (in addition to the in-app notification) when a policy is assigned to them for acknowledgement, and again when their acknowledgement becomes overdue."
   },
   {
    "fieldname": "column_break_pol_1",
