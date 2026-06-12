@@ -71,6 +71,7 @@
   "col_review_2",
   "verified_by",
   "verified_on",
+  "job_applicant",
   "linked_employee"
  ],
  "fields": [
@@ -147,6 +148,7 @@
   {"fieldname": "col_review_2", "fieldtype": "Column Break"},
   {"fieldname": "verified_by", "fieldtype": "Link", "label": "Verified By", "options": "User", "read_only": 1},
   {"fieldname": "verified_on", "fieldtype": "Datetime", "label": "Verified On", "read_only": 1, "no_copy": 1},
+  {"fieldname": "job_applicant", "fieldtype": "Link", "label": "Job Applicant", "options": "Job Applicant", "read_only": 1, "description": "Set when this application was launched from a Job Applicant's 'Send Onboarding Invite'. Carried onto the Employee on conversion so the applicant + offer are marked Accepted."},
   {"fieldname": "linked_employee", "fieldtype": "Link", "label": "Linked Employee", "options": "Employee", "read_only": 1}
  ],
  "index_web_pages_for_search": 0,

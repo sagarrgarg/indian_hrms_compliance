@@ -367,6 +367,10 @@ def auto_assign_leave_policy_on_activation(doc, method=None):
 	"""
 	if doc.status != "Active":
 		return
+	# The New Employee Setup page assigns the Leave Policy HR explicitly chose,
+	# so don't also fire the company-default auto-assignment underneath it.
+	if frappe.flags.get("in_new_employee_setup"):
+		return
 	if not cint(frappe.db.get_single_value("HR Settings", "auto_assign_leave_policy_on_activation")):
 		return
 
@@ -443,6 +447,10 @@ def enroll_in_active_policies_on_activation(doc, method=None):
 	added after a policy was published would otherwise never get an ack. Never
 	blocks the Employee save."""
 	if doc.status != "Active":
+		return
+	# During New Employee Setup, HR curates exactly which policies the new joiner
+	# acknowledges, so the page enrols that subset itself — don't blanket-enrol here.
+	if frappe.flags.get("in_new_employee_setup"):
 		return
 	previous = doc.get_doc_before_save()
 	if previous and previous.status == "Active":

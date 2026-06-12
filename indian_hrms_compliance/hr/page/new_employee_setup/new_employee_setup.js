@@ -68,6 +68,20 @@ frappe.pages["new-employee-setup"].on_page_load = function (wrapper) {
 			{ fieldtype: "Column Break" },
 			{ fieldname: "payroll_effective_date", fieldtype: "Date", label: __("Payroll Effective From"), depends_on: "salary_structure" },
 			{ fieldname: "default_shift", fieldtype: "Link", label: __("Default Shift"), options: "Shift Type" },
+
+			{ fieldtype: "Section Break", label: __("Confirmation & Probation") },
+			{ fieldname: "place_on_probation", fieldtype: "Check", label: __("Place on Probation"), default: 0, description: __("Keeps the employee Active for payroll/attendance/leave, while flagging them on probation.") },
+			{ fieldname: "probation_months", fieldtype: "Int", label: __("Probation Period (Months)"), depends_on: "place_on_probation", mandatory_depends_on: "place_on_probation", description: __("Confirmation is scheduled this many months after the date of joining.") },
+			{ fieldtype: "Column Break" },
+			{ fieldname: "final_confirmation_date", fieldtype: "Date", label: __("Confirmation Date"), depends_on: "eval:!doc.place_on_probation", description: __("Defaults to the application submission date. Set it to mark the employee Confirmed.") },
+
+			{ fieldtype: "Section Break", label: __("Leave") },
+			{ fieldname: "leave_policy", fieldtype: "Link", label: __("Leave Policy"), options: "Leave Policy", description: __("Assigned (and allocated) on creation. Prefilled from the company default.") },
+			{ fieldtype: "Column Break" },
+			{ fieldname: "leave_period", fieldtype: "Link", label: __("Leave Period"), options: "Leave Period", get_query: () => ({ filters: { company: fg.get_value("company") } }) },
+
+			{ fieldtype: "Section Break", label: __("Company Policies to Acknowledge"), description: __("Pre-selected from the company's active policies — untick any this joiner shouldn't have to acknowledge.") },
+			{ fieldname: "policies_to_ack", fieldtype: "MultiCheck", label: __("Policies"), columns: 2, select_all: 1, options: [] },
 		],
 	});
 	fg.make();
@@ -76,6 +90,7 @@ frappe.pages["new-employee-setup"].on_page_load = function (wrapper) {
 	// Employee"). The application name is carried via route_options and passed
 	// back on create so the application gets stamped Converted.
 	let onboardingApplication = null;
+	let jobApplicant = null;
 	const routedApp = frappe.route_options && frappe.route_options.application;
 	if (routedApp) {
 		frappe.route_options = {};
@@ -88,7 +103,11 @@ frappe.pages["new-employee-setup"].on_page_load = function (wrapper) {
 				const m = r.message;
 				if (!m) return;
 				onboardingApplication = m.onboarding_application;
+				jobApplicant = m.job_applicant;
 				delete m.onboarding_application;
+				delete m.job_applicant;
+				// Setting `company` here fires its onchange → loadCompanyDefaults(),
+				// which prefills the leave policy/period and the policy checklist.
 				Object.keys(m).forEach((k) => {
 					if (m[k]) fg.set_value(k, m[k]);
 				});
@@ -113,10 +132,16 @@ frappe.pages["new-employee-setup"].on_page_load = function (wrapper) {
 		fg.set_value("aadhaar_last_4", raw.slice(-4));
 	};
 
+	// Company drives the leave policy/period defaults, the suggested probation
+	// length, and which company policies are offered for acknowledgement.
+	fg.get_field("company").df.onchange = loadCompanyDefaults;
+
 	page.set_primary_action(__("Create Employee"), () => {
 		const values = fg.get_values(); // null + highlights if mandatory missing
 		if (!values) return;
 		if (onboardingApplication) values.onboarding_application = onboardingApplication;
+		if (jobApplicant) values.job_applicant = jobApplicant;
+		values.policies_to_ack = fg.get_value("policies_to_ack") || [];
 		frappe.confirm(__("Create the Employee, User login and linked records now?"), () => {
 			frappe.dom.freeze(__("Setting up the new employee…"));
 			frappe
@@ -132,6 +157,43 @@ frappe.pages["new-employee-setup"].on_page_load = function (wrapper) {
 				.catch(() => frappe.dom.unfreeze());
 		});
 	});
+
+	// Pull the company's leave/probation/policy defaults and prime the form.
+	function loadCompanyDefaults() {
+		const company = fg.get_value("company");
+		if (!company) {
+			setPolicyOptions([]);
+			return;
+		}
+		frappe
+			.call({
+				method: "indian_hrms_compliance.hr.employee_setup.get_setup_defaults",
+				args: { company },
+			})
+			.then((r) => {
+				const m = r.message || {};
+				// Leave policy/period are Company-scoped — reset them to this
+				// company's defaults (clearing any stale prior-company pick).
+				fg.set_value("leave_policy", m.leave_policy || "");
+				fg.set_value("leave_period", m.leave_period || "");
+				if (m.probation_months && !fg.get_value("probation_months")) {
+					fg.set_value("probation_months", m.probation_months);
+				}
+				setPolicyOptions(m.policies || []);
+			});
+	}
+
+	// Rebuild the policy checklist for the current company, every box pre-ticked.
+	function setPolicyOptions(policies) {
+		const field = fg.get_field("policies_to_ack");
+		field.df.get_data = () =>
+			(policies || []).map((p) => ({
+				label: p.version ? `${p.policy_name} (v${p.version})` : p.policy_name,
+				value: p.name,
+				checked: 1,
+			}));
+		field.refresh();
+	}
 
 	function render_result(m) {
 		const items = (m.log || []).map((l) => `<li>${frappe.utils.escape_html(l)}</li>`).join("");
@@ -149,6 +211,11 @@ frappe.pages["new-employee-setup"].on_page_load = function (wrapper) {
 			fg.set_value("create_user", 1);
 			fg.set_value("send_welcome_email", 1);
 			fg.set_value("create_user_permission", 1);
+			fg.set_value("place_on_probation", 0);
+			// A fresh manual employee must not inherit the converted one's links.
+			onboardingApplication = null;
+			jobApplicant = null;
+			setPolicyOptions([]);
 			$result.empty();
 			frappe.utils.scroll_to(0);
 		});

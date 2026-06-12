@@ -623,6 +623,7 @@ def generate_invite_link_full(
 	validity_days: int | None = None,
 	send_email: int | bool = 0,
 	offer_letter: str | None = None,
+	job_applicant: str | None = None,
 ) -> dict:
 	"""HR-only: create (or refresh) a DRAFT Employee Onboarding Application and
 	hand back an opaque invite link for the candidate.
@@ -693,6 +694,10 @@ def generate_invite_link_full(
 	)
 	if offer_letter:
 		draft.offer_letter = offer_letter
+	# Remember the originating applicant so conversion can link the Employee back
+	# to the Job Applicant (and trigger the Applicant/Offer -> Accepted cascade).
+	if job_applicant and frappe.db.exists("Job Applicant", job_applicant):
+		draft.job_applicant = job_applicant
 	draft.save(ignore_permissions=True)
 
 	# Bind the uploaded offer-letter File to the draft (keeps it private +
@@ -875,6 +880,11 @@ def get_application_for_setup(name: str) -> dict:
 	data["designation"] = doc.target_designation
 	data["employment_type"] = doc.employment_type
 	data["user_email"] = doc.personal_email
+	# Carry the originating applicant (links the Employee back to it on create).
+	data["job_applicant"] = doc.job_applicant
+	# Default the Employee's Confirmation Date to when the candidate submitted —
+	# HR can still place them on probation instead on the setup page.
+	data["final_confirmation_date"] = getdate(doc.submitted_on) if doc.submitted_on else None
 	return data
 
 
