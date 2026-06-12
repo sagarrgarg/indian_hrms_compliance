@@ -14,7 +14,7 @@
 								<FeatherIcon name="arrow-left" class="h-5 w-5" />
 							</button>
 							<h2 class="text-xl font-bold text-gray-900">
-								{{ props.pageTitle || __("Frappe HR") }}
+								{{ props.pageTitle || __("Indian HRMS") }}
 							</h2>
 							<EmployeeSwitcher />
 						</div>

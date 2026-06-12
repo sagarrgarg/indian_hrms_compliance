@@ -24,13 +24,14 @@ export default defineConfig({
 			},
 			manifest: {
 				display: "standalone",
-				name: "Frappe HR",
-				short_name: "Frappe HR",
+				name: "Indian HRMS & Compliance",
+				short_name: "Indian HRMS",
 				start_url: "/indian_hrms_compliance",
 				scope: "/indian_hrms_compliance",
 				id: "/indian_hrms_compliance",
 				description: "Everyday HR & Payroll operations at your fingertips",
 				theme_color: "#ffffff",
+				background_color: "#FFF7EE",
 				icons: [
 					{
 						src: "/assets/indian_hrms_compliance/manifest/manifest-icon-192.maskable.png",
