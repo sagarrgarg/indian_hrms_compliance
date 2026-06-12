@@ -214,6 +214,8 @@ frappe.ui.form.on("Job Applicant", {
 				],
 				primary_action_label: __("Generate Link"),
 				primary_action(values) {
+					// Tie the invite (and the eventual Employee) back to this applicant.
+					values.job_applicant = frm.doc.name;
 					frappe.dom.freeze(__("Building invite link…"));
 					frappe
 						.call({ method: GENERATE, args: values })

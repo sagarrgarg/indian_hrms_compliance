@@ -18,7 +18,7 @@ import json
 
 import frappe
 from frappe import _
-from frappe.utils import cint, flt
+from frappe.utils import add_months, cint, flt, getdate
 
 ESS_ROLES = ("Employee", "Employee Self Service")
 SETUP_ROLES = ("HR Manager", "HR User", "System Manager")
@@ -50,6 +50,10 @@ def setup_new_employee(data):
 	state = {"welcome_email_failed": False}
 
 	# --- Critical path: Employee + User (atomic) ---
+	# Suppress the company-default leave + blanket policy activation hooks for the
+	# whole Employee insert/save: the page assigns the Leave Policy and enrols the
+	# curated policy set explicitly below, so the hooks must not also fire.
+	frappe.flags.in_new_employee_setup = True
 	sp_core = "nes_core"
 	frappe.db.savepoint(sp_core)
 	try:
@@ -70,6 +74,8 @@ def setup_new_employee(data):
 			pass
 		frappe.log_error(title="Employee Setup: core failed", message=frappe.get_traceback())
 		raise
+	finally:
+		frappe.flags.in_new_employee_setup = False
 
 	# --- Best-effort: Salary Structure Assignment ---
 	if d.salary_structure:
@@ -86,12 +92,48 @@ def setup_new_employee(data):
 			frappe.log_error(title="Employee Setup: salary failed", message=frappe.get_traceback())
 			log.append(_("⚠ Salary Structure Assignment failed — assign it manually (see Error Log)."))
 
-	lpa = frappe.db.exists("Leave Policy Assignment", {"employee": emp.name, "docstatus": 1})
-	log.append(
-		_("Leave Policy auto-assigned ({0}).").format(lpa)
-		if lpa
-		else _("Leave Policy not auto-assigned (set company defaults + toggle, or assign manually).")
-	)
+	# --- Best-effort: Leave Policy Assignment (exactly what HR picked) ---
+	if d.leave_policy:
+		sp_leave = "nes_leave"
+		frappe.db.savepoint(sp_leave)
+		try:
+			lpa_name = _assign_leave_policy(d, emp)
+			log.append(_("Leave Policy Assignment {0} submitted.").format(lpa_name))
+		except Exception:
+			try:
+				frappe.db.rollback(save_point=sp_leave)
+			except Exception:
+				pass
+			frappe.log_error(title="Employee Setup: leave policy failed", message=frappe.get_traceback())
+			log.append(_("⚠ Leave Policy Assignment failed — assign it manually (see Error Log)."))
+	else:
+		log.append(_("No Leave Policy selected — assign one manually if required."))
+
+	# --- Best-effort: enrol the curated company policies for acknowledgement ---
+	policies = d.policies_to_ack
+	if isinstance(policies, str):
+		policies = json.loads(policies or "[]")
+	if policies:
+		sp_ack = "nes_acks"
+		frappe.db.savepoint(sp_ack)
+		try:
+			from indian_hrms_compliance.hr.doctype.hrms_policy.hrms_policy import (
+				create_acknowledgements_for_employee,
+			)
+
+			n = create_acknowledgements_for_employee(emp.name, only_policies=policies)
+			log.append(
+				_("Queued {0} policy acknowledgement(s).").format(n)
+				if n
+				else _("No new policy acknowledgements were needed.")
+			)
+		except Exception:
+			try:
+				frappe.db.rollback(save_point=sp_ack)
+			except Exception:
+				pass
+			frappe.log_error(title="Employee Setup: policy acks failed", message=frappe.get_traceback())
+			log.append(_("⚠ Policy acknowledgements failed — see Error Log."))
 
 	# Launched from a self-service onboarding application? Close the loop.
 	if d.onboarding_application:
@@ -136,14 +178,37 @@ def _create_employee(d):
 			"expense_approver": d.expense_approver,
 			"shift_request_approver": d.shift_request_approver,
 			"default_shift": d.default_shift,
+			# Setting job_applicant here lets the Employee after_insert cascade mark
+			# the linked Job Applicant (and any Job Offer) as Accepted.
+			"job_applicant": d.job_applicant or None,
 			"create_user_permission": 1 if (cint(d.create_user) and cint(d.create_user_permission)) else 0,
 		}
 	)
+	_apply_confirmation(emp, d)
 	if d.user_email:
 		emp.personal_email = d.user_email
 		emp.prefered_contact_email = "Personal Email"
 	emp.insert()
 	return emp
+
+
+def _apply_confirmation(emp, d):
+	"""Set the employee's probation / confirmation state from the setup page.
+
+	On probation: status field stays Active (so payroll/attendance/leave keep
+	working) while confirmation_status=Probation flags it, and the expected
+	confirmation date is DOJ + the chosen months (held in
+	scheduled_confirmation_date, the same field the app's probation schedule
+	hook uses). Otherwise, if HR supplied a Confirmation Date, mark Confirmed.
+	"""
+	if cint(d.place_on_probation):
+		emp.confirmation_status = "Probation"
+		months = cint(d.probation_months)
+		if months > 0 and d.date_of_joining:
+			emp.scheduled_confirmation_date = add_months(getdate(d.date_of_joining), months)
+	elif d.final_confirmation_date:
+		emp.confirmation_status = "Confirmed"
+		emp.final_confirmation_date = getdate(d.final_confirmation_date)
 
 
 def _create_user(d, emp, state):
@@ -202,6 +267,28 @@ def _assign_salary(d, emp):
 	return ssa.name
 
 
+def _assign_leave_policy(d, emp):
+	"""Create + submit a Leave Policy Assignment for the policy HR picked.
+
+	Leave Period based when a period is chosen (the controller derives the
+	effective dates from it); otherwise Joining Date based (dates derived from
+	the employee's DOJ). Submitting cascades into Leave Allocations.
+	"""
+	from indian_hrms_compliance.hr.doctype.leave_policy_assignment.leave_policy_assignment import (
+		create_assignment,
+	)
+
+	data = frappe._dict(leave_policy=d.leave_policy, carry_forward=0)
+	if d.leave_period:
+		data.assignment_based_on = "Leave Period"
+		data.leave_period = d.leave_period
+	else:
+		data.assignment_based_on = "Joining Date"
+	assignment = create_assignment(emp.name, data)
+	assignment.submit()
+	return assignment.name
+
+
 def _default_income_tax_slab(company, on_date):
 	slabs = frappe.get_all(
 		"Income Tax Slab",
@@ -216,3 +303,31 @@ def _default_income_tax_slab(company, on_date):
 		if s.company == company:
 			return s.name
 	return slabs[0].name
+
+
+@frappe.whitelist()
+def get_setup_defaults(company: str | None = None) -> dict:
+	"""Per-company defaults the New Employee Setup page prefills: the company's
+	default Leave Policy + Leave Period, a suggested probation length (from HR
+	Settings), and the company's Active acknowledgement-requiring policies to
+	offer (pre-checked) for the new joiner."""
+	frappe.only_for(SETUP_ROLES)
+	out = {"leave_policy": None, "leave_period": None, "probation_months": None, "policies": []}
+	if not company:
+		return out
+
+	out["leave_policy"], out["leave_period"] = frappe.get_cached_value(
+		"Company", company, ["default_leave_policy", "default_leave_period"]
+	)
+
+	days = cint(frappe.db.get_single_value("HR Settings", "default_probation_period_days"))
+	if days > 0:
+		out["probation_months"] = max(1, round(days / 30))
+
+	out["policies"] = frappe.get_all(
+		"HRMS Policy",
+		filters={"status": "Active", "requires_acknowledgement": 1, "company": company},
+		fields=["name", "policy_name", "version"],
+		order_by="policy_name asc",
+	)
+	return out
