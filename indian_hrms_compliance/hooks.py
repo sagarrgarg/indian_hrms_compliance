@@ -268,6 +268,27 @@ doc_events = {
 	"Job Applicant": {
 		"validate": "indian_hrms_compliance.overrides.job_applicant.detect_internal_applicant",
 	},
+	"Employee Onboarding Application": {
+		"before_insert": "indian_hrms_compliance.hr.doctype.employee_onboarding_application.employee_onboarding_application.before_guest_insert",
+	},
+	# When a check-in is recorded (manual, biometric import, or PWA), every HR
+	# viewer of the Org Attendance roll-call should see the bucket shift.
+	"Employee Checkin": {
+		"after_insert": "indian_hrms_compliance.api.publish_org_attendance_refetch",
+	},
+	# Leave Application approved/cancelled also moves an employee between the
+	# on_leave and not_yet_in / in_now buckets.
+	"Leave Application": {
+		"on_update_after_submit": "indian_hrms_compliance.api.publish_org_attendance_refetch",
+		"on_submit": "indian_hrms_compliance.api.publish_org_attendance_refetch",
+	},
+	# Marked Attendance (scheduler overnight + HR mid-day) flips an employee
+	# between Present / Absent / On Leave on the past-date roll-call.
+	"Attendance": {
+		"on_submit": "indian_hrms_compliance.api.publish_org_attendance_refetch",
+		"on_update_after_submit": "indian_hrms_compliance.api.publish_org_attendance_refetch",
+		"on_cancel": "indian_hrms_compliance.api.publish_org_attendance_refetch",
+	},
 	"Appraisal": {
 		"validate": "indian_hrms_compliance.overrides.appraisal.populate_kra_performance",
 	},

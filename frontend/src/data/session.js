@@ -36,7 +36,16 @@ export const session = reactive({
 	},
 	logout: createResource({
 		url: "logout",
-		onSuccess() {
+		async onSuccess() {
+			// In the native shell, unhook this device from the site's push so the
+			// user stops getting this company's notifications after logout.
+			try {
+				const { teardownNativePush } = await import("@/composables/useNativePush")
+				await teardownNativePush()
+			} catch (e) {
+				/* best-effort */
+			}
+
 			userResource.reset()
 			employeeResource.reset()
 

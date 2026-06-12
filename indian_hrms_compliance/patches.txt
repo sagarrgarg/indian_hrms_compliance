@@ -84,3 +84,9 @@ indian_hrms_compliance.patches.v15_0.update_leave_notification_templates #2026-0
 indian_hrms_compliance.patches.v15_0.add_company_salary_component_defaults #2026-05-31
 indian_hrms_compliance.patches.v15_0.add_employee_readiness_tab #2026-05-31
 indian_hrms_compliance.patches.v15_0.add_task_delegation_fields #2026-05-31
+indian_hrms_compliance.patches.v15_0.onboarding_compliance_lockdown #2026-06-04
+indian_hrms_compliance.patches.v15_0.posh_text_accused_split #2026-06-04
+indian_hrms_compliance.patches.v15_0.add_full_aadhaar_field #2026-06-04
+indian_hrms_compliance.patches.v15_0.add_profile_change_request_settings #2026-06-04
+indian_hrms_compliance.patches.v15_0.add_consent_text_version_setting #2026-06-04
+indian_hrms_compliance.patches.v15_0.onboarding_required_documents #2026-06-12

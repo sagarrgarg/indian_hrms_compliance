@@ -234,9 +234,19 @@
 						<!-- 5. Trends -->
 						<GlassCard :title="__('Trends')" class="lg:col-span-2">
 							<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-								<div v-for="t in trendList" :key="t.key">
+								<div
+									v-for="t in trendList"
+									:key="t.key"
+									:class="t.key === 'on_leave' ? 'cursor-pointer hover:opacity-80' : ''"
+									@click="t.key === 'on_leave' && go('OrgAttendance')"
+								>
 									<div class="flex items-center justify-between mb-1">
-										<span class="text-xs text-gray-500">{{ t.label }}</span>
+										<span class="text-xs text-gray-500">
+											{{ t.label }}
+											<span v-if="t.key === 'on_leave'" class="ml-1 text-[10px] text-indigo-500">
+												{{ __("→ roll-call") }}
+											</span>
+										</span>
 										<span class="text-xs font-semibold text-gray-700">
 											{{ t.points?.[t.points.length - 1] ?? 0 }}
 										</span>
@@ -324,6 +334,12 @@ function go(routeName) {
 	if (routeName) router.push({ name: routeName }).catch(() => {})
 }
 function goHome() {
-	router.push({ name: "Home" })
+	// Behave like a real back button when there's nav history, else fall back
+	// to Home so the user is never stranded (e.g., when Cockpit is the entry route).
+	if (window.history.length > 1) {
+		router.back()
+	} else {
+		router.push({ name: "Home" })
+	}
 }
 </script>

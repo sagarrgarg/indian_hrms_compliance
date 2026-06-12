@@ -158,6 +158,7 @@ import EmployeeAdvanceIcon from "@/components/icons/EmployeeAdvanceIcon.vue"
 import PrivacyIcon from "@/components/icons/PrivacyIcon.vue"
 import ExitIcon from "@/components/icons/ExitIcon.vue"
 import SalaryIcon from "@/components/icons/SalaryIcon.vue"
+import PolicyIcon from "@/components/icons/PolicyIcon.vue"
 
 import { arePushNotificationsEnabled } from "@/data/notifications"
 
@@ -173,6 +174,8 @@ const router = useRouter()
 
 // Moved off the daily Home: one-time / non-daily / sensitive actions.
 const actionLinks = [
+	{ icon: markRaw(PolicyIcon), title: __("Request Profile Update"), route: "EditProfile", color: "indigo" },
+	{ icon: markRaw(PolicyIcon), title: __("My Update Requests"), route: "MyProfileUpdates", color: "sky" },
 	{ icon: markRaw(LeaveIcon), title: __("Request Leave"), route: "LeaveApplicationFormView", color: "emerald" },
 	{ icon: markRaw(EmployeeAdvanceIcon), title: __("Request an Advance"), route: "EmployeeAdvanceFormView", color: "teal" },
 	{ icon: markRaw(SalaryIcon), title: __("Tax Declaration"), route: "TaxDeclaration", color: "amber" },

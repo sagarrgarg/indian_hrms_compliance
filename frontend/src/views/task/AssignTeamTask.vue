@@ -6,7 +6,7 @@
 					<Button variant="ghost" class="!px-1 mr-1 hover:bg-white" @click="router.back()">
 						<FeatherIcon name="chevron-left" class="h-5 w-5" />
 					</Button>
-					<h2 class="text-xl font-semibold text-gray-900 truncate">{{ __("Assign Task to Team") }}</h2>
+					<h2 class="text-xl font-semibold text-gray-900 truncate">{{ __("Add Task") }}</h2>
 				</div>
 			</div>
 		</ion-header>
@@ -15,17 +15,13 @@
 			<div class="w-full sm:max-w-3xl sm:mx-auto p-4 flex flex-col gap-5 pb-28">
 				<FormControl
 					type="select"
-					:label="__('Team Member')"
+					:label="__('Assign To')"
 					:options="memberOptions"
 					v-model="form.employee"
 				/>
 				<FormControl type="text" :label="__('Task Title')" v-model="form.title" :placeholder="__('What needs to be done')" />
 				<FormControl type="date" :label="__('Due Date')" v-model="form.due_date" />
 				<FormControl type="textarea" :label="__('Details (optional)')" v-model="form.description" />
-
-				<p v-if="!myTeam.data?.length" class="text-sm text-amber-600">
-					{{ __("You have no direct reports to assign tasks to.") }}
-				</p>
 
 				<Button
 					variant="solid"
@@ -55,8 +51,13 @@ const router = useRouter()
 myTeam.fetch()
 
 const memberOptions = computed(() => [
-	{ label: __("Select a team member"), value: "" },
-	...(myTeam.data || []).map((m) => ({ label: `${m.employee_name} (${m.designation || m.name})`, value: m.name })),
+	{ label: __("Select an assignee"), value: "" },
+	...(myTeam.data || []).map((m) => ({
+		label: m.is_self
+			? m.employee_name // already prefixed "Myself (...)" server-side
+			: `${m.employee_name} (${m.designation || m.name})`,
+		value: m.name,
+	})),
 ])
 
 const form = reactive({ employee: "", title: "", due_date: "", description: "" })
@@ -72,10 +73,10 @@ function onAssign() {
 			description: form.description || undefined,
 		},
 		{
-			onSuccess() {
+			onSuccess(result) {
 				toast({
-					title: __("Assigned"),
-					text: __("Task assigned to your team member"),
+					title: __("Added"),
+					text: result?.is_self ? __("Task added to your list") : __("Task assigned"),
 					icon: "check-circle",
 					position: "bottom-center",
 					iconClasses: "text-green-500",

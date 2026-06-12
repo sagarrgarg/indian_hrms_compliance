@@ -44,7 +44,8 @@ frappe.pages["new-employee-setup"].on_page_load = function (wrapper) {
 
 			{ fieldtype: "Section Break", label: __("Statutory IDs") },
 			{ fieldname: "pan_number", fieldtype: "Data", label: __("PAN"), reqd: 1 },
-			{ fieldname: "aadhaar_last_4", fieldtype: "Data", label: __("Aadhaar (last 4)") },
+			{ fieldname: "aadhaar_number", fieldtype: "Data", label: __("Aadhaar Number"), length: 12, description: __("12 digits; auto-derives last 4 for legacy reports.") },
+			{ fieldname: "aadhaar_last_4", fieldtype: "Data", label: __("Aadhaar (last 4)"), read_only: 1 },
 			{ fieldname: "uan_number", fieldtype: "Data", label: __("UAN") },
 			{ fieldtype: "Column Break" },
 			{ fieldname: "provident_fund_account", fieldtype: "Data", label: __("PF Account") },
@@ -103,6 +104,13 @@ frappe.pages["new-employee-setup"].on_page_load = function (wrapper) {
 		if (fg.get_value("date_of_joining") && !fg.get_value("payroll_effective_date")) {
 			fg.set_value("payroll_effective_date", fg.get_value("date_of_joining"));
 		}
+	};
+
+	// Live derive last-4 from the full Aadhaar — keeps the legacy column in sync.
+	fg.get_field("aadhaar_number").df.onchange = () => {
+		const raw = (fg.get_value("aadhaar_number") || "").toString().replace(/\D/g, "");
+		if (raw !== fg.get_value("aadhaar_number")) fg.set_value("aadhaar_number", raw);
+		fg.set_value("aadhaar_last_4", raw.slice(-4));
 	};
 
 	page.set_primary_action(__("Create Employee"), () => {

@@ -20,7 +20,10 @@
   "accused_section",
   "accused",
   "accused_employee_name",
+  "column_break_accused",
+  "accused_department",
   "accused_company",
+  "accused_employee_link",
   "incident_section",
   "incident_date",
   "incident_location",
@@ -126,26 +129,40 @@
   },
   {
    "fieldname": "accused",
-   "fieldtype": "Link",
-   "options": "Employee",
-   "label": "Accused",
+   "fieldtype": "Data",
+   "label": "Accused (as you know them)",
    "reqd": 1,
-   "description": "May be from a different Company within the group; the complaint stays with the complainant's Company IC."
+   "description": "Type the accused person's full name. Don't worry about the employee ID — the IC will identify them during the inquiry. Keep this confidential."
   },
   {
-   "fetch_from": "accused.employee_name",
    "fieldname": "accused_employee_name",
    "fieldtype": "Data",
-   "label": "Accused Name",
-   "read_only": 1
+   "label": "Accused — Display Name (optional)",
+   "description": "Optional alternative name / nickname if different from the legal name above."
   },
   {
-   "fetch_from": "accused.company",
+   "fieldname": "column_break_accused",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "accused_department",
+   "fieldtype": "Data",
+   "label": "Accused's Department / Team",
+   "description": "Helps the IC narrow down the right person. e.g. 'Sales — North' or 'Plant Operations'."
+  },
+  {
    "fieldname": "accused_company",
+   "fieldtype": "Data",
+   "label": "Accused's Company / Location",
+   "description": "Company name or office location of the accused, to the best of your knowledge."
+  },
+  {
+   "fieldname": "accused_employee_link",
    "fieldtype": "Link",
-   "options": "Company",
-   "label": "Accused's Company",
-   "read_only": 1
+   "options": "Employee",
+   "label": "Accused — Resolved Employee Record (IC use only)",
+   "no_copy": 1,
+   "description": "Filled in by the IC once the accused is positively identified. This is what grants the accused system access to respond to the complaint (Sec 11 POSH Act, principles of natural justice). The complainant cannot edit this field."
   },
   {
    "fieldname": "incident_section",

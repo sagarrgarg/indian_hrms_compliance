@@ -5,7 +5,7 @@ import re
 
 import frappe
 from frappe import _
-from frappe.model.naming import set_name_by_naming_series
+from frappe.model.naming import make_autoname, set_name_by_naming_series
 from frappe.utils import add_years, cint, get_link_to_form, getdate
 
 from erpnext.setup.doctype.employee.employee import Employee
@@ -14,6 +14,54 @@ PAN_RE = re.compile(r"^[A-Z]{5}[0-9]{4}[A-Z]$")
 UAN_RE = re.compile(r"^[0-9]{12}$")
 IFSC_RE = re.compile(r"^[A-Z]{4}0[A-Z0-9]{6}$")
 AADHAAR_LAST4_RE = re.compile(r"^[0-9]{4}$")
+AADHAAR_FULL_RE = re.compile(r"^[2-9][0-9]{11}$")  # UIDAI: 12 digits, first digit 2-9
+
+
+# Verhoeff lookup tables — used by UIDAI as the Aadhaar checksum algorithm.
+# Pulled from the Verhoeff paper; not project-specific.
+_VERHOEFF_D = (
+	(0, 1, 2, 3, 4, 5, 6, 7, 8, 9),
+	(1, 2, 3, 4, 0, 6, 7, 8, 9, 5),
+	(2, 3, 4, 0, 1, 7, 8, 9, 5, 6),
+	(3, 4, 0, 1, 2, 8, 9, 5, 6, 7),
+	(4, 0, 1, 2, 3, 9, 5, 6, 7, 8),
+	(5, 9, 8, 7, 6, 0, 4, 3, 2, 1),
+	(6, 5, 9, 8, 7, 1, 0, 4, 3, 2),
+	(7, 6, 5, 9, 8, 2, 1, 0, 4, 3),
+	(8, 7, 6, 5, 9, 3, 2, 1, 0, 4),
+	(9, 8, 7, 6, 5, 4, 3, 2, 1, 0),
+)
+_VERHOEFF_P = (
+	(0, 1, 2, 3, 4, 5, 6, 7, 8, 9),
+	(1, 5, 7, 6, 2, 8, 3, 0, 9, 4),
+	(5, 8, 0, 3, 7, 9, 6, 1, 4, 2),
+	(8, 9, 1, 6, 0, 4, 3, 5, 2, 7),
+	(9, 4, 5, 3, 1, 2, 6, 8, 7, 0),
+	(4, 2, 8, 6, 5, 7, 3, 9, 0, 1),
+	(2, 7, 9, 3, 8, 0, 6, 4, 1, 5),
+	(7, 0, 4, 6, 9, 1, 3, 2, 5, 8),
+)
+
+
+def verhoeff_check_aadhaar(num: str) -> bool:
+	"""UIDAI Aadhaar checksum verification (Verhoeff algorithm).
+	Returns True if the supplied 12-digit string is internally consistent.
+	Does NOT verify that the number was actually issued — only that it's
+	mathematically possible. Useful to catch typos before storing PII.
+	"""
+	if not num or len(num) != 12 or not num.isdigit():
+		return False
+	c = 0
+	for i, n in enumerate(reversed(num)):
+		c = _VERHOEFF_D[c][_VERHOEFF_P[i % 8][int(n)]]
+	return c == 0
+
+
+def mask_aadhaar(num: str) -> str:
+	"""Return a display-safe rendering: 'XXXX XXXX 1234'."""
+	if not num or len(num) != 12 or not num.isdigit():
+		return num or ""
+	return f"XXXX XXXX {num[-4:]}"
 
 
 def _employee_link(name):
@@ -26,6 +74,7 @@ PERSON_LEVEL_FIELDS = (
 	"pan_number",
 	"uan_number",
 	"esic_ip_number",
+	"aadhaar_number",
 	"aadhaar_last_4",
 	"nps_pran",
 	"date_of_birth",
@@ -54,12 +103,39 @@ def resolve_employee_approver(value):
 	return value
 
 
+def employee_id_series_for_company(company: str) -> str | None:
+	"""Per-company Employee ID series derived from the Company's abbreviation.
+
+	Company abbr 'GGIL' -> series 'GGIL-.###', which make_autoname expands to
+	GGIL-001, GGIL-002, ... The numeric counter is stored PER prefix in
+	tabSeries, so every company numbers its own people independently
+	(GGIL-001, KGOPL-001, GGIL-002). Returns None when the company has no
+	usable abbreviation, so the caller can fall back to the HR Settings method.
+	"""
+	if not company:
+		return None
+	abbr = frappe.db.get_value("Company", company, "abbr")
+	# Keep the prefix tidy and stable as a tabSeries key: alphanumerics only,
+	# upper-cased (so 'ggil' and 'GGIL' never split into two counters).
+	abbr = re.sub(r"[^A-Za-z0-9]", "", (abbr or "")).upper()
+	if not abbr:
+		return None
+	return f"{abbr}-.###"
+
+
 class EmployeeMaster(Employee):
 	def autoname(self):
-		naming_method = frappe.db.get_value("HR Settings", None, "emp_created_by")
-		if not naming_method:
-			frappe.throw(_("Please setup Employee Naming System in Human Resource > HR Settings"))
+		series = employee_id_series_for_company(self.company)
+		if series:
+			# Company-abbreviation Employee IDs — e.g. GGIL-001, KGOPL-001,
+			# GGIL-002. The counter is kept per prefix in tabSeries, so each
+			# company numbers its people independently.
+			self.name = make_autoname(series, doc=self)
 		else:
+			# No company abbreviation to key off — honour the HR Settings method.
+			naming_method = frappe.db.get_value("HR Settings", None, "emp_created_by")
+			if not naming_method:
+				frappe.throw(_("Please setup Employee Naming System in Human Resource > HR Settings"))
 			if naming_method == "Naming Series":
 				set_name_by_naming_series(self)
 			elif naming_method == "Employee Number":
@@ -103,7 +179,21 @@ def validate_statutory_id_formats(doc, method=None):
 		frappe.throw(_("UAN must be exactly 12 digits."))
 	if doc.get("ifsc_code") and not IFSC_RE.match(doc.ifsc_code):
 		frappe.throw(_("IFSC must be 4 letters + '0' + 6 alphanumeric (e.g., HDFC0001234)."))
-	if doc.get("aadhaar_last_4") and not AADHAAR_LAST4_RE.match(doc.aadhaar_last_4):
+
+	# Aadhaar: full 12-digit number is the canonical input now. If it's set,
+	# validate it AND auto-derive the legacy aadhaar_last_4 column so audits,
+	# UAN-Aadhaar linkage checks, and DPDP reports keep working unchanged.
+	if doc.get("aadhaar_number"):
+		num = str(doc.aadhaar_number).strip()
+		if not AADHAAR_FULL_RE.match(num):
+			frappe.throw(_("Aadhaar must be exactly 12 digits and start with 2-9."))
+		if not verhoeff_check_aadhaar(num):
+			frappe.throw(_("Aadhaar checksum failed — please re-check the number."))
+		# Always keep the derived last-4 in sync.
+		if doc.get("aadhaar_last_4") != num[-4:]:
+			doc.aadhaar_last_4 = num[-4:]
+	elif doc.get("aadhaar_last_4") and not AADHAAR_LAST4_RE.match(doc.aadhaar_last_4):
+		# Legacy path: only the last 4 are present (e.g., pre-migration data).
 		frappe.throw(_("Aadhaar Last 4 Digits must be exactly 4 digits."))
 
 

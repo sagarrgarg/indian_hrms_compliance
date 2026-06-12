@@ -3,11 +3,183 @@ from frappe import _
 from frappe.model import get_permitted_fields
 from frappe.model.workflow import get_workflow_name
 from frappe.query_builder import Order
-from frappe.utils import add_days, date_diff, flt, getdate, strip_html
+from frappe.utils import add_days, date_diff, flt, getdate, now_datetime, strip_html
 
 from erpnext.setup.doctype.employee.employee import get_holiday_list_for_employee
 
 from indian_hrms_compliance.overrides.employee_master import resolve_employee_approver
+
+# ---------------------------------------------------------------------------
+# Real-time refresh helpers — used by all PWA-facing mutations.
+# ---------------------------------------------------------------------------
+#
+# The PWA's socket handler (frontend/src/socket.js) listens for the event
+# "indian_hrms_compliance:refetch_resource" carrying a {cache_key} payload and
+# calls .reload() on the matching frappe-ui resource. Every state-changing
+# endpoint (approve/reject/submit/withdraw/create/...) publishes one of these
+# to keep open screens fresh without a manual pull-to-refresh.
+#
+# Routing rules:
+#   * Approver-targeted (per-user, narrow): the approving HR/manager's inbox
+#     + summary should re-pull right after their action.
+#   * Requester-targeted (per-user, narrow): the employee whose request was
+#     acted on should see the consequence (their leaves / claims / exit
+#     dashboard / etc.) without refreshing.
+#   * HR-targeted (small fan-out): when a new request lands, every HR user's
+#     inbox should bump.
+#   * Broadcast (user=None): only for org-wide data (Org Attendance) where
+#     enumerating recipients isn't worth the SQL.
+#
+# Failures are swallowed — a websocket hiccup must NEVER undo a committed DB
+# write. The user can always pull-to-refresh.
+
+
+def _pwa_refetch(cache_keys: "str | list[str]", user: str | None = None) -> None:
+	if isinstance(cache_keys, str):
+		cache_keys = [cache_keys]
+	for key in cache_keys:
+		try:
+			frappe.publish_realtime(
+				"indian_hrms_compliance:refetch_resource",
+				{"cache_key": key},
+				user=user,
+				after_commit=True,
+			)
+		except Exception:
+			pass
+
+
+_INBOX_CACHE_KEYS = (
+	"indian_hrms_compliance:pending_approvals",
+	"indian_hrms_compliance:approvals_summary",
+)
+
+
+_ORG_ATT_REFETCH_FLAG = "_ihc_org_att_published"
+_ORG_ATT_RECIPIENTS_FLAG = "_ihc_org_att_recipients"
+
+
+def _resolve_org_attendance_recipients() -> set[str]:
+	"""All Users who might be viewing the Org Attendance roll-call:
+	  * HR Manager / HR User holders (the "see all" path), and
+	  * Users whose Employee has at least one Active direct report (the "team" path).
+
+	Cached on frappe.local per request — biometric imports fire the hook
+	hundreds of times in one request and we don't want to re-query each time.
+	"""
+	cached = getattr(frappe.local, _ORG_ATT_RECIPIENTS_FLAG, None)
+	if cached is not None:
+		return cached
+
+	recipients: set[str] = set()
+
+	# HR roles
+	hr_users = frappe.get_all(
+		"Has Role",
+		filters={"role": ("in", ("HR Manager", "HR User", "System Manager"))},
+		pluck="parent",
+	)
+	recipients.update(u for u in hr_users if u and u not in ("Administrator", "Guest"))
+
+	# Reporting managers with at least one Active direct report.
+	manager_users = frappe.db.sql_list(
+		"""
+		SELECT DISTINCT m.user_id
+		FROM `tabEmployee` m
+		JOIN `tabEmployee` r ON r.reports_to = m.name
+		WHERE m.status = 'Active'
+		  AND r.status = 'Active'
+		  AND m.user_id IS NOT NULL
+		  AND m.user_id != ''
+		"""
+	) or []
+	recipients.update(u for u in manager_users if u and u not in ("Administrator", "Guest"))
+
+	try:
+		setattr(frappe.local, _ORG_ATT_RECIPIENTS_FLAG, recipients)
+	except Exception:
+		pass
+	return recipients
+
+
+def publish_org_attendance_refetch(doc=None, method=None) -> None:
+	"""doc_events hook target — push a refetch of the Org Attendance roll-call
+	to every user who might be viewing it (HR + reporting managers).
+
+	Why per-user fan-out instead of a single ``user=None`` broadcast: Frappe's
+	socket.io server auto-joins the ``"all"`` room only for ``user_type ==
+	"System User"`` (see realtime/handlers/frappe_handlers.js). A user=None
+	broadcast routes to ``"all"``, which means Website-User HRs (rare) and any
+	other non-System-User who can view this screen would silently miss it.
+	Per-user push targets their personal room, which every authenticated
+	socket joins on connection — reliable regardless of user_type.
+
+	In-request debounce via frappe.local: biometric imports + bulk leave
+	approvals fire this hundreds of times in one request — we want one
+	publish per recipient per request, not N. The recipients query is also
+	cached on frappe.local so we don't re-enumerate per call.
+	"""
+	if getattr(frappe.local, _ORG_ATT_REFETCH_FLAG, False):
+		return
+	try:
+		setattr(frappe.local, _ORG_ATT_REFETCH_FLAG, True)
+	except Exception:
+		pass
+	for user in _resolve_org_attendance_recipients():
+		_pwa_refetch("indian_hrms_compliance:org_attendance_today", user=user)
+
+
+def _broadcast_hr_inbox_refresh() -> None:
+	"""All HR-role users refresh their inbox. Small fan-out — HR teams are small."""
+	hr_users = frappe.get_all(
+		"Has Role",
+		filters={"role": ("in", ("HR Manager", "HR User"))},
+		pluck="parent",
+	)
+	for u in {u for u in hr_users if u and u not in ("Administrator", "Guest")}:
+		_pwa_refetch(list(_INBOX_CACHE_KEYS), user=u)
+
+
+# Per-doctype cache keys to refresh for the REQUESTER after their request is
+# acted on (approved or rejected). Empty list = nothing employee-side to refresh.
+_REQUESTER_CACHE_KEYS_BY_DOCTYPE: dict[str, tuple[str, ...]] = {
+	"Leave Application": (
+		"indian_hrms_compliance:my_leaves",
+		"indian_hrms_compliance:leave_balance",
+	),
+	"Expense Claim": (
+		"indian_hrms_compliance:my_claims",
+		"indian_hrms_compliance:expense_claim_summary",
+	),
+	"Employee Advance": ("indian_hrms_compliance:employee_advance_balance",),
+	"Shift Request": ("indian_hrms_compliance:my_shift_requests",),
+	"Attendance Request": ("indian_hrms_compliance:my_attendance_requests",),
+	"Resignation Request": (
+		"indian_hrms_compliance:my_resignation_status",
+		"indian_hrms_compliance:my_exit_clearance",
+		"indian_hrms_compliance:my_exit_documents",
+	),
+	"Goal": (
+		"indian_hrms_compliance:my_tasks",
+		"indian_hrms_compliance:my_tasks_dashboard",
+		"indian_hrms_compliance:my_task_summary",
+	),
+	"Employee Grievance": ("indian_hrms_compliance:my_grievances",),
+	# Profile Change + Onboarding Application don't have a per-employee resource
+	# on the PWA today; their consequence (Employee record changes) auto-pushes
+	# via the Employee list_update subscription used by Profile.vue.
+	"Employee Profile Change Request": (),
+	"Employee Onboarding Application": (),
+}
+
+
+def _refresh_requester(doctype: str, requester_user: str | None) -> None:
+	if not requester_user:
+		return
+	keys = _REQUESTER_CACHE_KEYS_BY_DOCTYPE.get(doctype, ())
+	if keys:
+		_pwa_refetch(list(keys), user=requester_user)
+
 
 SUPPORTED_FIELD_TYPES = [
 	"Link",
@@ -198,6 +370,56 @@ def are_push_notifications_enabled() -> bool:
 	except frappe.DoesNotExistError:
 		# push notifications are not supported in the current framework version
 		return False
+
+
+# ---------------------------------------------------------------------------
+# Native wrapper handshake — used by the Capacitor app's URL-onboarding screen.
+# ---------------------------------------------------------------------------
+#
+# The configurable native shell asks the user for their company's site URL,
+# then probes these PUBLIC endpoints to (a) confirm it's a reachable Frappe
+# site, and (b) discover which HR app is installed and what PWA route to load.
+# Neither returns sensitive data — safe for allow_guest.
+
+
+@frappe.whitelist(allow_guest=True)
+def ping() -> dict:
+	"""Cheapest possible 'is this a Frappe site running our app?' probe.
+	Returns a tiny constant payload. The wrapper uses a 200 + the expected
+	`app` marker to validate the URL the user typed before going further."""
+	return {"app": "indian_hrms_compliance", "ok": True}
+
+
+@frappe.whitelist(allow_guest=True)
+def site_capabilities() -> dict:
+	"""Lets the native wrapper self-configure against any site.
+
+	Returns the installed HR apps (most-specific first) and the PWA route the
+	wrapper should load. The wrapper shows a friendly 'HRMS isn't installed on
+	this site' message when `pwa_route` is null instead of a blank WebView.
+
+	Public + value-free: only app names + routes, never employee data.
+	"""
+	installed = set(frappe.get_installed_apps())
+
+	apps: list[dict] = []
+	# Most-specific app first — indian_hrms_compliance extends hrms, so prefer it.
+	if "indian_hrms_compliance" in installed:
+		apps.append(
+			{"key": "indian_hrms_compliance", "label": "HR & Compliance", "route": "/indian_hrms_compliance"}
+		)
+	elif "hrms" in installed:
+		apps.append({"key": "hrms", "label": "HR", "route": "/hrms"})
+
+	pwa_route = apps[0]["route"] if apps else None
+
+	return {
+		"site_name": frappe.local.site,
+		"app": "indian_hrms_compliance",
+		"apps": apps,
+		"pwa_route": pwa_route,
+		"push_relay_configured": bool(frappe.conf.get("push_relay_server_url")),
+	}
 
 
 # Attendance
@@ -1002,7 +1224,22 @@ TASK_INSTANCE_FIELDS = [
 	"approver_user",
 	"delegated_from",
 	"performed_by",
+	# Audit / dashboard:
+	"owner",          # the user who created the Goal — used to identify the
+	                  # assigner for ad-hoc tasks (also drives overdue alerts).
+	"creation",
 ]
+
+
+def _annotate_requires_approval(tasks: list[dict]) -> None:
+	"""Look up requires_approval from the HRMS Task template once per template."""
+	cache: dict[str, int] = {}
+	for t in tasks:
+		template = t.get("task_template")
+		if template and template not in cache:
+			cache[template] = frappe.db.get_value("HRMS Task", template, "requires_approval") or 0
+		t["requires_approval"] = cache.get(template, 0)
+		t["is_adhoc"] = 1 if not template else 0
 
 
 @frappe.whitelist()
@@ -1038,19 +1275,68 @@ def get_my_task_instances(status_filter: str | None = None, period: str | None =
 		fields=TASK_INSTANCE_FIELDS,
 		order_by="due_date asc",
 	)
-
-	# requires_approval comes from the task template — surface it so the PWA
-	# knows whether completion routes to approval or finishes outright.
-	template_cache: dict[str, int] = {}
-	for task in tasks:
-		template = task.get("task_template")
-		if template and template not in template_cache:
-			template_cache[template] = (
-				frappe.db.get_value("HRMS Task", template, "requires_approval") or 0
-			)
-		task["requires_approval"] = template_cache.get(template, 0)
-
+	_annotate_requires_approval(tasks)
 	return tasks
+
+
+@frappe.whitelist()
+def get_my_tasks_dashboard() -> dict:
+	"""Single-call payload for the My Tasks PWA screen — five partitioned
+	buckets so the front-end doesn't have to make round-trips per tab:
+
+	  - today           : OPEN recurring tasks (with a template) due today
+	  - adhoc           : OPEN ad-hoc tasks (no template), regardless of due
+	                      date, not yet overdue — these are "do soon" work
+	  - upcoming        : OPEN recurring tasks due tomorrow or later
+	  - overdue         : OPEN tasks (any kind) past due
+	  - completed_week  : status=Completed, modified within the current ISO week
+
+	An ad-hoc task that's been overdue counts only in `overdue`, not `adhoc`,
+	so users see one item exactly once per screen view. Recurring tasks bucket
+	by due date the way they always did.
+	"""
+	employee = get_current_employee()
+	today_d = getdate()
+	week_start = add_days(today_d, -getdate(today_d).weekday())
+	open_states = ["Pending", "In Progress"]
+
+	def _list(extra: dict) -> list[dict]:
+		filters = {"goal_type": "Task Instance", "employee": employee, **extra}
+		rows = frappe.get_list("Goal", filters=filters, fields=TASK_INSTANCE_FIELDS, order_by="due_date asc")
+		_annotate_requires_approval(rows)
+		return rows
+
+	today_tasks = _list(
+		{"status": ("in", open_states), "due_date": today_d, "task_template": ("is", "set")}
+	)
+	upcoming_tasks = _list(
+		{"status": ("in", open_states), "due_date": (">", today_d), "task_template": ("is", "set")}
+	)
+	adhoc_tasks = _list(
+		{
+			"status": ("in", open_states),
+			"task_template": ("is", "not set"),
+			"due_date": (">=", today_d),
+		}
+	)
+	overdue_tasks = _list({"status": ("in", open_states), "due_date": ("<", today_d)})
+	completed_week = _list({"status": "Completed", "modified": (">=", week_start)})
+
+	summary = {
+		"due_today": len(today_tasks) + sum(1 for t in adhoc_tasks if t.get("due_date") == today_d),
+		"adhoc_open": len(adhoc_tasks),
+		"overdue": len(overdue_tasks),
+		"completed_this_week": len(completed_week),
+	}
+
+	return {
+		"summary": summary,
+		"today": today_tasks,
+		"adhoc": adhoc_tasks,
+		"upcoming": upcoming_tasks,
+		"overdue": overdue_tasks,
+		"completed_week": completed_week,
+	}
 
 
 @frappe.whitelist()
@@ -1134,6 +1420,15 @@ def complete_task_instance(
 		goal.progress = 100
 
 	goal.save(ignore_permissions=True)
+
+	# Live-refresh the employee's screens AND, if approval is required, the
+	# approver's inbox (the task instance just appeared as something to review).
+	_pwa_refetch(
+		list(_REQUESTER_CACHE_KEYS_BY_DOCTYPE["Goal"]), user=frappe.session.user
+	)
+	if requires_approval and goal.get("approver_user"):
+		_pwa_refetch(list(_INBOX_CACHE_KEYS), user=goal.approver_user)
+
 	return {"name": goal.name, "status": goal.status, "requires_approval": bool(requires_approval)}
 
 
@@ -1157,20 +1452,38 @@ def reopen_task_instance(goal_name: str) -> dict:
 		if goal.meta.has_field(f):
 			goal.set(f, None)
 	goal.save(ignore_permissions=True)
+
+	_pwa_refetch(
+		list(_REQUESTER_CACHE_KEYS_BY_DOCTYPE["Goal"]), user=frappe.session.user
+	)
+	if goal.get("approver_user"):
+		# The task left the approver's pending queue when it was completed; it
+		# also leaves the queue when re-opened. Either way, refresh.
+		_pwa_refetch(list(_INBOX_CACHE_KEYS), user=goal.approver_user)
 	return {"name": goal.name, "status": goal.status}
 
 
 @frappe.whitelist()
 def get_my_team():
-	"""Active direct reports of the current employee — the people a reporting
-	manager can assign ad-hoc tasks to from the PWA."""
+	"""Who the current employee can assign ad-hoc tasks to: self (first), then
+	their active direct reports. Self is always allowed so even non-managers
+	can capture personal tasks on the My Tasks PWA screen."""
 	employee = get_current_employee()
-	return frappe.get_all(
+	me = frappe.db.get_value(
+		"Employee", employee, ["name", "employee_name", "designation"], as_dict=True
+	)
+	team = frappe.get_all(
 		"Employee",
 		filters={"reports_to": employee, "status": "Active"},
 		fields=["name", "employee_name", "designation"],
 		order_by="employee_name asc",
 	)
+	if me:
+		me_row = dict(me)
+		me_row["employee_name"] = _("Myself ({0})").format(me.employee_name or me.name)
+		me_row["is_self"] = 1
+		return [me_row] + team
+	return team
 
 
 @frappe.whitelist()
@@ -1189,8 +1502,12 @@ def create_team_task(employee, title, due_date=None, description=None):
 		frappe.throw(_("Employee not found."))
 
 	is_hr = bool({"HR Manager", "HR User", "System Manager"} & set(frappe.get_roles()))
-	if target.reports_to != manager and not is_hr:
-		frappe.throw(_("You can only assign tasks to your team members."), frappe.PermissionError)
+	is_self = target.name == manager
+	if not is_self and target.reports_to != manager and not is_hr:
+		frappe.throw(
+			_("You can only assign ad-hoc tasks to yourself or your direct reports."),
+			frappe.PermissionError,
+		)
 
 	today = frappe.utils.nowdate()
 	due = due_date or today
@@ -1213,7 +1530,8 @@ def create_team_task(employee, title, due_date=None, description=None):
 		goal.description = description
 	goal.insert(ignore_permissions=True)
 
-	if target.user_id:
+	# Don't ping the assignee if it's a self-assign — they just created it.
+	if target.user_id and not is_self:
 		from indian_hrms_compliance.hr.doctype.hrms_task.hrms_task import _safe_pwa_notification
 
 		_safe_pwa_notification(
@@ -1222,7 +1540,13 @@ def create_team_task(employee, title, due_date=None, description=None):
 			ref_type="Goal",
 			ref_name=goal.name,
 		)
-	return {"name": goal.name, "employee": target.name, "due_date": due}
+	# Live-refresh the assignee's My Tasks screen so the new card pops in
+	# without a manual refresh. For self-assigns this is the current user.
+	if target.user_id:
+		_pwa_refetch(
+			list(_REQUESTER_CACHE_KEYS_BY_DOCTYPE["Goal"]), user=target.user_id
+		)
+	return {"name": goal.name, "employee": target.name, "due_date": due, "is_self": int(is_self)}
 
 
 # ---------------------------------------------------------------------------
@@ -2187,7 +2511,51 @@ def get_my_erasure_requests() -> list[dict]:
 # else — the inbox listing is only a convenience, never the authorization.
 
 # Category labels surfaced to the PWA segment filter / badges.
-_APPROVAL_CATEGORIES = ("Leave", "Expense", "Advance", "Shift", "Attendance", "Task", "Resignation")
+_APPROVAL_CATEGORIES = (
+	"Leave",
+	"Expense",
+	"Advance",
+	"Shift",
+	"Attendance",
+	"Task",
+	"Resignation",
+	"Profile Update",
+	"Onboarding",
+	"Grievance",
+)
+_HR_APPROVER_ROLES = frozenset(("HR Manager", "HR User", "System Manager"))
+
+
+def _is_hr_user(user: str) -> bool:
+	"""True if ``user`` holds any HR-level role. The Profile Update, Onboarding
+	Application, and Grievance categories are gated on HR membership rather
+	than a per-record approver field."""
+	roles = set(frappe.get_roles(user))
+	return bool(_HR_APPROVER_ROLES & roles)
+
+
+def _hr_company_scope(user: str) -> list[str] | None:
+	"""Companies an HR user should see records for.
+
+	Returns:
+	  - list of Company names → restrict to these
+	  - None → no restriction (HR user has no User Permission rows for Company)
+
+	System Manager always returns None (sees everything). Otherwise we read
+	the active User Permissions: an HR Manager with User Permission rows for
+	"Acme India" + "Acme Singapore" only sees inbox items in those companies.
+	If they have no User Permission rows at all, we don't filter (matches
+	Frappe's default behaviour when no perms are configured).
+	"""
+	if "System Manager" in frappe.get_roles(user):
+		return None
+	companies = frappe.get_all(
+		"User Permission",
+		filters={"user": user, "allow": "Company"},
+		pluck="for_value",
+	)
+	companies = [c for c in companies if c]
+	return companies or None
 
 
 def _approver_employees_for_user(user: str) -> list[str]:
@@ -2447,32 +2815,88 @@ def _pending_task_approvals(user: str) -> list[dict]:
 
 
 def _pending_resignation_approvals(user: str) -> list[dict]:
+	"""Resignations awaiting action. Two paths surface here:
+
+	  * Reporting managers see their direct reports' rows in
+	    'Pending Manager Acknowledgement'.
+	  * HR users see ALL rows in 'Pending HR Approval' (final approve step).
+
+	A single user holding both hats (reporting manager + HR Manager) sees both.
+	"""
+	collected: list[dict] = []
 	reports = _resignation_reports_to_user(user)
-	if not reports:
-		return []
-	rows = frappe.get_all(
-		"Resignation Request",
-		filters={
-			"workflow_state": "Pending Manager Acknowledgement",
-			"employee": ("in", list(reports)),
-		},
-		fields=[
-			"name",
-			"employee",
-			"employee_name",
-			"intended_last_working_date",
-			"submission_date",
-		],
-		order_by="submission_date desc",
-	)
+
+	if reports:
+		collected.extend(
+			frappe.get_all(
+				"Resignation Request",
+				filters={
+					"workflow_state": "Pending Manager Acknowledgement",
+					"employee": ("in", list(reports)),
+				},
+				fields=[
+					"name",
+					"employee",
+					"employee_name",
+					"intended_last_working_date",
+					"submission_date",
+					"workflow_state",
+				],
+				order_by="submission_date desc",
+			)
+		)
+
+	if _is_hr_user(user):
+		hr_filters: dict = {"workflow_state": "Pending HR Approval"}
+		scope = _hr_company_scope(user)
+		if scope is not None:
+			# Resignation Request has no direct company field — resolve via employee.
+			emps_in_scope = frappe.get_all(
+				"Employee",
+				filters={"company": ("in", scope)},
+				pluck="name",
+			)
+			if not emps_in_scope:
+				emps_in_scope = ["__none__"]
+			hr_filters["employee"] = ("in", emps_in_scope)
+		collected.extend(
+			frappe.get_all(
+				"Resignation Request",
+				filters=hr_filters,
+				fields=[
+					"name",
+					"employee",
+					"employee_name",
+					"intended_last_working_date",
+					"submission_date",
+					"workflow_state",
+				],
+				order_by="submission_date desc",
+			)
+		)
+
+	# De-dupe by name (HR Manager who is also someone's reporting manager).
+	seen = set()
+	rows = []
+	for r in collected:
+		if r.name in seen:
+			continue
+		seen.add(r.name)
+		rows.append(r)
+
 	out = []
 	for r in rows:
+		stage = (
+			_("Acknowledge")
+			if r.workflow_state == "Pending Manager Acknowledgement"
+			else _("HR Approve")
+		)
 		out.append(
 			{
 				"doctype": "Resignation Request",
 				"name": r.name,
 				"category": "Resignation",
-				"title": _("Resignation"),
+				"title": _("Resignation — {0}").format(stage),
 				"subtitle": _("Last working day: {0}").format(r.intended_last_working_date)
 				if r.intended_last_working_date
 				else _("Last working day: —"),
@@ -2480,6 +2904,130 @@ def _pending_resignation_approvals(user: str) -> list[dict]:
 				"employee_name": r.employee_name,
 				"date": str(r.submission_date) if r.submission_date else None,
 				"action_type": "workflow",
+			}
+		)
+	return out
+
+
+def _pending_profile_change_approvals(user: str) -> list[dict]:
+	"""Employee Profile Change Requests awaiting HR review. Visible to anyone
+	holding an HR role (the doctype permission gate). Approval = apply the
+	requested field changes to the Employee record."""
+	if not _is_hr_user(user):
+		return []
+	filters: dict = {"status": "Submitted"}
+	scope = _hr_company_scope(user)
+	if scope is not None:
+		filters["company"] = ("in", scope)
+	rows = frappe.get_all(
+		"Employee Profile Change Request",
+		filters=filters,
+		fields=["name", "employee", "employee_name", "company", "submitted_at"],
+		order_by="submitted_at desc",
+	)
+	out = []
+	for r in rows:
+		count = frappe.db.count("Employee Profile Change Item", {"parent": r.name})
+		out.append(
+			{
+				"doctype": "Employee Profile Change Request",
+				"name": r.name,
+				"category": "Profile Update",
+				"title": _("Profile update — {0} field(s)").format(count),
+				"subtitle": _("Company: {0}").format(r.company or "—"),
+				"employee": r.employee,
+				"employee_name": r.employee_name,
+				"date": str(getdate(r.submitted_at)) if r.submitted_at else None,
+				"action_type": "status",
+			}
+		)
+	return out
+
+
+def _pending_onboarding_approvals(user: str) -> list[dict]:
+	"""Employee Onboarding Applications in 'Pending Verification' awaiting HR
+	review. Approve = mark Verified (auto-tick the checklist boxes since the
+	HR user reviewed in-app); reject = mark Rejected with the comment as
+	rejection_reason. New-hire conversion still happens on the Desk page
+	because it needs salary + slabs."""
+	if not _is_hr_user(user):
+		return []
+	filters: dict = {"status": "Pending Verification"}
+	scope = _hr_company_scope(user)
+	if scope is not None:
+		filters["target_company"] = ("in", scope)
+	rows = frappe.get_all(
+		"Employee Onboarding Application",
+		filters=filters,
+		fields=[
+			"name",
+			"first_name",
+			"last_name",
+			"personal_email",
+			"target_company",
+			"target_designation",
+			"submitted_on",
+		],
+		order_by="submitted_on desc",
+	)
+	out = []
+	for r in rows:
+		full_name = " ".join(p for p in (r.first_name, r.last_name) if p)
+		out.append(
+			{
+				"doctype": "Employee Onboarding Application",
+				"name": r.name,
+				"category": "Onboarding",
+				"title": _("Onboarding: {0}").format(full_name or r.personal_email or r.name),
+				"subtitle": _("{0} → {1}").format(
+					r.target_company or "—", r.target_designation or "—"
+				),
+				"employee": "",
+				"employee_name": full_name,
+				"date": str(getdate(r.submitted_on)) if r.submitted_on else None,
+				"action_type": "status",
+			}
+		)
+	return out
+
+
+def _pending_grievance_approvals(user: str) -> list[dict]:
+	"""Open Employee Grievances awaiting HR triage. Approve = mark Investigated
+	(intermediate acknowledgement — the full Resolved transition needs more
+	fields and is done on the Grievance form). Reject = mark Invalid."""
+	if not _is_hr_user(user):
+		return []
+	filters: dict = {"status": "Open"}
+	scope = _hr_company_scope(user)
+	if scope is not None:
+		# Grievance has no `company` column directly — resolve via raised_by.
+		emps_in_scope = frappe.get_all(
+			"Employee",
+			filters={"company": ("in", scope)},
+			pluck="name",
+		)
+		if not emps_in_scope:
+			return []
+		filters["raised_by"] = ("in", emps_in_scope)
+	rows = frappe.get_all(
+		"Employee Grievance",
+		filters=filters,
+		fields=["name", "raised_by", "employee_name", "subject", "date"],
+		order_by="date desc",
+	)
+	out = []
+	for r in rows:
+		out.append(
+			{
+				"doctype": "Employee Grievance",
+				"name": r.name,
+				"category": "Grievance",
+				"title": _("Grievance: {0}").format(r.subject or "—"),
+				"subtitle": _("Open since {0}").format(getdate(r.date)) if r.date else "",
+				"employee": r.raised_by,
+				"employee_name": r.employee_name,
+				"date": str(getdate(r.date)) if r.date else None,
+				"action_type": "status",
 			}
 		)
 	return out
@@ -2493,7 +3041,46 @@ _APPROVAL_PROVIDERS = (
 	_pending_attendance_approvals,
 	_pending_task_approvals,
 	_pending_resignation_approvals,
+	_pending_profile_change_approvals,
+	_pending_onboarding_approvals,
+	_pending_grievance_approvals,
 )
+
+
+@frappe.whitelist()
+def hr_withdraw_resignation(name: str, comment: str) -> dict:
+	"""HR-only: undo an already-Approved resignation (workflow supports the
+	transition). Used when an exit is called off after the formal approval.
+	Comment is mandatory — the audit trail needs the reason.
+	"""
+	if not (comment and strip_html(comment).strip()):
+		frappe.throw(_("A comment explaining the withdrawal is required."))
+
+	from frappe.model.workflow import apply_workflow, get_transitions
+
+	doc = frappe.get_doc("Resignation Request", name)
+	_assert_hr_role("resignation request")
+	if doc.get("workflow_state") != "Approved":
+		frappe.throw(
+			_("Only Approved resignations can be withdrawn by HR (currently {0}).").format(
+				doc.get("workflow_state")
+			)
+		)
+	actions = {t.get("action") for t in get_transitions(doc)}
+	if "Withdraw" not in actions:
+		frappe.throw(_("The Withdraw transition is not available from the current state."))
+
+	apply_workflow(doc, "Withdraw")
+	doc = frappe.get_doc("Resignation Request", name)
+	_add_comment_if_any(doc, comment)
+	frappe.db.commit()
+
+	# Refresh the resigning employee's exit dashboard + every HR inbox.
+	emp_user = frappe.db.get_value("Employee", doc.employee, "user_id")
+	if emp_user:
+		_refresh_requester("Resignation Request", emp_user)
+	_broadcast_hr_inbox_refresh()
+	return {"name": doc.name, "workflow_state": doc.get("workflow_state")}
 
 
 @frappe.whitelist()
@@ -2560,6 +3147,14 @@ def _assert_task_approver(doc):
 		frappe.throw(_("You are not the approver for this task."), frappe.PermissionError)
 
 
+def _assert_hr_role(label: str):
+	if not _is_hr_user(frappe.session.user):
+		frappe.throw(
+			_("Only HR users can approve / reject a {0}.").format(label),
+			frappe.PermissionError,
+		)
+
+
 def _validate_approver(doc) -> None:
 	"""Authorization gate: raises PermissionError unless the current user is the
 	legitimate approver for ``doc``. Called by both approve and reject."""
@@ -2575,9 +3170,22 @@ def _validate_approver(doc) -> None:
 	elif dt == "Attendance Request":
 		_assert_reports_to_approver(doc, "attendance request")
 	elif dt == "Resignation Request":
-		_assert_reports_to_approver(doc, "resignation request")
+		# Two valid approvers depending on the workflow state:
+		#  * Pending Manager Acknowledgement → the employee's reporting manager
+		#  * Pending HR Approval            → any HR user
+		state = doc.get("workflow_state")
+		if state == "Pending HR Approval":
+			_assert_hr_role("resignation request")
+		else:
+			_assert_reports_to_approver(doc, "resignation request")
 	elif dt == "Goal":
 		_assert_task_approver(doc)
+	elif dt == "Employee Profile Change Request":
+		_assert_hr_role("profile change request")
+	elif dt == "Employee Onboarding Application":
+		_assert_hr_role("onboarding application")
+	elif dt == "Employee Grievance":
+		_assert_hr_role("grievance")
 	else:
 		frappe.throw(_("Unsupported approval document type: {0}").format(dt))
 
@@ -2590,20 +3198,420 @@ def _add_comment_if_any(doc, comment: str | None) -> None:
 			frappe.log_error(title="Approval comment failed", message=frappe.get_traceback())
 
 
+# ---------------------------------------------------------------------------
+# Org-wide attendance roll-call — "who's in, who's out, who's on leave"
+# ---------------------------------------------------------------------------
+
+
+def _attendance_scope_for_user(user: str) -> dict:
+	"""Return {scope: 'all'|'team'|'none', companies: [..] | None, employees: set | None}.
+	HR Manager / System Manager see all (optionally filtered by company).
+	Reporting managers see their active direct reports only.
+	Everyone else sees nothing.
+	"""
+	roles = set(frappe.get_roles(user))
+	if {"HR Manager", "System Manager"} & roles:
+		return {"scope": "all"}
+	manager_emps = _approver_employees_for_user(user)
+	if manager_emps:
+		reports = set(
+			frappe.get_all(
+				"Employee",
+				filters={"reports_to": ("in", manager_emps), "status": "Active"},
+				pluck="name",
+			)
+		)
+		return {"scope": "team", "employees": reports}
+	return {"scope": "none"}
+
+
+def _resolve_attendance_scope(user: str, scope: str) -> dict:
+	"""Translate the public `scope` arg to the internal scope_dict.
+
+	  - 'auto' → role-based (HR/SysMgr see all; reporting managers see team).
+	  - 'team' → force the caller's direct reports even if they're HR.
+	  - 'all'  → explicit whole-org; HR Manager / System Manager only.
+	"""
+	auto_scope = _attendance_scope_for_user(user)
+	if scope == "team":
+		reports = set(
+			frappe.get_all(
+				"Employee",
+				filters={
+					"reports_to": ("in", _approver_employees_for_user(user) or ["__none__"]),
+					"status": "Active",
+				},
+				pluck="name",
+			)
+		)
+		return {"scope": "team" if reports else "none", "employees": reports}
+	if scope == "all":
+		if {"HR Manager", "System Manager"} & set(frappe.get_roles(user)):
+			return {"scope": "all"}
+		return {"scope": "none"}
+	return auto_scope
+
+
+def _attendance_employee_universe(scope_dict: dict, company: str | None) -> list[dict]:
+	"""Active Employees under the resolved scope (+ optional company filter)."""
+	emp_filters = {"status": "Active"}
+	if scope_dict["scope"] == "team":
+		emp_filters["name"] = ("in", list(scope_dict["employees"]) or [""])
+	if company:
+		emp_filters["company"] = company
+	return frappe.get_all(
+		"Employee",
+		filters=emp_filters,
+		fields=["name", "employee_name", "company", "department", "designation", "image", "user_id"],
+		order_by="employee_name asc",
+	)
+
+
+def _make_card(emp: str, emp_index: dict, extras: dict | None = None) -> dict:
+	base = emp_index.get(emp) or {}
+	card = {
+		"employee": emp,
+		"employee_name": base.get("employee_name"),
+		"company": base.get("company"),
+		"department": base.get("department"),
+		"designation": base.get("designation"),
+		"image": base.get("image"),
+	}
+	if extras:
+		card.update(extras)
+	return card
+
+
+def _today_buckets(
+	scope_dict: dict, employees: list[dict], today_d
+) -> dict:
+	"""Live roll-call from Employee Checkin + Approved Leave Application.
+
+	Used when the requested date IS today — the Attendance doctype rows for
+	today are typically marked overnight by the scheduler, so we partition
+	off raw check-ins instead.
+	"""
+	emp_index = {e["name"]: e for e in employees}
+	emp_names = list(emp_index.keys())
+
+	if not emp_names:
+		return {
+			"mode": "today",
+			"in_now": [],
+			"out": [],
+			"on_leave": [],
+			"not_yet_in": [],
+			"counts": {"in_now": 0, "out": 0, "on_leave": 0, "not_yet_in": 0, "total": 0},
+		}
+
+	# Today's check-ins, newest first per employee.
+	checkins = frappe.db.sql(
+		"""
+		SELECT employee, log_type, time
+		FROM `tabEmployee Checkin`
+		WHERE employee IN %(emps)s
+		  AND DATE(time) = %(today)s
+		ORDER BY time DESC
+		""",
+		{"emps": tuple(emp_names) + ("__none__",), "today": today_d},
+		as_dict=True,
+	)
+	latest_by_emp: dict[str, dict] = {}
+	first_in_by_emp: dict[str, str] = {}
+	for c in checkins:
+		emp = c["employee"]
+		if emp not in latest_by_emp:
+			latest_by_emp[emp] = c
+		if c["log_type"] == "IN":
+			first_in_by_emp[emp] = str(c["time"])
+
+	# Approved Leave Applications covering today.
+	on_leave_rows = frappe.db.sql(
+		"""
+		SELECT employee, leave_type, half_day
+		FROM `tabLeave Application`
+		WHERE employee IN %(emps)s
+		  AND status = 'Approved'
+		  AND docstatus = 1
+		  AND from_date <= %(today)s
+		  AND to_date   >= %(today)s
+		""",
+		{"emps": tuple(emp_names) + ("__none__",), "today": today_d},
+		as_dict=True,
+	)
+	leave_by_emp = {r["employee"]: r for r in on_leave_rows}
+
+	in_now: list[dict] = []
+	out: list[dict] = []
+	on_leave: list[dict] = []
+	not_yet_in: list[dict] = []
+
+	for emp in emp_names:
+		lv = leave_by_emp.get(emp)
+		if lv:
+			on_leave.append(
+				_make_card(
+					emp,
+					emp_index,
+					{
+						"leave_type": lv["leave_type"],
+						"half_day": int(lv["half_day"] or 0),
+						"first_in": first_in_by_emp.get(emp),
+					},
+				)
+			)
+			continue
+		last = latest_by_emp.get(emp)
+		if not last:
+			not_yet_in.append(_make_card(emp, emp_index))
+			continue
+		extras = {
+			"first_in": first_in_by_emp.get(emp),
+			"last_action": last["log_type"] or "",
+			"last_time": str(last["time"]),
+		}
+		if (last["log_type"] or "").upper() == "IN":
+			in_now.append(_make_card(emp, emp_index, extras))
+		else:
+			out.append(_make_card(emp, emp_index, extras))
+
+	return {
+		"mode": "today",
+		"in_now": in_now,
+		"out": out,
+		"on_leave": on_leave,
+		"not_yet_in": not_yet_in,
+		"counts": {
+			"in_now": len(in_now),
+			"out": len(out),
+			"on_leave": len(on_leave),
+			"not_yet_in": len(not_yet_in),
+			"total": len(employees),
+		},
+	}
+
+
+# Attendance.status → bucket key used in past-date mode.
+_ATTENDANCE_STATUS_TO_BUCKET = {
+	"Present": "present",
+	"Work From Home": "present",
+	"Half Day": "on_leave",
+	"On Leave": "on_leave",
+	"Absent": "absent",
+}
+
+
+def _past_buckets(
+	scope_dict: dict, employees: list[dict], for_date
+) -> dict:
+	"""Past-date roll-call from submitted Attendance rows + a leave fallback.
+
+	Buckets:
+	  - present  : Attendance.status in ('Present', 'Work From Home')
+	  - on_leave : Attendance.status in ('On Leave', 'Half Day') OR an Approved
+	               Leave Application covers for_date (catches rows that were
+	               never marked because the employee was on leave the whole day)
+	  - absent   : Attendance.status == 'Absent'
+	  - not_marked : Active Employees with neither Attendance nor leave for the date
+	"""
+	emp_index = {e["name"]: e for e in employees}
+	emp_names = list(emp_index.keys())
+
+	if not emp_names:
+		return {
+			"mode": "past",
+			"present": [],
+			"on_leave": [],
+			"absent": [],
+			"not_marked": [],
+			"counts": {"present": 0, "on_leave": 0, "absent": 0, "not_marked": 0, "total": 0},
+		}
+
+	att_rows = frappe.db.sql(
+		"""
+		SELECT employee, status, in_time, out_time, working_hours, leave_type
+		FROM `tabAttendance`
+		WHERE employee IN %(emps)s
+		  AND attendance_date = %(d)s
+		  AND docstatus = 1
+		""",
+		{"emps": tuple(emp_names) + ("__none__",), "d": for_date},
+		as_dict=True,
+	)
+	att_by_emp = {r["employee"]: r for r in att_rows}
+
+	# Leave fallback for the same day — employees on Approved Leave often
+	# never get an Attendance row (the leave covers it).
+	leave_rows = frappe.db.sql(
+		"""
+		SELECT employee, leave_type, half_day
+		FROM `tabLeave Application`
+		WHERE employee IN %(emps)s
+		  AND status = 'Approved'
+		  AND docstatus = 1
+		  AND from_date <= %(d)s
+		  AND to_date   >= %(d)s
+		""",
+		{"emps": tuple(emp_names) + ("__none__",), "d": for_date},
+		as_dict=True,
+	)
+	leave_by_emp = {r["employee"]: r for r in leave_rows}
+
+	present: list[dict] = []
+	on_leave: list[dict] = []
+	absent: list[dict] = []
+	not_marked: list[dict] = []
+
+	for emp in emp_names:
+		att = att_by_emp.get(emp)
+		if att:
+			bucket = _ATTENDANCE_STATUS_TO_BUCKET.get(att["status"])
+			extras = {
+				"status": att["status"],
+				"in_time": str(att["in_time"]) if att["in_time"] else None,
+				"out_time": str(att["out_time"]) if att["out_time"] else None,
+				"working_hours": flt(att["working_hours"] or 0),
+				"leave_type": att.get("leave_type") or "",
+			}
+			card = _make_card(emp, emp_index, extras)
+			if bucket == "present":
+				present.append(card)
+			elif bucket == "on_leave":
+				on_leave.append(card)
+			elif bucket == "absent":
+				absent.append(card)
+			else:
+				# Unknown status — treat as not_marked rather than silently dropping.
+				not_marked.append(card)
+			continue
+		# No Attendance row — check leave fallback.
+		lv = leave_by_emp.get(emp)
+		if lv:
+			on_leave.append(
+				_make_card(
+					emp,
+					emp_index,
+					{
+						"status": "On Leave",
+						"leave_type": lv["leave_type"],
+						"half_day": int(lv["half_day"] or 0),
+					},
+				)
+			)
+			continue
+		not_marked.append(_make_card(emp, emp_index))
+
+	return {
+		"mode": "past",
+		"present": present,
+		"on_leave": on_leave,
+		"absent": absent,
+		"not_marked": not_marked,
+		"counts": {
+			"present": len(present),
+			"on_leave": len(on_leave),
+			"absent": len(absent),
+			"not_marked": len(not_marked),
+			"total": len(employees),
+		},
+	}
+
+
+@frappe.whitelist()
+def get_org_attendance_today(
+	company: str | None = None,
+	scope: str = "auto",
+	for_date: str | None = None,
+) -> dict:
+	"""Org-wide attendance roll-call. Two modes, picked by ``for_date``:
+
+	  * **Today (default)** — live partition off raw Employee Checkin +
+	    Approved Leave Application. Buckets: in_now / out / on_leave / not_yet_in.
+	    Attendance for today is normally only marked overnight by the scheduler,
+	    so we can't rely on it for an "as-of-now" view.
+
+	  * **Past date** — partition off the submitted Attendance doctype, with
+	    leave applications as a fallback for employees who never got an
+	    Attendance row because the leave covered the day. Buckets:
+	    present / absent / on_leave / not_marked.
+
+	Scope:
+	  - 'auto' (default) — HR Manager / System Manager see the whole org;
+	    reporting managers see only their direct reports; everyone else gets
+	    an empty payload.
+	  - 'team' — restrict to the caller's direct reports even if they also
+	    hold an HR role.
+	  - 'all'  — explicit whole-org view; requires HR Manager / System Manager.
+
+	Optional ``company`` narrows the universe further. ``for_date`` accepts an
+	ISO date string ('2026-06-01') and defaults to today.
+	"""
+	user = frappe.session.user
+	scope_dict = _resolve_attendance_scope(user, scope)
+
+	today_d = getdate()
+	requested_date = getdate(for_date) if for_date else today_d
+	if requested_date > today_d:
+		# Future dates make no sense for a "what's actually happening" view.
+		# Fall through to today rather than throwing — friendlier UX.
+		requested_date = today_d
+
+	if scope_dict["scope"] == "none":
+		empty_today = {
+			"mode": "today",
+			"in_now": [], "out": [], "on_leave": [], "not_yet_in": [],
+			"counts": {"in_now": 0, "out": 0, "on_leave": 0, "not_yet_in": 0, "total": 0},
+		}
+		empty_past = {
+			"mode": "past",
+			"present": [], "absent": [], "on_leave": [], "not_marked": [],
+			"counts": {"present": 0, "absent": 0, "on_leave": 0, "not_marked": 0, "total": 0},
+		}
+		buckets = empty_today if requested_date == today_d else empty_past
+		return {
+			"as_of": str(now_datetime()),
+			"for_date": str(requested_date),
+			"scope": "none",
+			"company_filter": company or "",
+			**buckets,
+		}
+
+	employees = _attendance_employee_universe(scope_dict, company)
+
+	if requested_date == today_d:
+		buckets = _today_buckets(scope_dict, employees, today_d)
+	else:
+		buckets = _past_buckets(scope_dict, employees, requested_date)
+
+	return {
+		"as_of": str(now_datetime()),
+		"for_date": str(requested_date),
+		"scope": scope_dict["scope"],
+		"company_filter": company or "",
+		**buckets,
+	}
+
+
+_APPROVAL_DOCTYPES = (
+	"Leave Application",
+	"Expense Claim",
+	"Employee Advance",
+	"Shift Request",
+	"Attendance Request",
+	"Resignation Request",
+	"Goal",
+	"Employee Profile Change Request",
+	"Employee Onboarding Application",
+	"Employee Grievance",
+)
+
+
 @frappe.whitelist()
 def approve_request(doctype: str, name: str, comment: str | None = None) -> dict:
 	"""Approve one inbox item. Re-derives and enforces approver authorization
 	server-side before acting, then applies the correct approval mechanic for
 	the doctype."""
-	if doctype not in (
-		"Leave Application",
-		"Expense Claim",
-		"Employee Advance",
-		"Shift Request",
-		"Attendance Request",
-		"Resignation Request",
-		"Goal",
-	):
+	if doctype not in _APPROVAL_DOCTYPES:
 		frappe.throw(_("Unsupported approval document type: {0}").format(doctype))
 
 	doc = frappe.get_doc(doctype, name)
@@ -2634,12 +3642,92 @@ def approve_request(doctype: str, name: str, comment: str | None = None) -> dict
 		doc.progress = 100
 		doc.save(ignore_permissions=True)
 	elif doctype == "Resignation Request":
-		from frappe.model.workflow import apply_workflow
+		from frappe.model.workflow import apply_workflow, get_transitions
 
-		apply_workflow(doc, "Acknowledge")
+		# Dispatch the right transition based on the current state:
+		#  * Pending Manager Acknowledgement → "Acknowledge" (manager hand-off to HR)
+		#  * Pending HR Approval            → "Approve" (final)
+		actions = {t.get("action") for t in get_transitions(doc)}
+		state = doc.get("workflow_state")
+		if state == "Pending HR Approval" and "Approve" in actions:
+			apply_workflow(doc, "Approve")
+		elif "Acknowledge" in actions:
+			apply_workflow(doc, "Acknowledge")
+		elif "Approve" in actions:
+			apply_workflow(doc, "Approve")
+		else:
+			frappe.throw(
+				_("No approval transition is available from state {0}.").format(state)
+			)
+	elif doctype == "Employee Profile Change Request":
+		from indian_hrms_compliance.hr.doctype.employee_profile_change_request.employee_profile_change_request import (
+			approve_profile_change_request,
+		)
+
+		approve_profile_change_request(name, comment=comment)
+		# Re-read so the rest of this function sees the updated state.
+		doc = frappe.get_doc(doctype, name)
+	elif doctype == "Employee Onboarding Application":
+		# Approve = "Mark Verified", but ONLY if every checklist box is already
+		# ticked. The PWA can't replace the document-by-document verification
+		# step; HR must do it on the Desk form (where the uploaded copies are
+		# viewable) BEFORE coming back to the inbox. This stops a one-tap
+		# approval from masquerading as a full PAN/Aadhaar/bank/photo check.
+		missing = [
+			lbl
+			for fname, lbl in (
+				("pan_verified", "PAN"),
+				("aadhaar_verified", "Aadhaar"),
+				("bank_verified", "Bank A/c"),
+				("photo_verified", "Photo"),
+			)
+			if not doc.get(fname)
+		]
+		if missing:
+			frappe.throw(
+				_(
+					"Open the application on Desk and tick the verification checklist (PAN / Aadhaar / Bank / Photo) before approving. Missing: {0}."
+				).format(", ".join(missing)),
+				title=_("Verification Required"),
+			)
+
+		doc.status = "Verified"
+		if not doc.verified_by:
+			doc.verified_by = frappe.session.user
+		if not doc.verified_on:
+			doc.verified_on = now_datetime()
+		doc.save(ignore_permissions=True)
+	elif doctype == "Employee Grievance":
+		# "Approve" = acknowledge / mark Investigated. The doctype's own
+		# validation requires `cause_of_grievance` when status moves to
+		# Investigated, so the inbox comment becomes that field. We REQUIRE
+		# a comment for grievance approval; this both unblocks save and
+		# leaves a meaningful audit trail.
+		if not (comment and strip_html(comment).strip()):
+			frappe.throw(
+				_("A short investigation note is required to mark a grievance Investigated."),
+				title=_("Note Required"),
+			)
+		doc.status = "Investigated"
+		if not doc.cause_of_grievance:
+			doc.cause_of_grievance = comment
+		doc.save(ignore_permissions=True)
 
 	_add_comment_if_any(doc, comment)
 	frappe.db.commit()
+
+	# Live-refresh: the approver's inbox (so the row drops off) AND, where the
+	# action has a visible employee-side effect, the requester's resources.
+	_pwa_refetch(list(_INBOX_CACHE_KEYS), user=frappe.session.user)
+	emp_field = doc.get("employee") or doc.get("raised_by")
+	if emp_field:
+		req_user = frappe.db.get_value("Employee", emp_field, "user_id")
+		_refresh_requester(doctype, req_user)
+	if doctype == "Resignation Request" and doc.get("workflow_state") == "Pending HR Approval":
+		# Stage shifted from Manager Ack → HR Approval — other HR users should
+		# see the row appear in their inbox too.
+		_broadcast_hr_inbox_refresh()
+
 	state = doc.get("workflow_state") or doc.get("status") or doc.get("approval_status")
 	return {"name": doc.name, "doctype": doctype, "state": state}
 
@@ -2651,15 +3739,7 @@ def reject_request(doctype: str, name: str, comment: str | None = None) -> dict:
 	if not comment or not strip_html(comment).strip():
 		frappe.throw(_("A comment is required when rejecting a request."))
 
-	if doctype not in (
-		"Leave Application",
-		"Expense Claim",
-		"Employee Advance",
-		"Shift Request",
-		"Attendance Request",
-		"Resignation Request",
-		"Goal",
-	):
+	if doctype not in _APPROVAL_DOCTYPES:
 		frappe.throw(_("Unsupported approval document type: {0}").format(doctype))
 
 	doc = frappe.get_doc(doctype, name)
@@ -2702,10 +3782,38 @@ def reject_request(doctype: str, name: str, comment: str | None = None) -> dict:
 			frappe.throw(
 				_("No rejection transition is available for this resignation request.")
 			)
+	elif doctype == "Employee Profile Change Request":
+		from indian_hrms_compliance.hr.doctype.employee_profile_change_request.employee_profile_change_request import (
+			reject_profile_change_request,
+		)
+
+		reject_profile_change_request(name, comment=comment)
+		doc = frappe.get_doc(doctype, name)
+	elif doctype == "Employee Onboarding Application":
+		doc.status = "Rejected"
+		doc.rejection_reason = comment
+		doc.save(ignore_permissions=True)
+	elif doctype == "Employee Grievance":
+		# Reject = mark Invalid; the comment becomes cause_of_grievance (the
+		# grievance form requires that field when status is Investigated/Resolved/Invalid).
+		doc.status = "Invalid"
+		if not doc.cause_of_grievance:
+			doc.cause_of_grievance = comment
+		doc.save(ignore_permissions=True)
 
 	# Goal still exists after reject; for deleted docs add_comment would fail.
 	if frappe.db.exists(doctype, name):
 		doc = frappe.get_doc(doctype, name)
 		_add_comment_if_any(doc, comment)
 	frappe.db.commit()
+
+	# Live-refresh: rejecter's inbox + requester's screens. For deleted docs
+	# (Advance/Attendance Request) we already captured employee.user_id above
+	# in the variable that still exists.
+	_pwa_refetch(list(_INBOX_CACHE_KEYS), user=frappe.session.user)
+	emp_field = (doc.get("employee") if frappe.db.exists(doctype, name) else None) or None
+	if emp_field:
+		req_user = frappe.db.get_value("Employee", emp_field, "user_id")
+		_refresh_requester(doctype, req_user)
+
 	return {"name": name, "doctype": doctype, "rejected": True}
