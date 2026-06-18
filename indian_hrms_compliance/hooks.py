@@ -1,5 +1,5 @@
 app_name = "indian_hrms_compliance"
-app_title = "Frappe HR"
+app_title = "Indian HRMS & Compliance"
 app_publisher = "Frappe Technologies Pvt. Ltd."
 app_description = "Modern HR and Payroll Software"
 app_email = "contact@frappe.io"
@@ -11,7 +11,7 @@ add_to_apps_screen = [
 	{
 		"name": "indian_hrms_compliance",
 		"logo": "/assets/indian_hrms_compliance/images/frappe-hr-logo.svg",
-		"title": "Frappe HR",
+		"title": "Indian HRMS & Compliance",
 		"route": "/app/hr",
 		"has_permission": "indian_hrms_compliance.hr.utils.check_app_permission",
 	}
