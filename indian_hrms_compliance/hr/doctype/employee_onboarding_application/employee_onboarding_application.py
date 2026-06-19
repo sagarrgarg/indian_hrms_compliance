@@ -79,7 +79,9 @@ def _onboarding_theme(company: str | None) -> dict:
 
 # Documents every candidate MUST upload before an onboarding submission is
 # accepted. "Previous Payslip" is additionally required unless is_fresher.
-REQUIRED_DOCUMENT_TYPES = ("PAN Card", "Aadhaar Card", "Signed Offer Letter")
+# Signed Offer Letter is intentionally NOT here — candidates may onboard before
+# the signed copy is in hand, so it stays an optional (but offered) upload.
+REQUIRED_DOCUMENT_TYPES = ("PAN Card", "Aadhaar Card")
 PAYSLIP_DOCUMENT_TYPE = "Previous Payslip"
 
 # Fields safe to hand to the New Employee Setup page (no HR-review/internal fields).

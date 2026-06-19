@@ -97,3 +97,4 @@ indian_hrms_compliance.patches.v15_0.add_biometric_id_mode_setting #2026-06-19
 indian_hrms_compliance.patches.v15_0.add_employee_permanent_address_same_as_current #2026-06-19
 indian_hrms_compliance.patches.v15_0.add_company_onboarding_colors #2026-06-19
 indian_hrms_compliance.patches.v15_0.relocate_onboarding_hr_settings #2026-06-19
+indian_hrms_compliance.patches.v15_0.enable_guest_onboarding_uploads #2026-06-19
