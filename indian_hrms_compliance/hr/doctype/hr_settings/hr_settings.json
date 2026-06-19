@@ -27,6 +27,7 @@
   "auto_leave_encashment",
   "leave_approver_mandatory_in_leave_application",
   "prevent_self_leave_approval",
+  "auto_assign_leave_policy_on_activation",
   "show_leaves_of_all_department_members_in_calendar",
   "column_break_29",
   "send_leave_notification",
@@ -435,6 +436,13 @@
    "label": "Prevent self approval for expense claims even if user has permissions"
   },
   {
+   "default": "0",
+   "description": "When ON, activating an employee auto-creates a Leave Policy Assignment from the company's Default Leave Policy / Leave Period (which cascades into Leave Allocations). Idempotent and opt-in.",
+   "fieldname": "auto_assign_leave_policy_on_activation",
+   "fieldtype": "Check",
+   "label": "Auto-assign Leave Policy on Employee Activation"
+  },
+  {
    "fieldname": "employee_tab",
    "fieldtype": "Tab Break",
    "label": "Employee"
@@ -663,7 +671,6 @@
    "non_negative": 1,
    "description": "Daily scheduler creates Probation Review reminder ToDos for Employees whose Scheduled Confirmation Date falls within this many days from today. Default 30."
   },
-
   {
    "fieldname": "exit_settlement_tab",
    "fieldtype": "Tab Break",
@@ -771,7 +778,6 @@
    "non_negative": 1,
    "description": "Daily scheduler alerts HR when within this many days of the Form 16 issuance deadline (June 15 each year)."
   },
-
   {
    "fieldname": "compliance_tab",
    "fieldtype": "Tab Break",
