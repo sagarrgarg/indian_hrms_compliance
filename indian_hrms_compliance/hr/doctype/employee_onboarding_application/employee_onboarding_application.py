@@ -1014,6 +1014,11 @@ def mark_converted(application: str, employee: str):
 	# find them on the Employee form rather than chasing back to the application.
 	_attach_documents_to_employee(app, employee)
 
+	# Copy the candidate's documents child table onto the Employee's matching
+	# table as-is (same type + file + notes), so the structured list survives on
+	# the Employee form alongside the loose File attachments above.
+	_copy_documents_table_to_employee(app, employee)
+
 	# Stamp the application before writing the consent row so the consent row
 	# can reference the linked_employee in its audit trail.
 	frappe.db.set_value(
@@ -1072,6 +1077,55 @@ def _attach_documents_to_employee(app, employee: str):
 				title="Onboarding: attach document to Employee failed",
 				message=frappe.get_traceback(),
 			)
+
+
+def _copy_documents_table_to_employee(app, employee: str):
+	"""Mirror app.documents onto Employee.employee_documents row-for-row.
+
+	Uses low-level child-row inserts rather than a full emp.save(): by the time
+	mark_converted runs the in_new_employee_setup flag is already cleared, so a
+	save would re-fire the Employee activation hooks (leave setup, policy acks).
+	Idempotent — a (document_type, document) pair already present is skipped, so
+	re-running conversion never duplicates rows."""
+	if not frappe.get_meta("Employee").has_field("employee_documents"):
+		return  # add_employee_documents_table patch hasn't run on this site yet
+	src_rows = app.get("documents") or []
+	if not src_rows:
+		return
+
+	table_filters = {
+		"parent": employee,
+		"parenttype": "Employee",
+		"parentfield": "employee_documents",
+	}
+	existing = {
+		(r.document_type, r.document)
+		for r in frappe.get_all(
+			"Employee Onboarding Document",
+			filters=table_filters,
+			fields=["document_type", "document"],
+		)
+	}
+	idx = frappe.db.count("Employee Onboarding Document", table_filters)
+
+	for row in src_rows:
+		key = (row.document_type, row.document)
+		if key in existing:
+			continue
+		idx += 1
+		frappe.get_doc(
+			{
+				"doctype": "Employee Onboarding Document",
+				"parenttype": "Employee",
+				"parent": employee,
+				"parentfield": "employee_documents",
+				"idx": idx,
+				"document_type": row.document_type,
+				"document": row.document,
+				"notes": row.get("notes"),
+			}
+		).insert(ignore_permissions=True)
+		existing.add(key)
 
 
 def _record_dpdp_consent(app, employee: str):
