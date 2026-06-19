@@ -259,6 +259,21 @@ def validate_single_primary_employer(doc, method=None):
 		)
 
 
+def _hr_setting(fieldname):
+	"""Read an HR Settings value, returning None if that field hasn't been
+	created on this site yet.
+
+	Several HR Settings fields are app custom fields added by patches. On a site
+	where those patches haven't migrated, frappe.db.get_single_value throws
+	"Field ... does not exist on HR Settings" and blocks whatever save triggered
+	the read. Treating a missing field as unset keeps the feature dormant instead
+	of hard-failing core Employee saves.
+	"""
+	if not frappe.get_meta("HR Settings").get_field(fieldname):
+		return None
+	return frappe.db.get_single_value("HR Settings", fieldname)
+
+
 def auto_set_probation_schedule(doc, method=None):
 	"""On Employee validate, if confirmation_status is 'Probation' and the
 	Scheduled Confirmation Date is empty, fill it from
@@ -273,7 +288,7 @@ def auto_set_probation_schedule(doc, method=None):
 		return
 	if not doc.get("date_of_joining"):
 		return
-	days = frappe.db.get_single_value("HR Settings", "default_probation_period_days")
+	days = _hr_setting("default_probation_period_days")
 	if not days or int(days) <= 0:
 		return
 	from frappe.utils import add_days
@@ -371,7 +386,9 @@ def auto_assign_leave_policy_on_activation(doc, method=None):
 	# so don't also fire the company-default auto-assignment underneath it.
 	if frappe.flags.get("in_new_employee_setup"):
 		return
-	if not cint(frappe.db.get_single_value("HR Settings", "auto_assign_leave_policy_on_activation")):
+	# Opt-in toggle is an app custom field; treat a missing field as OFF so a
+	# partially-migrated site never hard-blocks the Employee save (see _hr_setting).
+	if not cint(_hr_setting("auto_assign_leave_policy_on_activation")):
 		return
 
 	# Act only on the transition into Active, not on every later save.
