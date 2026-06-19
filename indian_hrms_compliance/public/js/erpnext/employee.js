@@ -43,6 +43,42 @@ frappe.ui.form.on("Employee", {
 		frappe.db.get_single_value("HR Settings", "emp_created_by").then((value) => {
 			frm.toggle_display("naming_series", value === "Naming Series");
 		});
+
+		frm.trigger("setup_biometric_id");
+	},
+
+	setup_biometric_id(frm) {
+		// Drive the attendance_device_id (Biometric / RF tag ID) UX from
+		// HR Settings.biometric_id_mode. The field is unique and, once set, is
+		// locked to System Managers; server-side rules in apply_biometric_id_rules
+		// enforce this — the form just mirrors it for a clean UX.
+		const fieldname = "attendance_device_id";
+		if (!frm.fields_dict[fieldname]) return;
+
+		const is_sys_mgr = (frappe.user_roles || []).includes("System Manager");
+		const has_value = !!(frm.doc[fieldname] && String(frm.doc[fieldname]).trim());
+		const can_write = frm.perm && frm.perm[0] && frm.perm[0].write;
+
+		frappe.db.get_single_value("HR Settings", "biometric_id_mode").then((mode) => {
+			mode = mode || "Manual";
+
+			// Read-only once a value exists (unless System Manager); always
+			// read-only in compulsory-auto mode for non-System-Managers.
+			let read_only = has_value && !is_sys_mgr;
+			if (mode === "Auto (Compulsory)" && !is_sys_mgr) read_only = true;
+			frm.set_df_property(fieldname, "read_only", read_only ? 1 : 0);
+
+			// Offer Generate when the system may assign and the field is empty.
+			if ((mode === "Auto (Compulsory)" || mode === "Hybrid") && !has_value && can_write) {
+				frm.add_custom_button(__("Generate Biometric ID"), () => {
+					frappe.call({
+						method: "indian_hrms_compliance.overrides.employee_master.generate_biometric_id",
+					}).then((r) => {
+						if (r && r.message) frm.set_value(fieldname, r.message);
+					});
+				});
+			}
+		});
 	},
 
 	date_of_birth(frm) {

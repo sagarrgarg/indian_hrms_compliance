@@ -9,6 +9,7 @@
   "general_tab",
   "employee_settings",
   "emp_created_by",
+  "biometric_id_mode",
   "standard_working_hours",
   "column_break_9",
   "retirement_age",
@@ -183,6 +184,14 @@
    "fieldtype": "Select",
    "label": "Employee Naming By",
    "options": "Naming Series\nEmployee Number\nFull Name"
+  },
+  {
+   "default": "Manual",
+   "description": "How the Biometric / Attendance Device ID (attendance_device_id) is assigned on an Employee. Manual: HR types it. Hybrid: HR may type it or click Generate. Auto (Compulsory): the system assigns the next free number on save and the field is read-only for non-System-Managers. The ID is unique and gap-filled (555, 557 present -> 556); once set, only a System Manager can change it.",
+   "fieldname": "biometric_id_mode",
+   "fieldtype": "Select",
+   "label": "Biometric / Attendance ID Assignment",
+   "options": "Manual\nHybrid\nAuto (Compulsory)"
   },
   {
    "fieldname": "column_break_4",
@@ -1144,7 +1153,7 @@
  "idx": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-06-19 12:00:00.000000",
+ "modified": "2026-06-19 18:30:00.000000",
  "modified_by": "Administrator",
  "module": "HR",
  "name": "HR Settings",

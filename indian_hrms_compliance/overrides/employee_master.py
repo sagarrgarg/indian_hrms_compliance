@@ -281,6 +281,82 @@ def _hr_setting(fieldname):
 	return frappe.db.get_single_value("HR Settings", fieldname)
 
 
+# ---------------------------------------------------------------------------
+# Biometric / Attendance Device ID assignment
+# ---------------------------------------------------------------------------
+# attendance_device_id (erpnext Employee, Data, unique, no_copy) is the
+# biometric / RF-tag identifier that maps device punches to an Employee.
+# HR Settings.biometric_id_mode governs how it gets filled:
+#   "Manual"            -> HR types it; no auto-generation (default).
+#   "Hybrid"            -> HR may type it OR click Generate (auto gap-fill).
+#   "Auto (Compulsory)" -> system assigns the next free number on save; the
+#                          field is read-only for non-System-Managers.
+# Once a value is set it is LOCKED: only a System Manager may change or clear
+# it, so an established attendance mapping can't be silently reassigned.
+BIOMETRIC_ID_FIELD = "attendance_device_id"
+
+
+def _biometric_id_mode():
+	return _hr_setting("biometric_id_mode") or "Manual"
+
+
+def _next_free_biometric_id():
+	"""Smallest free positive integer not already used as an attendance_device_id.
+
+	Gap-filling and global (the field is unique across every Employee), so
+	1,2,3,5 -> 4 and 555,557 -> 556. Only purely-numeric existing IDs take part
+	in the sequence; manually-entered alphanumeric tags are ignored.
+	"""
+	used = set()
+	for value in frappe.get_all(
+		"Employee",
+		filters={BIOMETRIC_ID_FIELD: ("is", "set")},
+		pluck=BIOMETRIC_ID_FIELD,
+	):
+		value = (value or "").strip()
+		if value.isdigit():
+			used.add(int(value))
+	n = 1
+	while n in used:
+		n += 1
+	return str(n)
+
+
+@frappe.whitelist()
+def generate_biometric_id():
+	"""Return the next free biometric ID for the Generate button.
+
+	Gated on Employee write permission so it can't be used to enumerate the
+	table. Uniqueness is ultimately enforced by the field's unique index — if a
+	racing save grabs the same number first, the second save fails cleanly and
+	the user can regenerate.
+	"""
+	if not frappe.has_permission("Employee", "write"):
+		frappe.throw(_("Not permitted to generate a Biometric ID."), frappe.PermissionError)
+	return _next_free_biometric_id()
+
+
+def apply_biometric_id_rules(doc, method=None):
+	"""Enforce the HR Settings biometric ID policy on Employee save.
+
+	1. Lock-once-set: a non-empty attendance_device_id may only be changed or
+	   cleared by a System Manager.
+	2. Auto (Compulsory): auto-fill the next free number when the field is empty.
+	"""
+	before = doc.get_doc_before_save()
+	old_value = ((before.get(BIOMETRIC_ID_FIELD) if before else "") or "").strip()
+	new_value = (doc.get(BIOMETRIC_ID_FIELD) or "").strip()
+
+	if old_value and new_value != old_value and "System Manager" not in frappe.get_roles():
+		frappe.throw(
+			_("The Biometric / Attendance Device ID is locked once set. Only a System Manager can change it."),
+			title=_("Not Permitted"),
+		)
+
+	if not new_value and _biometric_id_mode() == "Auto (Compulsory)":
+		doc.set(BIOMETRIC_ID_FIELD, _next_free_biometric_id())
+
+
 def auto_set_probation_schedule(doc, method=None):
 	"""On Employee validate, if confirmation_status is 'Probation' and the
 	Scheduled Confirmation Date is empty, fill it from
