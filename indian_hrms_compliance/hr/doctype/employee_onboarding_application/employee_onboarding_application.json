@@ -29,6 +29,8 @@
   "ifsc_code",
   "address_docs_section",
   "current_address",
+  "same_as_current_address",
+  "permanent_address",
   "col_docs",
   "photo",
   "emergency_section",
@@ -100,6 +102,8 @@
 
   {"fieldname": "address_docs_section", "fieldtype": "Section Break", "label": "Address & Photo"},
   {"fieldname": "current_address", "fieldtype": "Small Text", "label": "Current Address"},
+  {"fieldname": "same_as_current_address", "fieldtype": "Check", "label": "Permanent address same as current", "default": "0", "description": "Tick to copy the current address into the permanent address."},
+  {"fieldname": "permanent_address", "fieldtype": "Small Text", "label": "Permanent Address", "read_only_depends_on": "eval:doc.same_as_current_address"},
   {"fieldname": "col_docs", "fieldtype": "Column Break"},
   {"fieldname": "photo", "fieldtype": "Attach Image", "label": "Photo"},
 
@@ -153,7 +157,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-06-04 00:00:00.000000",
+ "modified": "2026-06-19 19:30:00.000000",
  "modified_by": "Administrator",
  "module": "HR",
  "name": "Employee Onboarding Application",
