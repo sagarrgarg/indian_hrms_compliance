@@ -45,6 +45,27 @@ frappe.ui.form.on("Employee", {
 		});
 
 		frm.trigger("setup_biometric_id");
+		frm.trigger("setup_address_copy");
+	},
+
+	setup_address_copy(frm) {
+		// Lock Permanent Address while "same as current" is ticked; the server
+		// (apply_address_copy_rules) re-applies the copy on save regardless.
+		if (!frm.fields_dict.permanent_address_same_as_current) return;
+		const same = !!frm.doc.permanent_address_same_as_current;
+		frm.set_df_property("permanent_address", "read_only", same ? 1 : 0);
+	},
+
+	permanent_address_same_as_current(frm) {
+		const same = !!frm.doc.permanent_address_same_as_current;
+		if (same) frm.set_value("permanent_address", frm.doc.current_address || "");
+		frm.set_df_property("permanent_address", "read_only", same ? 1 : 0);
+	},
+
+	current_address(frm) {
+		if (frm.doc.permanent_address_same_as_current) {
+			frm.set_value("permanent_address", frm.doc.current_address || "");
+		}
 	},
 
 	setup_biometric_id(frm) {

@@ -357,6 +357,17 @@ def apply_biometric_id_rules(doc, method=None):
 		doc.set(BIOMETRIC_ID_FIELD, _next_free_biometric_id())
 
 
+def apply_address_copy_rules(doc, method=None):
+	"""Mirror current_address into permanent_address when the HR toggle is set.
+
+	Driven from the convenience Check custom field
+	(permanent_address_same_as_current). Enforced here so the copy is correct for
+	Data Import / API writes too, not just the live employee.js handler.
+	"""
+	if doc.get("permanent_address_same_as_current"):
+		doc.permanent_address = doc.current_address
+
+
 def auto_set_probation_schedule(doc, method=None):
 	"""On Employee validate, if confirmation_status is 'Probation' and the
 	Scheduled Confirmation Date is empty, fill it from

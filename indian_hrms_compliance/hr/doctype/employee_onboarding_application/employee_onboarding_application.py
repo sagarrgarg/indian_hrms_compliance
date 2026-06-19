@@ -57,6 +57,26 @@ INVITE_DEFAULT_VALIDITY_DAYS = 30
 MIN_EMPLOYMENT_AGE_DEFAULT = 14  # Child Labour (Prohibition and Regulation) Act, 1986
 MAX_EMPLOYMENT_AGE = 100
 
+# Default brand palette for the public onboarding form — saffron -> terracotta,
+# matching the product's app icon / splash (frontend/branding). A company may
+# override these via Company.onboarding_primary_color / _secondary_color.
+ONBOARDING_DEFAULT_PRIMARY = "#E16A2C"  # terracotta
+ONBOARDING_DEFAULT_SECONDARY = "#F4A04A"  # saffron
+
+
+def _onboarding_theme(company: str | None) -> dict:
+	"""Resolve the onboarding form palette for a company, falling back to the
+	brand default when the company is blank or hasn't set custom colours."""
+	primary = secondary = None
+	if company and frappe.db.exists("Company", company):
+		primary, secondary = frappe.db.get_value(
+			"Company", company, ["onboarding_primary_color", "onboarding_secondary_color"]
+		) or (None, None)
+	return {
+		"primary_color": primary or ONBOARDING_DEFAULT_PRIMARY,
+		"secondary_color": secondary or ONBOARDING_DEFAULT_SECONDARY,
+	}
+
 # Documents every candidate MUST upload before an onboarding submission is
 # accepted. "Previous Payslip" is additionally required unless is_fresher.
 REQUIRED_DOCUMENT_TYPES = ("PAN Card", "Aadhaar Card", "Signed Offer Letter")
@@ -125,6 +145,10 @@ class EmployeeOnboardingApplication(Document):
 			self.mobile_no = re.sub(r"[^\d+]", "", self.mobile_no)
 		if self.personal_email:
 			self.personal_email = self.personal_email.strip().lower()
+		# Permanent address mirrors current when the candidate opts in. Enforced
+		# server-side so it stays correct even if the client toggle was bypassed.
+		if self.same_as_current_address:
+			self.permanent_address = self.current_address
 
 	def _validate_statutory_ids(self):
 		# These are HARD locks: the data flows directly into Employee + payroll
@@ -296,13 +320,32 @@ class EmployeeOnboardingApplication(Document):
 
 		An invalid/absent token just means this is a plain public submission —
 		not an error."""
-		if not self.invite_token or self.invited:
+		if self.invited:
 			return
 
-		# (1) Draft-backed opaque token.
-		draft = _resolve_invite_draft(self.invite_token, throw_on_expired=True)
+		# (1) Draft-backed opaque token (the current invite flow).
+		draft = (
+			_resolve_invite_draft(self.invite_token, throw_on_expired=True)
+			if self.invite_token
+			else None
+		)
+
+		# (1b) Transport-independent fallback. The opaque token lives in a HIDDEN
+		# web-form field, and anonymous submissions do NOT reliably round-trip
+		# hidden controls — web_form.accept() blanks any field missing from the
+		# POST (data.get(fieldname, "")). When the token is lost the Draft would
+		# never get absorbed (HR sees two records) AND the submission would shed
+		# its HR-locked company/designation. Matching the candidate's own email
+		# to the HR-staged Draft recovers both: one record, role fields intact.
+		if not draft and self.status != "Draft" and self.personal_email:
+			draft = _resolve_invite_draft_by_email(self.personal_email)
+
 		if draft and draft.name != self.name:
 			self.invited = 1
+			# Keep the audit trail even when the email fallback (not the token in
+			# hand) is what matched the draft.
+			if not self.invite_token and draft.invite_token:
+				self.invite_token = draft.invite_token
 			self.invite_email = draft.invite_email or draft.personal_email
 			self.invite_expires_on = draft.invite_expires_on
 			for f in ("target_company", "target_designation", "employment_type", "offer_letter"):
@@ -316,6 +359,8 @@ class EmployeeOnboardingApplication(Document):
 			return
 
 		# (2) Legacy signed tokens.
+		if not self.invite_token:
+			return
 		parsed = _verify_invite_token(self.invite_token)
 		if not parsed:
 			return
@@ -419,6 +464,31 @@ def _resolve_invite_draft(token: str, throw_on_expired: bool = False):
 	if draft.invite_expires_on and getdate(draft.invite_expires_on) < getdate():
 		if throw_on_expired:
 			frappe.throw(_("This invite link has expired. Please request a fresh link from HR."))
+		return None
+	return draft
+
+
+def _resolve_invite_draft_by_email(email: str):
+	"""Find a candidate's outstanding HR-staged Draft by email.
+
+	This is the transport-independent fallback for when the opaque invite token
+	didn't survive the anonymous web-form POST (hidden controls are dropped).
+	generate_invite_link_full keeps at most one Draft per email ("refresh, don't
+	stack"), so there's never ambiguity about which draft to absorb. Only
+	NON-expired Drafts qualify — an expired invite must not silently auto-absorb.
+	"""
+	email = (email or "").strip().lower()
+	if not email:
+		return None
+	name = frappe.db.get_value(
+		"Employee Onboarding Application",
+		{"personal_email": email, "status": "Draft"},
+		"name",
+	)
+	if not name:
+		return None
+	draft = frappe.get_doc("Employee Onboarding Application", name)
+	if draft.invite_expires_on and getdate(draft.invite_expires_on) < getdate():
 		return None
 	return draft
 
@@ -764,6 +834,7 @@ def get_invite_prefill(token: str) -> dict:
 		"target_designation": draft.target_designation or "",
 		"has_offer_letter": bool(draft.offer_letter),
 		"expires_on": str(draft.invite_expires_on or ""),
+		**_onboarding_theme(draft.target_company),
 	}
 
 
@@ -910,6 +981,15 @@ def mark_converted(application: str, employee: str):
 		emp_updates["emergency_phone_number"] = app.emergency_contact_phone
 	if app.current_address:
 		emp_updates["current_address"] = app.current_address
+	# Permanent address + the "same as current" convenience toggle. When the
+	# candidate ticked it, _normalise already mirrored current->permanent on the
+	# application; carry both so the Employee shows the same state. set_value
+	# bypasses the validate hook (apply_address_copy_rules), so mirror explicitly.
+	if app.get("same_as_current_address"):
+		emp_updates["permanent_address_same_as_current"] = 1
+		emp_updates["permanent_address"] = app.current_address
+	elif app.permanent_address:
+		emp_updates["permanent_address"] = app.permanent_address
 	if app.photo:
 		emp_updates["image"] = app.photo
 	if emp_updates:

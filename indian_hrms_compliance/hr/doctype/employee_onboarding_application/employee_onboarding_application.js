@@ -47,6 +47,19 @@ frappe.ui.form.on(APP_DOCTYPE, {
 			frm.set_value("rejection_reason", "");
 		}
 	},
+
+	same_as_current_address(frm) {
+		// Mirror current -> permanent when ticked (server also enforces on save).
+		if (frm.doc.same_as_current_address) {
+			frm.set_value("permanent_address", frm.doc.current_address || "");
+		}
+	},
+
+	current_address(frm) {
+		if (frm.doc.same_as_current_address) {
+			frm.set_value("permanent_address", frm.doc.current_address || "");
+		}
+	},
 });
 
 function render_status_indicator(frm) {
