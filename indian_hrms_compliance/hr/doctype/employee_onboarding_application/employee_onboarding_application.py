@@ -79,10 +79,12 @@ def _onboarding_theme(company: str | None) -> dict:
 
 # Documents every candidate MUST upload before an onboarding submission is
 # accepted. "Previous Payslip" is additionally required unless is_fresher.
-# Signed Offer Letter is intentionally NOT here — candidates may onboard before
-# the signed copy is in hand, so it stays an optional (but offered) upload.
 REQUIRED_DOCUMENT_TYPES = ("PAN Card", "Aadhaar Card")
 PAYSLIP_DOCUMENT_TYPE = "Previous Payslip"
+# Required ONLY when HR attached an offer letter for this candidate to download +
+# sign via the invite link (self.offer_letter is set) — if they were sent a letter
+# to sign, they must return the signed copy. Plain/open submissions skip it.
+SIGNED_OFFER_LETTER_DOCUMENT_TYPE = "Signed Offer Letter"
 
 # Fields safe to hand to the New Employee Setup page (no HR-review/internal fields).
 SETUP_FIELDS = (
@@ -205,8 +207,12 @@ class EmployeeOnboardingApplication(Document):
 	def _validate_required_documents(self):
 		"""Block a candidate submission unless the mandatory documents are
 		attached. HR-created drafts (status='Draft') are exempt so HR can stage
-		a record before the candidate uploads. Previous Payslip is required
-		unless the candidate flags themselves a fresher.
+		a record before the candidate uploads.
+
+		- PAN Card + Aadhaar Card: always required.
+		- Previous Payslip: required unless the candidate flags themselves a fresher.
+		- Signed Offer Letter: required ONLY when an offer letter was attached for
+		  this candidate to download + sign via the invite (self.offer_letter set).
 		"""
 		if self.status == "Draft":
 			return
@@ -220,20 +226,27 @@ class EmployeeOnboardingApplication(Document):
 		missing = [d for d in REQUIRED_DOCUMENT_TYPES if d not in attached]
 		if not self.is_fresher and PAYSLIP_DOCUMENT_TYPE not in attached:
 			missing.append(PAYSLIP_DOCUMENT_TYPE)
+		if self.offer_letter and SIGNED_OFFER_LETTER_DOCUMENT_TYPE not in attached:
+			missing.append(SIGNED_OFFER_LETTER_DOCUMENT_TYPE)
 
-		if missing:
-			frappe.throw(
-				_("Please attach the following required document(s): {0}.").format(
-					", ".join(missing)
-				)
-				+ (
-					""
-					if self.is_fresher
-					else "<br>"
-					+ _("Tick 'I am a fresher' if you have no previous employment to skip the payslip.")
-				),
-				title=_("Documents Required"),
+		if not missing:
+			return
+
+		hints = []
+		if not self.is_fresher and PAYSLIP_DOCUMENT_TYPE in missing:
+			hints.append(
+				_("Tick 'I am a fresher' if you have no previous employment to skip the payslip.")
 			)
+		if SIGNED_OFFER_LETTER_DOCUMENT_TYPE in missing:
+			hints.append(
+				_("Download the offer letter from the banner at the top, sign it, and upload the signed copy as 'Signed Offer Letter'.")
+			)
+
+		frappe.throw(
+			_("Please attach the following required document(s): {0}.").format(", ".join(missing))
+			+ ("<br>" + "<br>".join(hints) if hints else ""),
+			title=_("Documents Required"),
+		)
 
 	def _validate_status_transitions(self):
 		# Block 'Verified' unless every checklist box is ticked. Keeps HR honest
