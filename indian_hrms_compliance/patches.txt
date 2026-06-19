@@ -92,3 +92,4 @@ indian_hrms_compliance.patches.v15_0.add_consent_text_version_setting #2026-06-0
 indian_hrms_compliance.patches.v15_0.onboarding_required_documents #2026-06-12
 indian_hrms_compliance.patches.v15_0.attendance_backdated_master_approval #2026-06-12
 indian_hrms_compliance.patches.v15_0.seed_notify_employee_policy_email #2026-06-12
+indian_hrms_compliance.patches.v15_0.promote_auto_leave_policy_to_standard_field #2026-06-19

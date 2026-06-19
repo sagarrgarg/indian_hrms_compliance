@@ -1,9 +1,10 @@
 """Wire the employee-activation orchestration.
 
-Adds the per-company onboarding defaults (Company) and the opt-in toggle
-(HR Settings) that drive
-``employee_master.auto_assign_leave_policy_on_activation``. Mirrors the
-existing FnF auto-create pattern (per-feature defaults + a toggle + a hook).
+Adds the per-company onboarding defaults (Company) that drive
+``employee_master.auto_assign_leave_policy_on_activation``. The opt-in toggle
+itself is a standard field on the HR Settings doctype (hr_settings.json); the
+legacy Custom Field that this patch used to create is dropped by
+``promote_auto_leave_policy_to_standard_field``.
 """
 
 import frappe
@@ -55,20 +56,6 @@ def get_fields():
 				"label": "Default Salary Structure",
 				"options": "Salary Structure",
 				"insert_after": "default_shift_type",
-			},
-		],
-		"HR Settings": [
-			{
-				"fieldname": "auto_assign_leave_policy_on_activation",
-				"fieldtype": "Check",
-				"label": "Auto-assign Leave Policy on Employee Activation",
-				"insert_after": "prevent_self_leave_approval",
-				"default": "0",
-				"description": (
-					"When ON, activating an employee auto-creates a Leave Policy "
-					"Assignment from the company's Default Leave Policy / Leave Period "
-					"(which cascades into Leave Allocations). Idempotent and opt-in."
-				),
 			},
 		],
 	}
