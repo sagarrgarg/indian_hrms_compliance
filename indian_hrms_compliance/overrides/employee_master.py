@@ -131,6 +131,13 @@ class EmployeeMaster(Employee):
 			# GGIL-002. The counter is kept per prefix in tabSeries, so each
 			# company numbers its people independently.
 			self.name = make_autoname(series, doc=self)
+			# tabSeries can lag behind the real IDs — legacy employees bulk-imported
+			# with explicit names (e.g. GGIL-001..GGIL-050) never advance it — so
+			# make_autoname can hand back an ID that already exists. Keep drawing the
+			# next number (each call advances the counter) until one is free, so the
+			# series self-heals past already-used IDs instead of failing the insert.
+			while frappe.db.exists("Employee", self.name):
+				self.name = make_autoname(series, doc=self)
 		else:
 			# No company abbreviation to key off — honour the HR Settings method.
 			naming_method = frappe.db.get_value("HR Settings", None, "emp_created_by")
