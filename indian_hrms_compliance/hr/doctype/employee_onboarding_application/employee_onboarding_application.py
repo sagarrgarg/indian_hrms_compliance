@@ -103,6 +103,41 @@ class EmployeeOnboardingApplication(Document):
 		self._validate_required_documents()
 		self._validate_status_transitions()
 
+	def on_update(self):
+		self._link_document_files()
+
+	def _link_document_files(self):
+		"""Anchor each uploaded document File to THIS application.
+
+		Candidate/web-form uploads land as PRIVATE files, and some arrive with no
+		attached_to link (orphans) — typically the PAN/Aadhaar a guest uploads
+		into the documents grid. A private orphan file is readable only by its
+		owner + System Manager, so an HR User/Manager verifying the application
+		gets a permission error opening it. Linking the file to the application
+		makes it inherit the application's read permission.
+
+		Only orphans are claimed: a file already attached elsewhere (e.g. cloned
+		onto the Employee on conversion, or still held by an invite Draft that
+		after_insert will move) is left untouched."""
+		if not self.name:
+			return
+		for row in self.documents or []:
+			if not row.document:
+				continue
+			for f in frappe.get_all(
+				"File",
+				filters={"file_url": row.document},
+				fields=["name", "attached_to_doctype", "attached_to_name"],
+			):
+				if f.attached_to_doctype or f.attached_to_name:
+					continue  # already linked somewhere — don't steal it
+				frappe.db.set_value(
+					"File",
+					f.name,
+					{"attached_to_doctype": self.doctype, "attached_to_name": self.name},
+					update_modified=False,
+				)
+
 	def before_insert(self):
 		# Guest submissions must carry consent; HR-created drafts may skip it.
 		if self.status != "Draft" and not self.dpdp_consent:
