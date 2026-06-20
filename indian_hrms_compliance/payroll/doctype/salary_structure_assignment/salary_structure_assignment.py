@@ -283,7 +283,12 @@ def preview_salary(salary_structure, base=0, variable=0, leave_encashment=0, emp
 		"date": _date, "getdate": getdate, "get_first_day": get_first_day,
 		"get_last_day": get_last_day, "ceil": ceil, "floor": floor,
 	}
-	data = {a: 0 for a in frappe.get_all("Salary Component", pluck="salary_component_abbr") if a}
+	# Mirror salary_slip.get_data_for_eval: Employee fields (uan_number, esic_ip_number, …)
+	# must be in scope so structure formulas that reference them evaluate in preview too.
+	data = {}
+	if employee and frappe.db.exists("Employee", employee):
+		data.update(frappe.get_cached_doc("Employee", employee).as_dict())
+	data.update({a: 0 for a in frappe.get_all("Salary Component", pluck="salary_component_abbr") if a})
 	data.update({"base": base, "variable": variable, "leave_encashment": le, "gross_pay": 0})
 
 	def row_amount(r):
