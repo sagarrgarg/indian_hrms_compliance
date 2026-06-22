@@ -34,6 +34,13 @@ def validate_uan_aadhaar_linking(doc, method=None):
 	if not uan:
 		return
 
+	# If the seeding field isn't on this site yet (code deployed ahead of the
+	# migrate that provisions it via setup.get_custom_fields), stay silent —
+	# nagging the user to "update UAN Aadhaar Seeding Status" when there is no
+	# such field to update is just noise. It self-heals on the next migrate.
+	if not frappe.get_meta("Employee").get_field("uan_seeding_status"):
+		return
+
 	status = getattr(doc, "uan_seeding_status", None) or "Not Seeded"
 	if status != "Not Seeded":
 		return

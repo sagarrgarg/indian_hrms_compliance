@@ -361,6 +361,117 @@ def get_custom_fields():
 					"Extended: probation extended. Released: services terminated during probation."
 				),
 			},
+			# --- Statutory IDs + UAN-Aadhaar seeding (SS Code §142) ---
+			# Source of truth lives here, not only in the v15_0 patches. On fresh
+			# installs (incl. every new SaaS tenant) and Frappe Cloud, post_model_sync
+			# patches are stamped "applied" without running, so patch-only Custom
+			# Fields never materialise. sync_custom_fields() runs on every migrate and
+			# upserts these, so the columns self-heal regardless of Patch Log state.
+			{
+				"fieldname": "uan_number",
+				"label": _("UAN"),
+				"fieldtype": "Data",
+				"length": 12,
+				"insert_after": "provident_fund_account",
+				"print_hide": 1,
+				"translatable": 0,
+				"description": _("12-digit EPFO Universal Account Number"),
+			},
+			{
+				"fieldname": "esic_ip_number",
+				"label": _("ESIC IP Number"),
+				"fieldtype": "Data",
+				"insert_after": "uan_number",
+				"print_hide": 1,
+				"translatable": 0,
+			},
+			{
+				"fieldname": "aadhaar_number",
+				"label": _("Aadhaar Number"),
+				"fieldtype": "Data",
+				"length": 12,
+				"insert_after": "esic_ip_number",
+				"print_hide": 1,
+				"no_copy": 1,
+				"translatable": 0,
+				"description": _(
+					"Full 12-digit Aadhaar — Verhoeff-checksum validated. "
+					"Display masked elsewhere; last-4 auto-derived for audit views."
+				),
+			},
+			{
+				"fieldname": "aadhaar_last_4",
+				"label": _("Aadhaar (last 4)"),
+				"fieldtype": "Data",
+				"length": 4,
+				"insert_after": "aadhaar_number",
+				"read_only": 1,
+				"print_hide": 1,
+				"translatable": 0,
+				"description": _(
+					"Auto-derived from the Aadhaar number above — retained for "
+					"UAN-Aadhaar linkage and DPDP audit reports."
+				),
+			},
+			{
+				"fieldname": "nps_pran",
+				"label": _("NPS PRAN"),
+				"fieldtype": "Data",
+				"insert_after": "aadhaar_last_4",
+				"translatable": 0,
+			},
+			{
+				"fieldname": "is_primary_employer",
+				"label": _("Primary Employer for TDS / Form 12B"),
+				"fieldtype": "Check",
+				"insert_after": "nps_pran",
+				"default": "0",
+				"description": _("Only one Active Employee per User may be the Primary Employer."),
+			},
+			{
+				"fieldname": "labour_code_uan_section_break",
+				"fieldtype": "Section Break",
+				"label": _("UAN Aadhaar Seeding (SS Code §142)"),
+				"insert_after": "is_primary_employer",
+				"collapsible": 1,
+			},
+			{
+				"fieldname": "uan_aadhaar_linked",
+				"fieldtype": "Check",
+				"label": _("UAN Aadhaar Linked"),
+				"insert_after": "labour_code_uan_section_break",
+				"default": "0",
+				"description": _("Per SS Code §142, UAN must be linked with Aadhaar."),
+			},
+			{
+				"fieldname": "uan_linking_date",
+				"fieldtype": "Date",
+				"label": _("UAN Linking Date"),
+				"insert_after": "uan_aadhaar_linked",
+				"depends_on": "eval:doc.uan_aadhaar_linked",
+			},
+			{
+				"fieldname": "uan_seeding_col_break",
+				"fieldtype": "Column Break",
+				"insert_after": "uan_linking_date",
+			},
+			{
+				"fieldname": "uan_seeding_status",
+				"fieldtype": "Select",
+				"label": _("UAN Seeding Status"),
+				"options": "Not Seeded\nPending\nSeeded\nMismatched",
+				"insert_after": "uan_seeding_col_break",
+				"default": "Not Seeded",
+				"in_standard_filter": 1,
+			},
+			{
+				"fieldname": "uan_seeding_attempts",
+				"fieldtype": "Int",
+				"label": _("UAN Seeding Attempts"),
+				"insert_after": "uan_seeding_status",
+				"default": "0",
+				"non_negative": 1,
+			},
 		],
 		"Project": [
 			{
