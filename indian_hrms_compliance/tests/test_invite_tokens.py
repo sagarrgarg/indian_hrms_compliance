@@ -189,7 +189,7 @@ class TestDraftInvites(FrappeTestCase):
 			"aadhaar_number": "999999990019",
 			"dpdp_consent": 1,
 			"invite_token": token,
-			"is_fresher": 1,
+			"prior_employment": "Fresher",
 			"documents": REQUIRED_DOCS,
 		}
 		frappe.set_user("Guest")

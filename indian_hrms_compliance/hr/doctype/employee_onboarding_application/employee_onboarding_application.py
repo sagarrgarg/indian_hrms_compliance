@@ -189,6 +189,13 @@ class EmployeeOnboardingApplication(Document):
 		if self.same_as_current_address:
 			self.permanent_address = self.current_address
 
+		# The explicit "Fresher / Already an Employee" choice drives the internal
+		# is_fresher flag (which gates the Previous Payslip requirement). Only
+		# override when a choice was actually made, so HR drafts and direct
+		# programmatic sets keep whatever is_fresher value they were given.
+		if self.prior_employment:
+			self.is_fresher = 1 if self.prior_employment == "Fresher" else 0
+
 	def _validate_statutory_ids(self):
 		# These are HARD locks: the data flows directly into Employee + payroll
 		# filings, so we mirror what Employee.validate would enforce post-conversion.
@@ -270,7 +277,7 @@ class EmployeeOnboardingApplication(Document):
 		hints = []
 		if not self.is_fresher and PAYSLIP_DOCUMENT_TYPE in missing:
 			hints.append(
-				_("Tick 'I am a fresher' if you have no previous employment to skip the payslip.")
+				_("Select 'Fresher' under Employment Background if you have no previous employment to skip the payslip.")
 			)
 		if SIGNED_OFFER_LETTER_DOCUMENT_TYPE in missing:
 			hints.append(

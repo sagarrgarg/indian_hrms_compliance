@@ -67,7 +67,7 @@ frappe.pages["new-employee-setup"].on_page_load = function (wrapper) {
 			{ fieldname: "income_tax_slab", fieldtype: "Link", label: __("Income Tax Slab"), options: "Income Tax Slab", depends_on: "salary_structure" },
 			{ fieldtype: "Column Break" },
 			{ fieldname: "payroll_effective_date", fieldtype: "Date", label: __("Payroll Effective From"), depends_on: "salary_structure" },
-			{ fieldname: "default_shift", fieldtype: "Link", label: __("Default Shift"), options: "Shift Type" },
+			{ fieldname: "default_shift", fieldtype: "Link", label: __("Default Shift"), options: "Shift Type", reqd: 1 },
 
 			{ fieldtype: "Section Break", label: __("Confirmation & Probation") },
 			{ fieldname: "place_on_probation", fieldtype: "Check", label: __("Place on Probation"), default: 0, description: __("Keeps the employee Active for payroll/attendance/leave, while flagging them on probation.") },
@@ -76,7 +76,7 @@ frappe.pages["new-employee-setup"].on_page_load = function (wrapper) {
 			{ fieldname: "final_confirmation_date", fieldtype: "Date", label: __("Confirmation Date"), depends_on: "eval:!doc.place_on_probation", description: __("Defaults to the application submission date. Set it to mark the employee Confirmed.") },
 
 			{ fieldtype: "Section Break", label: __("Leave") },
-			{ fieldname: "leave_policy", fieldtype: "Link", label: __("Leave Policy"), options: "Leave Policy", description: __("Assigned (and allocated) on creation. Prefilled from the company default.") },
+			{ fieldname: "leave_policy", fieldtype: "Link", label: __("Leave Policy"), options: "Leave Policy", reqd: 1, description: __("Assigned (and allocated) on creation. Prefilled from the company default.") },
 			{ fieldtype: "Column Break" },
 			{ fieldname: "leave_period", fieldtype: "Link", label: __("Leave Period"), options: "Leave Period", get_query: () => ({ filters: { company: fg.get_value("company") } }) },
 
@@ -86,13 +86,73 @@ frappe.pages["new-employee-setup"].on_page_load = function (wrapper) {
 	});
 	fg.make();
 
-	// Prefill from a self-service onboarding application (HR clicked "Convert to
-	// Employee"). The application name is carried via route_options and passed
-	// back on create so the application gets stamped Converted.
+	// State carried from a self-service onboarding application (HR clicked
+	// "Convert to Employee"): passed back on create so the application gets
+	// stamped Converted. The actual prefill runs in refresh() (on_page_show).
 	let onboardingApplication = null;
 	let jobApplicant = null;
-	const routedApp = frappe.route_options && frappe.route_options.application;
-	if (routedApp) {
+
+	// default payroll effective date = DOJ
+	fg.get_field("date_of_joining").df.onchange = () => {
+		if (fg.get_value("date_of_joining") && !fg.get_value("payroll_effective_date")) {
+			fg.set_value("payroll_effective_date", fg.get_value("date_of_joining"));
+		}
+	};
+
+	// Live derive last-4 from the full Aadhaar — keeps the legacy column in sync.
+	fg.get_field("aadhaar_number").df.onchange = () => {
+		const raw = (fg.get_value("aadhaar_number") || "").toString().replace(/\D/g, "");
+		if (raw !== fg.get_value("aadhaar_number")) fg.set_value("aadhaar_number", raw);
+		fg.set_value("aadhaar_last_4", raw.slice(-4));
+	};
+
+	// Company drives the leave policy/period defaults, the suggested probation
+	// length, and which company policies are offered for acknowledgement.
+	fg.get_field("company").df.onchange = loadCompanyDefaults;
+
+	// on_page_show calls this on every visit (the Desk page wrapper is cached
+	// and on_page_load does NOT re-run on soft navigation).
+	wrapper.nes_refresh = refresh;
+
+	page.set_primary_action(__("Create Employee"), () => {
+		const values = fg.get_values(); // null + highlights if mandatory missing
+		if (!values) return;
+		if (onboardingApplication) values.onboarding_application = onboardingApplication;
+		if (jobApplicant) values.job_applicant = jobApplicant;
+		values.policies_to_ack = fg.get_value("policies_to_ack") || [];
+		frappe.confirm(__("Create the Employee, User login and linked records now?"), () => {
+			frappe.dom.freeze(__("Setting up the new employee…"));
+			frappe
+				.call({
+					method: "indian_hrms_compliance.hr.employee_setup.setup_new_employee",
+					args: { data: values },
+				})
+				.then((r) => {
+					frappe.dom.unfreeze();
+					if (!r.message) return;
+					render_result(r.message);
+				})
+				.catch(() => frappe.dom.unfreeze());
+		});
+	});
+
+	// Reset the form to a pristine state, then prefill from a routed onboarding
+	// application if one was passed (HR clicked "Convert to Employee"). Runs on
+	// every page show so navigating back never leaves the previously-created
+	// employee's data on screen, and a fresh conversion always prefills.
+	function refresh() {
+		fg.clear();
+		fg.set_value("create_user", 1);
+		fg.set_value("send_welcome_email", 1);
+		fg.set_value("create_user_permission", 1);
+		fg.set_value("place_on_probation", 0);
+		onboardingApplication = null;
+		jobApplicant = null;
+		setPolicyOptions([]);
+		$result.empty();
+
+		const routedApp = frappe.route_options && frappe.route_options.application;
+		if (!routedApp) return;
 		frappe.route_options = {};
 		frappe
 			.call({
@@ -117,46 +177,6 @@ frappe.pages["new-employee-setup"].on_page_load = function (wrapper) {
 				});
 			});
 	}
-
-	// default payroll effective date = DOJ
-	fg.get_field("date_of_joining").df.onchange = () => {
-		if (fg.get_value("date_of_joining") && !fg.get_value("payroll_effective_date")) {
-			fg.set_value("payroll_effective_date", fg.get_value("date_of_joining"));
-		}
-	};
-
-	// Live derive last-4 from the full Aadhaar — keeps the legacy column in sync.
-	fg.get_field("aadhaar_number").df.onchange = () => {
-		const raw = (fg.get_value("aadhaar_number") || "").toString().replace(/\D/g, "");
-		if (raw !== fg.get_value("aadhaar_number")) fg.set_value("aadhaar_number", raw);
-		fg.set_value("aadhaar_last_4", raw.slice(-4));
-	};
-
-	// Company drives the leave policy/period defaults, the suggested probation
-	// length, and which company policies are offered for acknowledgement.
-	fg.get_field("company").df.onchange = loadCompanyDefaults;
-
-	page.set_primary_action(__("Create Employee"), () => {
-		const values = fg.get_values(); // null + highlights if mandatory missing
-		if (!values) return;
-		if (onboardingApplication) values.onboarding_application = onboardingApplication;
-		if (jobApplicant) values.job_applicant = jobApplicant;
-		values.policies_to_ack = fg.get_value("policies_to_ack") || [];
-		frappe.confirm(__("Create the Employee, User login and linked records now?"), () => {
-			frappe.dom.freeze(__("Setting up the new employee…"));
-			frappe
-				.call({
-					method: "indian_hrms_compliance.hr.employee_setup.setup_new_employee",
-					args: { data: values },
-				})
-				.then((r) => {
-					frappe.dom.unfreeze();
-					if (!r.message) return;
-					render_result(r.message);
-				})
-				.catch(() => frappe.dom.unfreeze());
-		});
-	});
 
 	// Pull the company's leave/probation/policy defaults and prime the form.
 	function loadCompanyDefaults() {
@@ -207,17 +227,18 @@ frappe.pages["new-employee-setup"].on_page_load = function (wrapper) {
 			</div>
 		`);
 		$result.find(".nes-another").on("click", () => {
-			fg.clear();
-			fg.set_value("create_user", 1);
-			fg.set_value("send_welcome_email", 1);
-			fg.set_value("create_user_permission", 1);
-			fg.set_value("place_on_probation", 0);
-			// A fresh manual employee must not inherit the converted one's links.
-			onboardingApplication = null;
-			jobApplicant = null;
-			setPolicyOptions([]);
-			$result.empty();
+			// Pristine reset. route_options was already consumed, so no re-prefill —
+			// a fresh manual employee must not inherit the converted one's links.
+			refresh();
 			frappe.utils.scroll_to(0);
 		});
 	}
+};
+
+frappe.pages["new-employee-setup"].on_page_show = function (wrapper) {
+	// The Desk page wrapper is built once and reused across soft navigations,
+	// so on_page_load does NOT re-run. Re-prime the form on every show so we
+	// never display the previously-created employee's data — or miss a fresh
+	// "Convert to Employee" prefill — until a hard refresh.
+	if (wrapper && wrapper.nes_refresh) wrapper.nes_refresh();
 };
