@@ -45,6 +45,10 @@ def setup_new_employee(data):
 		frappe.throw(_("PAN is required."))
 	if cint(d.create_user) and not d.user_email:
 		frappe.throw(_("User Email is required to create a User login."))
+	if not d.leave_policy:
+		frappe.throw(_("Leave Policy is required."))
+	if not d.default_shift:
+		frappe.throw(_("Default Shift is required."))
 
 	log = []
 	state = {"welcome_email_failed": False}
@@ -106,8 +110,6 @@ def setup_new_employee(data):
 				pass
 			frappe.log_error(title="Employee Setup: leave policy failed", message=frappe.get_traceback())
 			log.append(_("⚠ Leave Policy Assignment failed — assign it manually (see Error Log)."))
-	else:
-		log.append(_("No Leave Policy selected — assign one manually if required."))
 
 	# --- Best-effort: enrol the curated company policies for acknowledgement ---
 	policies = d.policies_to_ack
