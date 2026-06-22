@@ -37,7 +37,6 @@ indian_hrms_compliance.patches.v15_0.rename_claim_date_to_payroll_date_in_employ
 indian_hrms_compliance.patches.v15_0.add_leave_type_permission_for_ess
 indian_hrms_compliance.patches.v15_0.remove_ess_user_type_limit
 indian_hrms_compliance.patches.v15_0.update_approver_custom_fields
-indian_hrms_compliance.patches.v15_0.add_person_level_employee_fields #2026-05-26
 indian_hrms_compliance.patches.v15_0.add_confirmation_status_field #2026-05-28
 indian_hrms_compliance.patches.v15_0.add_letter_type_custom_fields #2026-05-28
 indian_hrms_compliance.patches.v15_0.setup_job_requisition_workflow #2026-05-28
@@ -70,7 +69,6 @@ indian_hrms_compliance.patches.v15_0.seed_phase6b2_defaults #2026-06-01
 indian_hrms_compliance.patches.v15_0.add_compliance_calendar_hr_settings #2026-06-02
 indian_hrms_compliance.patches.v15_0.seed_compliance_calendar_defaults #2026-06-02
 indian_hrms_compliance.patches.v15_0.setup_standing_orders_workflow #2026-06-03
-indian_hrms_compliance.patches.v15_0.add_labour_code_employee_fields #2026-06-03
 indian_hrms_compliance.patches.v15_0.add_labour_code_hr_settings #2026-06-03
 indian_hrms_compliance.patches.v15_0.seed_labour_code_defaults #2026-06-03
 indian_hrms_compliance.patches.v15_0.dpdp_add_doctypes_seed #2026-06-03
