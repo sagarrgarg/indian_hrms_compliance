@@ -245,7 +245,9 @@ doc_events = {
 		"validate": [
 			"indian_hrms_compliance.overrides.employee_master.validate_onboarding_process",
 			"indian_hrms_compliance.overrides.employee_master.validate_statutory_id_formats",
+			"indian_hrms_compliance.overrides.employee_master.validate_unique_statutory_person",
 			"indian_hrms_compliance.overrides.employee_master.validate_person_data_consistency",
+			"indian_hrms_compliance.overrides.employee_master.auto_set_primary_employer",
 			"indian_hrms_compliance.overrides.employee_master.validate_single_primary_employer",
 			"indian_hrms_compliance.overrides.employee_master.auto_set_probation_schedule",
 			"indian_hrms_compliance.overrides.employee_master.apply_biometric_id_rules",

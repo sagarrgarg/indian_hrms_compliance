@@ -243,11 +243,77 @@ def validate_person_data_consistency(doc, method=None):
 		)
 
 
-def validate_single_primary_employer(doc, method=None):
-	# Only one Active Employee per user_id may be the Primary Employer.
-	if not (doc.user_id and doc.get("is_primary_employer")):
+def validate_unique_statutory_person(doc, method=None):
+	"""PAN and Aadhaar each identify a single human, so the same value must never
+	be spread across two *different* people.
+
+	Person identity is keyed on ``user_id`` (the same key the rest of the
+	multi-employer model uses): one person legitimately has many Employee records
+	across companies that all share the same PAN/Aadhaar, but the same PAN/Aadhaar
+	under two *distinct* ``user_id``s is a data-integrity error — a typo, or two
+	logins for one human that should be merged.
+
+	Only flagged when both sides carry a (different) non-empty ``user_id``.
+	Records that aren't linked to a User yet can't be proven distinct — mirroring
+	validate_person_data_consistency — so not-yet-linked bulk imports don't break.
+	"""
+	if not doc.user_id:
 		return
-	other = frappe.db.get_value(
+	for field, label in (("pan_number", _("PAN")), ("aadhaar_number", _("Aadhaar"))):
+		value = doc.get(field)
+		if not value:
+			continue
+		# Another Employee with the same statutory ID but a different, non-empty
+		# user_id (NULL/'' user_ids are excluded by NOT IN, so unlinked records
+		# never trip this).
+		clash = frappe.db.get_value(
+			"Employee",
+			{
+				field: value,
+				"user_id": ("not in", ["", doc.user_id]),
+				"name": ("!=", doc.name or ""),
+			},
+			["name", "user_id"],
+			as_dict=True,
+		)
+		if clash:
+			frappe.throw(
+				_(
+					"{0} {1} is already linked to a different person (Employee {2}, User {3}). "
+					"A {0} must belong to exactly one individual."
+				).format(label, frappe.bold(str(value)), _employee_link(clash.name), frappe.bold(clash.user_id)),
+				title=_("Duplicate {0}").format(label),
+			)
+
+
+def auto_set_primary_employer(doc, method=None):
+	"""Auto-tick "Primary Employer for TDS / Form 12B" on a person's first Active
+	employment.
+
+	The flag marks which employer consolidates the person's income for TDS /
+	Form 12B; there must be exactly one at a time. The first time a person (keyed
+	on ``user_id``) appears with no other Active Primary, tick it for them; a
+	second concurrent employer is left unticked (they declare it via Form 12B).
+	A person who rejoins after leaving (the old record now Inactive) correctly
+	gets the new Active job ticked.
+
+	Runs only on insert or when a User first gets linked — the New Employee Setup
+	flow inserts the Employee, then links the User on a follow-up save — never on
+	ordinary later saves, so an explicit HR untick is respected. No-ops without a
+	``user_id`` (no person key) or when the record isn't Active.
+	"""
+	if doc.get("is_primary_employer"):
+		return
+	if doc.status != "Active" or not doc.user_id:
+		return
+
+	previous = doc.get_doc_before_save()
+	is_insert = previous is None
+	user_just_linked = bool(previous and not previous.get("user_id") and doc.user_id)
+	if not (is_insert or user_just_linked):
+		return
+
+	existing_primary = frappe.db.exists(
 		"Employee",
 		{
 			"user_id": doc.user_id,
@@ -255,15 +321,150 @@ def validate_single_primary_employer(doc, method=None):
 			"status": "Active",
 			"name": ("!=", doc.name or ""),
 		},
-		"name",
 	)
-	if other:
-		frappe.throw(
-			_("Employee {0} is already marked Primary Employer for {1}. Only one Primary Employer per User at a time.").format(
-				_employee_link(other), frappe.bold(doc.user_id)
-			),
-			title=_("Duplicate Primary Employer"),
+	if not existing_primary:
+		doc.is_primary_employer = 1
+
+
+def validate_single_primary_employer(doc, method=None):
+	"""At most one Active Primary Employer per person.
+
+	The person is matched by BOTH ``user_id`` (the login) and ``pan_number`` (the
+	tax identity), so the guard holds even for records that don't have a User
+	linked yet — two same-PAN records can't both be Primary.
+
+	Enforced only when the flag is being turned *on* (insert with it set, or a
+	0->1 transition). Editing a record that was already Primary is never blocked,
+	so a pre-existing (possibly already-conflicting) legacy primary doesn't wedge
+	unrelated saves; the backfill report surfaces legacy conflicts instead.
+	"""
+	if not doc.get("is_primary_employer"):
+		return
+	previous = doc.get_doc_before_save()
+	if previous and previous.get("is_primary_employer"):
+		# Was already Primary before this save — don't re-litigate legacy state.
+		return
+
+	for field, label in (("user_id", _("User")), ("pan_number", _("PAN"))):
+		value = doc.get(field)
+		if not value:
+			continue
+		other = frappe.db.get_value(
+			"Employee",
+			{
+				field: value,
+				"is_primary_employer": 1,
+				"status": "Active",
+				"name": ("!=", doc.name or ""),
+			},
+			"name",
 		)
+		if other:
+			frappe.throw(
+				_(
+					"Employee {0} is already the Primary Employer for this person ({1} {2}). "
+					"Only one Primary Employer at a time."
+				).format(_employee_link(other), label, frappe.bold(str(value))),
+				title=_("Duplicate Primary Employer"),
+			)
+
+
+def _backfill_primary_employer(dry_run=True):
+	"""Tick "Primary Employer for TDS / Form 12B" for every person who has a
+	single Active employment and a PAN — the unambiguous cases — and leave anyone
+	with concurrent employments for HR to resolve by hand.
+
+	A person is identified by ``pan_number`` and ``user_id``. A record is ticked
+	only when it is Active, carries a PAN, isn't already Primary, and *no other
+	Active Employee* shares either its PAN or its user_id — i.e. it is provably the
+	person's only live job, so naming it Primary can't be wrong. Records sharing a
+	PAN or user_id with another Active record are the Form 12B / multi-employer
+	cases and are reported, not touched.
+
+	Also surfaces (never auto-fixes) two integrity problems the guards would now
+	block but legacy data may already contain: the same PAN/Aadhaar spread across
+	*different* user_ids, and a person who somehow already has more than one Active
+	Primary. Returns a summary dict; writes only when ``dry_run`` is false.
+	"""
+	from collections import defaultdict
+
+	actives = frappe.get_all(
+		"Employee",
+		filters={"status": "Active"},
+		fields=["name", "user_id", "pan_number", "aadhaar_number", "is_primary_employer"],
+	)
+
+	pan_count = defaultdict(int)
+	user_count = defaultdict(int)
+	pan_users = defaultdict(set)
+	aadhaar_users = defaultdict(set)
+	pan_primaries = defaultdict(list)
+	user_primaries = defaultdict(list)
+	for e in actives:
+		if e.pan_number:
+			pan_count[e.pan_number] += 1
+		if e.user_id:
+			user_count[e.user_id] += 1
+		if e.pan_number and e.user_id:
+			pan_users[e.pan_number].add(e.user_id)
+		if e.aadhaar_number and e.user_id:
+			aadhaar_users[e.aadhaar_number].add(e.user_id)
+		if e.is_primary_employer:
+			if e.pan_number:
+				pan_primaries[e.pan_number].append(e.name)
+			if e.user_id:
+				user_primaries[e.user_id].append(e.name)
+
+	eligible, skipped_multi = [], []
+	skipped_no_pan = skipped_already_primary = 0
+	for e in actives:
+		if e.is_primary_employer:
+			skipped_already_primary += 1
+			continue
+		if not e.pan_number:
+			skipped_no_pan += 1
+			continue
+		shares_pan = pan_count[e.pan_number] > 1
+		shares_user = bool(e.user_id) and user_count[e.user_id] > 1
+		if shares_pan or shares_user:
+			skipped_multi.append({"name": e.name, "pan": e.pan_number, "user_id": e.user_id})
+			continue
+		eligible.append({"name": e.name, "pan": e.pan_number, "user_id": e.user_id})
+
+	# Integrity conflicts — reported for HR, never auto-resolved.
+	conflicts = {
+		"pan_across_users": {k: sorted(v) for k, v in pan_users.items() if len(v) > 1},
+		"aadhaar_across_users": {k: sorted(v) for k, v in aadhaar_users.items() if len(v) > 1},
+		"multiple_primaries_per_pan": {k: v for k, v in pan_primaries.items() if len(v) > 1},
+		"multiple_primaries_per_user": {k: v for k, v in user_primaries.items() if len(v) > 1},
+	}
+
+	if not dry_run and eligible:
+		for row in eligible:
+			frappe.db.set_value("Employee", row["name"], "is_primary_employer", 1, update_modified=False)
+		frappe.db.commit()
+
+	return {
+		"dry_run": bool(dry_run),
+		"active_total": len(actives),
+		("ticked" if not dry_run else "would_tick"): eligible,
+		"eligible_count": len(eligible),
+		"skipped_multi": skipped_multi,
+		"skipped_multi_count": len(skipped_multi),
+		"skipped_no_pan": skipped_no_pan,
+		"skipped_already_primary": skipped_already_primary,
+		"conflicts": conflicts,
+		"has_conflicts": any(conflicts.values()),
+	}
+
+
+@frappe.whitelist()
+def backfill_primary_employer(dry_run=1):
+	"""HR-triggerable backfill of the Primary Employer flag (see
+	_backfill_primary_employer). Defaults to a dry run that only reports what it
+	*would* do; pass dry_run=0 to actually write."""
+	frappe.only_for(("HR Manager", "HR User", "System Manager"))
+	return _backfill_primary_employer(dry_run=cint(dry_run))
 
 
 def _hr_setting(fieldname):
