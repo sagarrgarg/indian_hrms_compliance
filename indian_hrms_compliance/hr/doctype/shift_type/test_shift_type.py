@@ -17,7 +17,10 @@ from erpnext.setup.doctype.employee.test_employee import make_employee
 from erpnext.setup.doctype.holiday_list.test_holiday_list import set_holiday_list
 
 from indian_hrms_compliance.hr.doctype.leave_application.test_leave_application import get_first_sunday
-from indian_hrms_compliance.hr.doctype.shift_type.shift_type import update_last_sync_of_checkin
+from indian_hrms_compliance.hr.doctype.shift_type.shift_type import (
+	advance_last_sync_of_checkin,
+	update_last_sync_of_checkin,
+)
 from indian_hrms_compliance.payroll.doctype.salary_slip.test_salary_slip import make_holiday_list
 from indian_hrms_compliance.tests.test_utils import add_date_to_holiday_list
 
@@ -122,6 +125,55 @@ class TestShiftType(FrappeTestCase):
 		shift_type.reload()
 
 		self.assertEqual(shift_type.last_sync_of_checkin, datetime.combine(getdate(), get_time("23:31:00")))
+
+	def test_lagged_advance_last_sync_of_checkin(self):
+		# Opt-in lagged watermark advancer: finalise only up to end of (today - N days),
+		# leaving recent days open for the reconciliation safety-net. Distinct from the
+		# stock same-evening update_last_sync_of_checkin (auto_update_last_sync).
+		frappe.flags.current_datetime = None
+		today = getdate()
+		stale = datetime.combine(add_days(today, -20), get_time("00:00:00"))
+		future = datetime.combine(add_days(today, 5), get_time("00:00:00"))
+		expected = datetime.combine(add_days(today, -1), get_time("00:00:00"))  # end of (today - 2)
+
+		frappe.db.set_single_value("HR Settings", "last_sync_lag_days", 2)
+
+		lag = setup_shift_type(shift_type="_Test Lag Shift")
+		lag.auto_update_last_sync = 0
+		lag.last_sync_of_checkin = stale
+		lag.save()
+
+		auto = setup_shift_type(shift_type="_Test Lag Auto Shift")
+		auto.auto_update_last_sync = 1
+		auto.last_sync_of_checkin = stale
+		auto.save()
+
+		ahead = setup_shift_type(shift_type="_Test Lag Ahead Shift")
+		ahead.auto_update_last_sync = 0
+		ahead.last_sync_of_checkin = future
+		ahead.save()
+
+		# master switch OFF -> no-op everywhere
+		frappe.db.set_single_value("HR Settings", "enable_lagged_last_sync", 0)
+		advance_last_sync_of_checkin()
+		lag.reload()
+		self.assertEqual(lag.last_sync_of_checkin, stale)
+
+		# enabled, N=2
+		frappe.db.set_single_value("HR Settings", "enable_lagged_last_sync", 1)
+		advance_last_sync_of_checkin()
+		lag.reload()
+		auto.reload()
+		ahead.reload()
+
+		self.assertEqual(lag.last_sync_of_checkin, expected)  # advanced to end of (today - 2)
+		self.assertEqual(auto.last_sync_of_checkin, stale)  # owned by the aggressive job, untouched
+		self.assertEqual(ahead.last_sync_of_checkin, future)  # only advances, never retreats
+
+		# idempotent
+		advance_last_sync_of_checkin()
+		lag.reload()
+		self.assertEqual(lag.last_sync_of_checkin, expected)
 
 	def test_mark_attendance(self):
 		from indian_hrms_compliance.hr.doctype.employee_checkin.test_employee_checkin import make_checkin

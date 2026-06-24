@@ -429,6 +429,46 @@ def update_last_sync_of_checkin():
 			)
 
 
+def advance_last_sync_of_checkin():
+	"""Lagged 'Last Sync of Checkin' advancer — opt-in via HR Settings.
+
+	The stock update_last_sync_of_checkin() (above) jumps the watermark to
+	shift_end + 1 min the same evening, which finalises — and Absent-marks — a
+	day before slow or multiple biometric devices have pushed their logs. This
+	instead advances the watermark only up to the end of (today − Lag days), so
+	HRMS finalises attendance solely for days old enough that every device has
+	had Lag days to sync; the most recent days stay open and are reconciled
+	separately as straggler check-ins arrive.
+
+	No-op unless `enable_lagged_last_sync` is ticked in HR Settings. Only ever
+	advances the watermark, never moves it backwards. Operates on Shift Types
+	with auto-attendance ON and stock auto-update OFF, so it never fights the
+	aggressive job for shifts that explicitly opted into same-evening sync.
+	"""
+	if not cint(frappe.db.get_single_value("HR Settings", "enable_lagged_last_sync")):
+		return
+
+	lag_days = cint(frappe.db.get_single_value("HR Settings", "last_sync_lag_days"))
+	if lag_days < 0:
+		lag_days = 0
+
+	current_datetime = frappe.flags.current_datetime or get_datetime()
+	# End of (today − lag_days) == first instant of (today − lag_days + 1). A
+	# check-in whose shift_actual_end is strictly before this gets finalised.
+	cutoff = get_datetime(add_days(getdate(current_datetime), 1 - lag_days))
+
+	shifts = frappe.get_all(
+		"Shift Type",
+		filters={"enable_auto_attendance": 1, "auto_update_last_sync": 0},
+		fields=["name", "last_sync_of_checkin"],
+	)
+	for shift in shifts:
+		if not shift.last_sync_of_checkin or get_datetime(shift.last_sync_of_checkin) < cutoff:
+			frappe.db.set_value(
+				"Shift Type", shift.name, "last_sync_of_checkin", cutoff, update_modified=False
+			)
+
+
 def get_actual_shift_end(shift, current_datetime):
 	time_within_shift = datetime.combine(current_datetime.date(), get_time(shift.start_time))
 	shift_details = get_shift_details(shift.name, time_within_shift)

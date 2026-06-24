@@ -363,6 +363,7 @@ scheduler_events = {
 	],
 	"hourly_long": [
 		"indian_hrms_compliance.hr.doctype.shift_type.shift_type.update_last_sync_of_checkin",
+		"indian_hrms_compliance.hr.doctype.shift_type.shift_type.advance_last_sync_of_checkin",
 		"indian_hrms_compliance.hr.doctype.shift_type.shift_type.process_auto_attendance_for_all_shifts",
 		"indian_hrms_compliance.hr.doctype.shift_schedule_assignment.shift_schedule_assignment.process_auto_shift_creation",
 	],

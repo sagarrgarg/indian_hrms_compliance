@@ -55,6 +55,8 @@
   "attendance_settings_section",
   "allow_employee_checkin_from_mobile_app",
   "allow_geolocation_tracking",
+  "enable_lagged_last_sync",
+  "last_sync_lag_days",
   "unlink_payment_section",
   "unlink_payment_on_cancellation_of_employee_advance",
   "performance_tab",
@@ -436,6 +438,22 @@
    "fieldname": "allow_geolocation_tracking",
    "fieldtype": "Check",
    "label": "Allow Geolocation Tracking"
+  },
+  {
+   "default": "0",
+   "description": "When ON, an hourly job advances each auto-attendance Shift Type's 'Last Sync of Checkin' to the end of (today − Lag days), so HRMS only finalises attendance for days old enough that every biometric device has synced. Recent days stay open for the reconciliation safety-net. Leave OFF to keep stock behaviour (manual / aggressive same-evening advance via 'Auto Update Last Sync of Checkin').",
+   "fieldname": "enable_lagged_last_sync",
+   "fieldtype": "Check",
+   "label": "Auto-advance Last Sync of Checkin (lagged)"
+  },
+  {
+   "default": "2",
+   "depends_on": "enable_lagged_last_sync",
+   "description": "N — how many days behind 'today' the Last Sync watermark trails. Set to cover your slowest biometric device's worst-case sync delay (e.g. 2 = finalise only up to the day before yesterday). Applies to Shift Types with Auto Attendance ON and 'Auto Update Last Sync of Checkin' OFF. Use ≥ 1.",
+   "fieldname": "last_sync_lag_days",
+   "fieldtype": "Int",
+   "label": "Checkin Sync Lag (days)",
+   "non_negative": 1
   },
   {
    "fieldname": "attendance_settings_section",
