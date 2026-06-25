@@ -27,7 +27,6 @@ class TestShiftAttendance(HRMSTestSuite):
 			enable_late_entry_marking=1,
 			enable_early_exit_marking=1,
 			process_attendance_after="2023-01-01",
-			last_sync_of_checkin="2023-01-04 04:00:00",
 		)
 		self.shift2 = setup_shift_type(
 			shift_type="Shift 2",
@@ -38,7 +37,6 @@ class TestShiftAttendance(HRMSTestSuite):
 			enable_late_entry_marking=1,
 			enable_early_exit_marking=1,
 			process_attendance_after="2023-01-01",
-			last_sync_of_checkin="2023-01-04 04:00:00",
 		)
 
 		self.emp1 = make_employee(
@@ -71,8 +69,15 @@ class TestShiftAttendance(HRMSTestSuite):
 		make_checkin(self.emp2, datetime(2023, 1, 3, 21, 30), "IN")
 		make_checkin(self.emp2, datetime(2023, 1, 3, 22, 15), "OUT")
 
-		self.shift1.process_auto_attendance()
-		self.shift2.process_auto_attendance()
+		# Freeze "now" just after the last 2023-01-03 night shift completes so auto
+		# attendance is bounded to the seeded dates (replaces the retired
+		# last_sync_of_checkin watermark).
+		frappe.flags.current_datetime = datetime(2023, 1, 4, 4, 0, 0)
+		try:
+			self.shift1.process_auto_attendance()
+			self.shift2.process_auto_attendance()
+		finally:
+			frappe.flags.current_datetime = None
 
 	def test_data(self):
 		filters = frappe._dict(
