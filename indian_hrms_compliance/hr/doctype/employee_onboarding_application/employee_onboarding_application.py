@@ -79,7 +79,7 @@ def _onboarding_theme(company: str | None) -> dict:
 
 # Documents every candidate MUST upload before an onboarding submission is
 # accepted. "Previous Payslip" is additionally required unless is_fresher.
-REQUIRED_DOCUMENT_TYPES = ("PAN Card", "Aadhaar Card")
+REQUIRED_DOCUMENT_TYPES = ("Aadhaar Card",)
 PAYSLIP_DOCUMENT_TYPE = "Previous Payslip"
 # Required ONLY when HR attached an offer letter for this candidate to download +
 # sign via the invite link (self.offer_letter is set) — if they were sent a letter
@@ -251,7 +251,7 @@ class EmployeeOnboardingApplication(Document):
 		attached. HR-created drafts (status='Draft') are exempt so HR can stage
 		a record before the candidate uploads.
 
-		- PAN Card + Aadhaar Card: always required.
+		- Aadhaar Card: always required.
 		- Previous Payslip: required unless the candidate flags themselves a fresher.
 		- Signed Offer Letter: required ONLY when an offer letter was attached for
 		  this candidate to download + sign via the invite (self.offer_letter set).

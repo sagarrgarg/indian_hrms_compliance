@@ -114,7 +114,7 @@
   {"fieldname": "col_emergency", "fieldtype": "Column Break"},
   {"fieldname": "emergency_contact_phone", "fieldtype": "Data", "label": "Contact Phone", "options": "Phone"},
 
-  {"fieldname": "documents_section", "fieldtype": "Section Break", "label": "Documents", "description": "Required: PAN Card, Aadhaar Card, Signed Offer Letter. Previous Payslip is required unless you select 'Fresher' below. Add more (cancelled cheque, certificates, address proof) as needed."},
+  {"fieldname": "documents_section", "fieldtype": "Section Break", "label": "Documents", "description": "Required: Aadhaar Card, Signed Offer Letter. Previous Payslip is required unless you select 'Fresher' below. Add more (cancelled cheque, certificates, address proof) as needed."},
   {"fieldname": "prior_employment", "fieldtype": "Select", "label": "Employment Background", "options": "\nFresher\nAlready an Employee", "description": "Are you a fresher (this is your first job) or already / previously employed? Freshers are not asked for a previous payslip."},
   {"fieldname": "is_fresher", "fieldtype": "Check", "label": "Fresher (derived)", "default": "0", "hidden": 1, "read_only": 1, "description": "Internal flag derived from Employment Background; gates the Previous Payslip document requirement."},
   {"fieldname": "documents", "fieldtype": "Table", "label": "Documents", "options": "Employee Onboarding Document", "description": "Mandatory-document enforcement happens in the controller (_validate_required_documents) so HR invite Drafts can exist without uploads."},

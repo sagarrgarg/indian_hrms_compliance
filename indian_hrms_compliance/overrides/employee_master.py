@@ -857,7 +857,7 @@ def get_employee_readiness(employee: str) -> dict:
 			"name": _("Identity & Access"),
 			"items": [
 				item("User account linked", emp.user_id, True, emp_form, "Needed for ESS / PWA login"),
-				item("PAN captured", emp.pan_number, True, emp_form, "Mandatory for TDS / Form 16"),
+				item("PAN captured", emp.pan_number, False, emp_form, "Recommended for TDS / Form 16"),
 				item("Bank account & IFSC", emp.bank_ac_no and emp.ifsc_code, True, emp_form, "Needed for salary payout"),
 				item("Aadhaar (last 4)", emp.aadhaar_last_4, False, emp_form),
 				item("UAN captured", emp.uan_number, False, emp_form, "For PF / ECR"),

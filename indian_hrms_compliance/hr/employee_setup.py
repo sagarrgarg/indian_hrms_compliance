@@ -41,8 +41,6 @@ def setup_new_employee(data):
 		frappe.throw(_("Date of Birth is required."))
 	if not d.date_of_joining:
 		frappe.throw(_("Date of Joining is required."))
-	if not d.pan_number:
-		frappe.throw(_("PAN is required."))
 	if cint(d.create_user) and not d.user_email:
 		frappe.throw(_("User Email is required to create a User login."))
 	if not d.leave_policy:
