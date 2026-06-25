@@ -89,8 +89,7 @@
    "fieldname": "pan_number",
    "fieldtype": "Data",
    "label": "PAN",
-   "reqd": 1,
-   "description": "Format ABCDE1234F — 5 letters, 4 digits, 1 letter. We auto-uppercase as you type."
+   "description": "Optional. Format ABCDE1234F — 5 letters, 4 digits, 1 letter. We auto-uppercase as you type."
   },
   {
    "fieldname": "aadhaar_number",
@@ -199,7 +198,7 @@
    "label": "Upload your documents",
    "options": "Employee Onboarding Document",
    "reqd": 1,
-   "description": "REQUIRED: PAN Card, Aadhaar Card. Previous Payslip is required unless you selected 'Fresher' above. If you were sent an offer letter to sign (see the banner at the top), the signed copy is required — upload it as 'Signed Offer Letter'. Add a row per document and pick its type."
+   "description": "REQUIRED: Aadhaar Card. Previous Payslip is required unless you selected 'Fresher' above. If you were sent an offer letter to sign (see the banner at the top), the signed copy is required — upload it as 'Signed Offer Letter'. Add a row per document and pick its type."
   },
   {
    "fieldname": "page_consent",

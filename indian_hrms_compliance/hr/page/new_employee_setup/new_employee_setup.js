@@ -43,7 +43,7 @@ frappe.pages["new-employee-setup"].on_page_load = function (wrapper) {
 			{ fieldname: "create_user_permission", fieldtype: "Check", label: __("Restrict User to this Company"), default: 1, depends_on: "create_user" },
 
 			{ fieldtype: "Section Break", label: __("Statutory IDs") },
-			{ fieldname: "pan_number", fieldtype: "Data", label: __("PAN"), reqd: 1 },
+			{ fieldname: "pan_number", fieldtype: "Data", label: __("PAN") },
 			{ fieldname: "aadhaar_number", fieldtype: "Data", label: __("Aadhaar Number"), length: 12, description: __("12 digits; auto-derives last 4 for legacy reports.") },
 			{ fieldname: "aadhaar_last_4", fieldtype: "Data", label: __("Aadhaar (last 4)"), read_only: 1 },
 			{ fieldname: "uan_number", fieldtype: "Data", label: __("UAN") },
