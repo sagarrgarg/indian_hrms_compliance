@@ -55,8 +55,7 @@
   "attendance_settings_section",
   "allow_employee_checkin_from_mobile_app",
   "allow_geolocation_tracking",
-  "enable_lagged_last_sync",
-  "last_sync_lag_days",
+  "duplicate_checkin_window_minutes",
   "backdated_attendance_approval_months",
   "role_allowed_to_approve_backdated_attendance",
   "unlink_payment_section",
@@ -443,18 +442,10 @@
   },
   {
    "default": "0",
-   "description": "When ON, an hourly job advances each auto-attendance Shift Type's 'Last Sync of Checkin' to the end of (today − Lag days), so HRMS only finalises attendance for days old enough that every biometric device has synced. Recent days stay open for the reconciliation safety-net. Leave OFF to keep stock behaviour (manual / aggressive same-evening advance via 'Auto Update Last Sync of Checkin').",
-   "fieldname": "enable_lagged_last_sync",
-   "fieldtype": "Check",
-   "label": "Auto-advance Last Sync of Checkin (lagged)"
-  },
-  {
-   "default": "2",
-   "depends_on": "enable_lagged_last_sync",
-   "description": "N — how many days behind 'today' the Last Sync watermark trails. Set to cover your slowest biometric device's worst-case sync delay (e.g. 2 = finalise only up to the day before yesterday). Applies to Shift Types with Auto Attendance ON and 'Auto Update Last Sync of Checkin' OFF. Use ≥ 1.",
-   "fieldname": "last_sync_lag_days",
+   "description": "Treat multiple check-ins for the same employee within this many minutes as one accidental repeat punch (biometric double-taps), ignoring the extras when computing status and working hours. All raw logs stay linked to the attendance. Note: a day still needs at least two distinct punches (an in and an out) to be marked Present — a single punch always stays Absent. Set 0 to disable de-duplication.",
+   "fieldname": "duplicate_checkin_window_minutes",
    "fieldtype": "Int",
-   "label": "Checkin Sync Lag (days)",
+   "label": "Ignore Repeat Check-ins Within (Minutes)",
    "non_negative": 1
   },
   {

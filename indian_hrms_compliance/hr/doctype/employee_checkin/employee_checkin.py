@@ -2,10 +2,12 @@
 # For license information, please see license.txt
 
 
+from datetime import timedelta
+
 import frappe
 from frappe import _
 from frappe.model.document import Document
-from frappe.utils import cint, get_datetime
+from frappe.utils import add_days, cint, get_datetime, getdate, now_datetime
 
 from indian_hrms_compliance.hr.doctype.shift_assignment.shift_assignment import get_actual_start_end_datetime_of_shift
 from indian_hrms_compliance.hr.utils import (
@@ -397,3 +399,140 @@ def update_attendance_in_checkins(log_names: list, attendance_id: str):
 		.set("attendance", attendance_id)
 		.where(EmployeeCheckin.name.isin(log_names))
 	).run()
+
+
+def dedupe_rapid_checkins(logs, window_minutes):
+	"""Collapse accidental rapid repeat punches.
+
+	Biometric devices (and impatient fingers) often register the same swipe two or
+	three times within seconds. Counting each as a separate log can inflate the
+	punch count past the 2-punch quorum or skew working-hours math. Any log within
+	``window_minutes`` of the previously kept log is treated as a repeat and
+	dropped. ``window_minutes`` of 0 (the default) disables de-duplication.
+
+	Logs must already be in chronological order. The original log objects are never
+	mutated and all raw logs stay linked to the attendance — only the computed
+	status/hours see the de-duplicated set.
+	"""
+	logs = list(logs)
+	window = cint(window_minutes)
+	if window <= 0 or len(logs) < 2:
+		return logs
+
+	delta = timedelta(minutes=window)
+	kept = [logs[0]]
+	for log in logs[1:]:
+		if get_datetime(log.time) - get_datetime(kept[-1].time) > delta:
+			kept.append(log)
+	return kept
+
+
+def get_checkins_for_date(employee, shift, attendance_date):
+	"""All check-ins for one employee, one shift, on one shift-day, chronologically.
+
+	Keyed on ``shift_start`` (the shift instance the punch was bucketed into), not
+	on raw ``time``, so an overnight shift's punches are grouped by the shift they
+	belong to rather than the calendar date they happen to fall on.
+	"""
+	day = getdate(attendance_date)
+	return frappe.get_all(
+		"Employee Checkin",
+		fields=[
+			"name",
+			"employee",
+			"log_type",
+			"time",
+			"shift",
+			"shift_start",
+			"shift_end",
+			"shift_actual_start",
+			"shift_actual_end",
+			"device_id",
+		],
+		filters=[
+			["employee", "=", employee],
+			["shift", "=", shift],
+			["shift_start", ">=", get_datetime(day)],
+			["shift_start", "<", get_datetime(add_days(day, 1))],
+		],
+		order_by="time",
+	)
+
+
+def recompute_status_for_date(employee, shift, attendance_date):
+	"""Recompute attendance status/hours for a single shift-day from its check-ins.
+
+	Returns ``None`` when there are no check-ins to compute from. Delegates the
+	actual status decision (incl. the de-dup + 2-punch quorum) to
+	``ShiftType.get_attendance`` so batch, heal and backfill all agree.
+	"""
+	logs = get_checkins_for_date(employee, shift, attendance_date)
+	if not logs:
+		return None
+
+	shift_doc = frappe.get_cached_doc("Shift Type", shift)
+	status, working_hours, late_entry, early_exit, in_time, out_time = shift_doc.get_attendance(logs)
+	return frappe._dict(
+		status=status,
+		working_hours=working_hours,
+		late_entry=late_entry,
+		early_exit=early_exit,
+		in_time=in_time,
+		out_time=out_time,
+		logs=logs,
+	)
+
+
+def heal_late_checkin(doc, method=None):
+	"""after_insert hook: repair attendance when a straggler punch lands late.
+
+	The nightly batch Absent-marks a day once its shift has ended (plus a 1-day
+	grace). If a biometric device only pushes its logs days later, that day is
+	already wrongly Absent. This enqueues a one-shot heal — but only for check-ins
+	belonging to an OLDER shift-day than today; today's punches are handled by the
+	normal hourly batch and must not be finalised early.
+	"""
+	if not doc.shift or doc.offshift or not doc.shift_start:
+		return
+
+	attendance_date = getdate(doc.shift_start)
+	if attendance_date >= getdate(frappe.flags.current_datetime or now_datetime()):
+		return
+
+	frappe.enqueue(
+		"indian_hrms_compliance.hr.doctype.employee_checkin.employee_checkin.heal_attendance_for_date",
+		queue="short",
+		enqueue_after_commit=True,
+		job_id=f"heal_attn_{doc.employee}_{attendance_date}",
+		deduplicate=True,
+		employee=doc.employee,
+		shift=doc.shift,
+		attendance_date=str(attendance_date),
+	)
+
+
+def heal_attendance_for_date(employee, shift, attendance_date):
+	"""Background worker: upgrade a wrongly-Absent day after late punches arrive.
+
+	Recomputes from the full set of check-ins; only reposts when the day now
+	qualifies as present (Present/Half Day). A still-Absent recompute is a no-op so
+	a single late punch never disturbs an existing Absent record.
+	"""
+	result = recompute_status_for_date(employee, shift, attendance_date)
+	if not result or result.status == "Absent":
+		return
+
+	from indian_hrms_compliance.hr.doctype.attendance.attendance import repost_attendance
+
+	repost_attendance(
+		employee,
+		attendance_date,
+		shift,
+		result.status,
+		working_hours=result.working_hours,
+		late_entry=result.late_entry,
+		early_exit=result.early_exit,
+		in_time=result.in_time,
+		out_time=result.out_time,
+		logs=result.logs,
+	)

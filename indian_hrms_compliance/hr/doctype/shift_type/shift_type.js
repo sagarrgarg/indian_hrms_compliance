@@ -21,11 +21,6 @@ frappe.ui.form.on("Shift Type", {
 				frappe.throw(__("Please set {0}.", [__("Process Attendance After").bold()]));
 			}
 
-			if (!frm.doc.last_sync_of_checkin) {
-				frm.scroll_to_field("last_sync_of_checkin");
-				frappe.throw(__("Please set {0}.", [__("Last Sync of Checkin").bold()]));
-			}
-
 			frm.call({
 				doc: frm.doc,
 				method: "process_auto_attendance",
@@ -38,11 +33,5 @@ frappe.ui.form.on("Shift Type", {
 				},
 			});
 		});
-	},
-
-	auto_update_last_sync: function (frm) {
-		if (frm.doc.auto_update_last_sync) {
-			frm.set_value("last_sync_of_checkin", "");
-		}
 	},
 });

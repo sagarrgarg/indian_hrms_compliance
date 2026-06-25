@@ -12,10 +12,10 @@ from frappe.utils import (
 	add_days,
 	cint,
 	create_batch,
-	get_datetime,
 	get_link_to_form,
 	get_time,
 	getdate,
+	now_datetime,
 	time_diff,
 )
 
@@ -25,6 +25,7 @@ from erpnext.setup.doctype.holiday_list.holiday_list import is_holiday
 from indian_hrms_compliance.hr.doctype.attendance.attendance import mark_attendance
 from indian_hrms_compliance.hr.doctype.employee_checkin.employee_checkin import (
 	calculate_working_hours,
+	dedupe_rapid_checkins,
 	mark_attendance_and_link_log,
 )
 from indian_hrms_compliance.hr.doctype.shift_assignment.shift_assignment import get_employee_shift, get_shift_details
@@ -128,11 +129,7 @@ class ShiftType(Document):
 			self._process(logs)
 
 	def has_incorrect_shift_config(self):
-		return (
-			not cint(self.enable_auto_attendance)
-			or not self.process_attendance_after
-			or not self.last_sync_of_checkin
-		)
+		return not cint(self.enable_auto_attendance) or not self.process_attendance_after
 
 	def _process(self, logs):
 		group_key = lambda x: (x["employee"], x["shift_start"])  # noqa
@@ -170,7 +167,7 @@ class ShiftType(Document):
 
 		assigned_employees = self.get_assigned_employees(self.process_attendance_after, True)
 		# mark absent in batches & commit to avoid losing progress since this tries to process remaining attendance
-		# right from "Process Attendance After" to "Last Sync of Checkin"
+		# right from "Process Attendance After" up to the last completed shift
 		for batch in create_batch(assigned_employees, EMPLOYEE_CHUNK_SIZE):
 			for employee in batch:
 				self.mark_absent_for_dates_with_no_attendance(employee)
@@ -197,7 +194,7 @@ class ShiftType(Document):
 				"skip_auto_attendance": 0,
 				"attendance": ("is", "not set"),
 				"time": (">=", self.process_attendance_after),
-				"shift_actual_end": ("<", self.last_sync_of_checkin),
+				"shift_actual_end": ("<", frappe.flags.current_datetime or now_datetime()),
 				"shift": self.name,
 				"offshift": 0,
 			},
@@ -212,8 +209,22 @@ class ShiftType(Document):
 		2. Logs are in chronological order
 		"""
 		late_entry = early_exit = False
+
+		# Collapse accidental rapid repeat punches (HR Settings window) before any
+		# working-hours math. All raw logs are still linked to the attendance by the
+		# caller; de-duplication only affects the computed status/hours.
+		effective_logs = dedupe_rapid_checkins(
+			logs, frappe.db.get_single_value("HR Settings", "duplicate_checkin_window_minutes")
+		)
+
+		# Quorum: a single (de-duplicated) punch is never enough to mark presence — a
+		# day needs both an in and an out. A lone punch stays Absent.
+		if len(effective_logs) < 2:
+			in_time = effective_logs[0].time if effective_logs else None
+			return "Absent", 0, late_entry, early_exit, in_time, None
+
 		total_working_hours, in_time, out_time = calculate_working_hours(
-			logs, self.determine_check_in_and_check_out, self.working_hours_calculation_based_on
+			effective_logs, self.determine_check_in_and_check_out, self.working_hours_calculation_based_on
 		)
 		if (
 			cint(self.enable_late_entry_marking)
@@ -290,7 +301,7 @@ class ShiftType(Document):
 	def get_start_and_end_dates(self, employee):
 		"""Returns start and end dates for checking attendance and marking absent
 		return: start date = max of `process_attendance_after` and DOJ
-		return: end date = min of shift before `last_sync_of_checkin` and Relieving Date
+		return: end date = last completed shift (minus a 1-day grace), capped at Relieving Date
 		"""
 		date_of_joining, relieving_date, employee_creation = frappe.get_cached_value(
 			"Employee", employee, ["date_of_joining", "relieving_date", "creation"]
@@ -302,12 +313,12 @@ class ShiftType(Document):
 		start_date = max(getdate(self.process_attendance_after), date_of_joining)
 		end_date = None
 
-		shift_details = get_shift_details(self.name, get_datetime(self.last_sync_of_checkin))
-		last_shift_time = (
-			shift_details.actual_end if shift_details else get_datetime(self.last_sync_of_checkin)
-		)
+		# Reference point is the most recent shift that has actually finished as of now,
+		# replacing the retired `last_sync_of_checkin` watermark.
+		current_datetime = frappe.flags.current_datetime or now_datetime()
+		last_shift_time = get_last_completed_shift_end(self, current_datetime)
 
-		# check if shift is found for 1 day before the last sync of checkin
+		# check if shift is found for 1 day before the last completed shift
 		# absentees are auto-marked 1 day after the shift to wait for any manual attendance records
 		prev_shift = get_employee_shift(employee, last_shift_time - timedelta(days=1), True, "reverse")
 		if prev_shift and prev_shift.shift_type.name == self.name:
@@ -374,13 +385,16 @@ class ShiftType(Document):
 		return True
 
 	def mark_absent_for_half_day_dates(self, employee):
+		cutoff_date = getdate(
+			get_last_completed_shift_end(self, frappe.flags.current_datetime or now_datetime())
+		)
 		half_day_attendances = frappe.get_all(
 			"Attendance",
 			filters={
 				"employee": employee,
 				"status": "Half Day",
 				"modify_half_day_status": 1,
-				"attendance_date": ["<=", getdate(self.last_sync_of_checkin)],
+				"attendance_date": ["<=", cutoff_date],
 			},
 			fields=["name", "attendance_date"],
 		)
@@ -407,66 +421,20 @@ class ShiftType(Document):
 				).insert(ignore_permissions=True)
 
 
-def update_last_sync_of_checkin():
-	"""Called from hooks"""
-	shifts = frappe.get_all(
-		"Shift Type",
-		filters={"enable_auto_attendance": 1, "auto_update_last_sync": 1},
-		fields=["name", "last_sync_of_checkin", "start_time", "end_time"],
-	)
-	current_datetime = frappe.flags.current_datetime or get_datetime()
-	for shift in shifts:
-		shift_end = get_actual_shift_end(shift, current_datetime)
-		update_last_sync = None
-		if shift.last_sync_of_checkin:
-			if get_datetime(shift.last_sync_of_checkin) < shift_end < current_datetime:
-				update_last_sync = True
-		elif shift_end < current_datetime:
-			update_last_sync = True
-		if update_last_sync:
-			frappe.db.set_value(
-				"Shift Type", shift.name, "last_sync_of_checkin", shift_end + timedelta(minutes=1)
-			)
+def get_last_completed_shift_end(shift, current_datetime):
+	"""Actual end datetime of the most recent shift instance that has already
+	finished as of ``current_datetime``.
 
-
-def advance_last_sync_of_checkin():
-	"""Lagged 'Last Sync of Checkin' advancer — opt-in via HR Settings.
-
-	The stock update_last_sync_of_checkin() (above) jumps the watermark to
-	shift_end + 1 min the same evening, which finalises — and Absent-marks — a
-	day before slow or multiple biometric devices have pushed their logs. This
-	instead advances the watermark only up to the end of (today − Lag days), so
-	HRMS finalises attendance solely for days old enough that every device has
-	had Lag days to sync; the most recent days stay open and are reconciled
-	separately as straggler check-ins arrive.
-
-	No-op unless `enable_lagged_last_sync` is ticked in HR Settings. Only ever
-	advances the watermark, never moves it backwards. Operates on Shift Types
-	with auto-attendance ON and stock auto-update OFF, so it never fights the
-	aggressive job for shifts that explicitly opted into same-evening sync.
+	Replaces the retired ``last_sync_of_checkin`` watermark as the right edge for
+	finalising attendance: a shift's punches are only finalised once that shift is
+	actually over. Computed live every run, so there is no stored watermark to
+	freeze, lag, or advance.
 	"""
-	if not cint(frappe.db.get_single_value("HR Settings", "enable_lagged_last_sync")):
-		return
-
-	lag_days = cint(frappe.db.get_single_value("HR Settings", "last_sync_lag_days"))
-	if lag_days < 0:
-		lag_days = 0
-
-	current_datetime = frappe.flags.current_datetime or get_datetime()
-	# End of (today − lag_days) == first instant of (today − lag_days + 1). A
-	# check-in whose shift_actual_end is strictly before this gets finalised.
-	cutoff = get_datetime(add_days(getdate(current_datetime), 1 - lag_days))
-
-	shifts = frappe.get_all(
-		"Shift Type",
-		filters={"enable_auto_attendance": 1, "auto_update_last_sync": 0},
-		fields=["name", "last_sync_of_checkin"],
-	)
-	for shift in shifts:
-		if not shift.last_sync_of_checkin or get_datetime(shift.last_sync_of_checkin) < cutoff:
-			frappe.db.set_value(
-				"Shift Type", shift.name, "last_sync_of_checkin", cutoff, update_modified=False
-			)
+	shift_end = get_actual_shift_end(shift, current_datetime)
+	if shift_end and shift_end > current_datetime:
+		# today's instance hasn't ended yet — fall back to the previous day's
+		shift_end = get_actual_shift_end(shift, current_datetime - timedelta(days=1))
+	return shift_end
 
 
 def get_actual_shift_end(shift, current_datetime):

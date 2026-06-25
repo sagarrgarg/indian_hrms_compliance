@@ -119,6 +119,115 @@ frappe.listview_settings["Attendance"] = {
 			});
 			dialog.show();
 		});
+
+		list_view.page.add_inner_button(__("Backfill Absent Gaps"), function () {
+			let dialog = new frappe.ui.Dialog({
+				title: __("Backfill Absent Gaps"),
+				fields: [
+					{
+						fieldtype: "HTML",
+						fieldname: "intro",
+						options: `<p class="text-muted">${__(
+							"Re-checks auto-marked <b>Absent</b> days against actual check-ins and upgrades the ones that now qualify (Present / Half Day). Days on or before an employee's last paid salary slip are never touched. Leave filters blank to scan everything.",
+						)}</p>`,
+					},
+					{
+						label: __("Company"),
+						fieldtype: "Link",
+						fieldname: "company",
+						options: "Company",
+					},
+					{
+						label: __("Shift Type"),
+						fieldtype: "Link",
+						fieldname: "shift_type",
+						options: "Shift Type",
+					},
+					{
+						fieldtype: "Column Break",
+						fieldname: "cb",
+					},
+					{
+						label: __("From Date"),
+						fieldtype: "Date",
+						fieldname: "from_date",
+					},
+					{
+						label: __("To Date"),
+						fieldtype: "Date",
+						fieldname: "to_date",
+					},
+				],
+				primary_action(data) {
+					frappe.call({
+						method: "indian_hrms_compliance.hr.doctype.attendance.attendance.backfill_absent_gaps",
+						args: {
+							company: data.company,
+							shift_type: data.shift_type,
+							from_date: data.from_date,
+							to_date: data.to_date,
+							preview: 1,
+						},
+						freeze: true,
+						freeze_message: __("Scanning Absent records..."),
+						callback: function (r) {
+							let res = r.message || {};
+							if (!res.eligible) {
+								frappe.msgprint(
+									__(
+										"Scanned {0} Absent day(s); none are eligible to backfill ({1} fall on or before a paid salary slip).",
+										[res.scanned || 0, res.skipped_paid || 0],
+									),
+								);
+								return;
+							}
+							frappe.confirm(
+								__(
+									"Scanned {0} Absent day(s). {1} are eligible (skipping {2} already-paid). Recompute and upgrade the ones that now qualify?",
+									[res.scanned, res.eligible, res.skipped_paid],
+								),
+								function () {
+									frappe.call({
+										method: "indian_hrms_compliance.hr.doctype.attendance.attendance.backfill_absent_gaps",
+										args: {
+											company: data.company,
+											shift_type: data.shift_type,
+											from_date: data.from_date,
+											to_date: data.to_date,
+											preview: 0,
+										},
+										freeze: true,
+										freeze_message: __("Backfilling attendance..."),
+										callback: function (a) {
+											let out = a.message || {};
+											if (out.queued) {
+												frappe.msgprint(
+													__(
+														"{0} eligible day(s) queued for backfill in the background. They will update shortly.",
+														[out.eligible],
+													),
+												);
+											} else {
+												frappe.msgprint(
+													__(
+														"Backfill complete: scanned {0}, upgraded {1}, unchanged {2}.",
+														[out.scanned, out.upgraded, out.skipped],
+													),
+												);
+											}
+											dialog.hide();
+											list_view.refresh();
+										},
+									});
+								},
+							);
+						},
+					});
+				},
+				primary_action_label: __("Preview"),
+			});
+			dialog.show();
+		});
 	},
 
 	reset_dialog: function (dialog) {

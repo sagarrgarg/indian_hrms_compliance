@@ -440,3 +440,228 @@ def get_unmarked_days(employee, from_date, to_date, exclude_holidays=0):
 		from_date = add_days(from_date, 1)
 
 	return unmarked_days
+
+
+def repost_attendance(
+	employee,
+	attendance_date,
+	shift,
+	status,
+	working_hours=None,
+	late_entry=False,
+	early_exit=False,
+	in_time=None,
+	out_time=None,
+	logs=None,
+):
+	"""Upsert attendance for a recomputed shift-day, overwriting a stale Absent.
+
+	The duplicate-attendance guard makes the normal auto-attendance path unable to
+	correct a day that is already marked — a late check-in just gets skipped. This
+	is the deliberate overwrite primitive for the heal/backfill flows: it creates
+	attendance when none exists, and otherwise upgrades an existing **auto-marked
+	Absent** record in place (the same ``db_set`` overwrite used by Attendance
+	Request). It never disturbs a record that is already present, or one backed by a
+	leave application or attendance request.
+
+	Returns the attendance name it created/updated, or ``None`` if it declined to
+	touch an existing record.
+	"""
+	existing = frappe.db.get_value(
+		"Attendance",
+		{"employee": employee, "attendance_date": attendance_date, "docstatus": ("!=", 2)},
+		["name", "status", "leave_application", "attendance_request"],
+		as_dict=True,
+	)
+	log_names = [log.get("name") for log in logs] if logs else []
+	attendance_name = None
+
+	if existing:
+		# Only ever rewrite a plain auto-marked Absent. Leave/attendance-request-backed
+		# days and already-present days are authoritative and must not be overwritten.
+		if existing.status != "Absent" or existing.leave_application or existing.attendance_request:
+			return None
+
+		if existing.status == status:
+			attendance_name = existing.name
+		else:
+			doc = frappe.get_doc("Attendance", existing.name)
+			doc.db_set(
+				{
+					"status": status,
+					"working_hours": working_hours,
+					"shift": shift,
+					"late_entry": late_entry,
+					"early_exit": early_exit,
+					"in_time": in_time,
+					"out_time": out_time,
+					"half_day_status": "Absent" if status == "Half Day" else None,
+				}
+			)
+			doc.add_comment(
+				"Info",
+				_("Status changed from Absent to {0} after late check-in sync.").format(_(status)),
+			)
+			attendance_name = existing.name
+	else:
+		attendance_name = mark_attendance(
+			employee,
+			attendance_date,
+			status,
+			shift,
+			late_entry=late_entry,
+			early_exit=early_exit,
+			half_day_status="Absent" if status == "Half Day" else None,
+		)
+		if attendance_name:
+			frappe.db.set_value(
+				"Attendance",
+				attendance_name,
+				{"working_hours": working_hours, "in_time": in_time, "out_time": out_time},
+				update_modified=False,
+			)
+
+	if attendance_name and log_names:
+		EmployeeCheckin = frappe.qb.DocType("Employee Checkin")
+		(
+			frappe.qb.update(EmployeeCheckin)
+			.set(EmployeeCheckin.attendance, attendance_name)
+			.set(EmployeeCheckin.skip_auto_attendance, 0)
+			.where(EmployeeCheckin.name.isin(log_names))
+		).run()
+
+	return attendance_name
+
+
+@frappe.whitelist()
+def backfill_absent_gaps(company=None, from_date=None, to_date=None, shift_type=None, preview=1):
+	"""Find auto-marked Absent days that check-ins now justify upgrading, and fix them.
+
+	Across every shift type, recompute the status of historical Absent days from
+	their actual check-ins and upgrade the ones that now clear the threshold. The
+	hard guard rail: a day is **never** rewritten if it falls on or before the
+	employee's last paid period (most recent submitted Salary Slip ``end_date``) —
+	paid attendance is immutable here.
+
+	``preview`` (default) only counts what would be touched. Apply (``preview=0``)
+	does the recompute + repost, running inline for small batches and enqueuing a
+	background job past 200 eligible days.
+	"""
+	if not ({"HR Manager", "System Manager"} & set(frappe.get_roles())):
+		frappe.throw(_("Not permitted to backfill attendance."), frappe.PermissionError)
+
+	preview = cint(preview)
+	filters = [
+		["status", "=", "Absent"],
+		["docstatus", "<", 2],
+		["shift", "is", "set"],
+		["leave_application", "is", "not set"],
+		["attendance_request", "is", "not set"],
+	]
+	if company:
+		filters.append(["company", "=", company])
+	if shift_type:
+		filters.append(["shift", "=", shift_type])
+	if from_date:
+		filters.append(["attendance_date", ">=", getdate(from_date)])
+	if to_date:
+		filters.append(["attendance_date", "<=", getdate(to_date)])
+
+	rows = frappe.get_all(
+		"Attendance",
+		filters=filters,
+		fields=["name", "employee", "attendance_date", "shift"],
+		order_by="employee asc, attendance_date asc",
+	)
+
+	# Never touch a day on or before the employee's last paid (submitted Salary Slip) period.
+	last_paid = {}
+	candidates = []
+	for row in rows:
+		emp = row.employee
+		if emp not in last_paid:
+			slip = frappe.get_all(
+				"Salary Slip",
+				filters={"employee": emp, "docstatus": 1},
+				fields=["end_date"],
+				order_by="end_date desc",
+				limit=1,
+			)
+			last_paid[emp] = getdate(slip[0].end_date) if slip else None
+
+		paid_end = last_paid[emp]
+		if paid_end and getdate(row.attendance_date) <= paid_end:
+			continue
+		candidates.append(row)
+
+	if preview:
+		return {
+			"preview": 1,
+			"scanned": len(rows),
+			"eligible": len(candidates),
+			"skipped_paid": len(rows) - len(candidates),
+		}
+
+	if len(candidates) > 200:
+		frappe.enqueue(
+			"indian_hrms_compliance.hr.doctype.attendance.attendance._run_backfill_absent_gaps",
+			queue="long",
+			timeout=3600,
+			job_id="backfill_absent_gaps",
+			deduplicate=True,
+			candidates=candidates,
+			preview=0,
+		)
+		return {"preview": 0, "queued": 1, "eligible": len(candidates)}
+
+	return _run_backfill_absent_gaps(candidates, preview=0)
+
+
+def _run_backfill_absent_gaps(candidates, preview=0):
+	"""Recompute + repost each candidate Absent day. Shared by the inline and queued paths."""
+	from indian_hrms_compliance.hr.doctype.employee_checkin.employee_checkin import (
+		recompute_status_for_date,
+	)
+
+	scanned = upgraded = skipped = 0
+	details = []
+	for row in candidates:
+		scanned += 1
+		employee = row.get("employee")
+		attendance_date = row.get("attendance_date")
+		shift = row.get("shift")
+
+		result = recompute_status_for_date(employee, shift, attendance_date)
+		if not result or result.status == "Absent":
+			skipped += 1
+			continue
+
+		name = repost_attendance(
+			employee,
+			attendance_date,
+			shift,
+			result.status,
+			working_hours=result.working_hours,
+			late_entry=result.late_entry,
+			early_exit=result.early_exit,
+			in_time=result.in_time,
+			out_time=result.out_time,
+			logs=result.logs,
+		)
+		if name:
+			upgraded += 1
+			details.append(
+				{"employee": employee, "attendance_date": str(attendance_date), "status": result.status}
+			)
+		else:
+			skipped += 1
+
+		frappe.db.commit()  # nosemgrep
+
+	return {
+		"preview": cint(preview),
+		"scanned": scanned,
+		"upgraded": upgraded,
+		"skipped": skipped,
+		"details": details[:200],
+	}

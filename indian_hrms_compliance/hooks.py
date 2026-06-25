@@ -278,7 +278,12 @@ doc_events = {
 	# When a check-in is recorded (manual, biometric import, or PWA), every HR
 	# viewer of the Org Attendance roll-call should see the bucket shift.
 	"Employee Checkin": {
-		"after_insert": "indian_hrms_compliance.api.publish_org_attendance_refetch",
+		"after_insert": [
+			"indian_hrms_compliance.api.publish_org_attendance_refetch",
+			# Straggler biometric punches for an already-Absent older day trigger a
+			# one-shot recompute/repost so late syncs self-heal without a watermark.
+			"indian_hrms_compliance.hr.doctype.employee_checkin.employee_checkin.heal_late_checkin",
+		],
 	},
 	# Leave Application approved/cancelled also moves an employee between the
 	# on_leave and not_yet_in / in_now buckets.
@@ -362,8 +367,6 @@ scheduler_events = {
 		"indian_hrms_compliance.hr.doctype.daily_work_summary_group.daily_work_summary_group.trigger_emails",
 	],
 	"hourly_long": [
-		"indian_hrms_compliance.hr.doctype.shift_type.shift_type.update_last_sync_of_checkin",
-		"indian_hrms_compliance.hr.doctype.shift_type.shift_type.advance_last_sync_of_checkin",
 		"indian_hrms_compliance.hr.doctype.shift_type.shift_type.process_auto_attendance_for_all_shifts",
 		"indian_hrms_compliance.hr.doctype.shift_schedule_assignment.shift_schedule_assignment.process_auto_shift_creation",
 	],

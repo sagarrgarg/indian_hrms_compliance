@@ -23,6 +23,7 @@ class TestShiftAttendance(FrappeTestCase):
 
 	@classmethod
 	def tearDownClass(cls):
+		frappe.flags.current_datetime = None
 		frappe.db.rollback()
 
 	@classmethod
@@ -36,7 +37,6 @@ class TestShiftAttendance(FrappeTestCase):
 			enable_late_entry_marking=1,
 			enable_early_exit_marking=1,
 			process_attendance_after="2023-01-01",
-			last_sync_of_checkin="2023-01-04 04:00:00",
 		)
 		cls.shift2 = setup_shift_type(
 			shift_type="Shift 2",
@@ -47,7 +47,6 @@ class TestShiftAttendance(FrappeTestCase):
 			enable_late_entry_marking=1,
 			enable_early_exit_marking=1,
 			process_attendance_after="2023-01-01",
-			last_sync_of_checkin="2023-01-04 04:00:00",
 		)
 
 		cls.emp1 = make_employee(
@@ -80,8 +79,15 @@ class TestShiftAttendance(FrappeTestCase):
 		make_checkin(cls.emp2, datetime(2023, 1, 3, 21, 30), "IN")
 		make_checkin(cls.emp2, datetime(2023, 1, 3, 22, 15), "OUT")
 
-		cls.shift1.process_auto_attendance()
-		cls.shift2.process_auto_attendance()
+		# Freeze "now" just after the last 2023-01-03 night shift completes so auto
+		# attendance is bounded to the seeded dates (replaces the retired
+		# last_sync_of_checkin watermark).
+		frappe.flags.current_datetime = datetime(2023, 1, 4, 4, 0, 0)
+		try:
+			cls.shift1.process_auto_attendance()
+			cls.shift2.process_auto_attendance()
+		finally:
+			frappe.flags.current_datetime = None
 
 	def test_data(self):
 		filters = frappe._dict(
