@@ -3,12 +3,17 @@
 
 """Tests for get_org_attendance_today buckets, scope, dual-mode, and authorization."""
 
+from datetime import datetime, time as dtime
+
 from frappe.utils import add_days, getdate
 
 import frappe
 from frappe.tests.utils import FrappeTestCase
 
+from erpnext.setup.doctype.employee.test_employee import make_employee
+
 from indian_hrms_compliance.api import get_org_attendance_today
+from indian_hrms_compliance.tests.test_utils import create_company
 
 
 class TestOrgAttendanceTodayMode(FrappeTestCase):
@@ -118,3 +123,74 @@ class TestOrgAttendancePastMode(FrappeTestCase):
 		all_buckets = out["in_now"] + out["out"] + out["on_leave"] + out["not_yet_in"]
 		for card in all_buckets:
 			self.assertEqual(card["company"], any_company)
+
+
+class TestOrgAttendanceLogTypeClassification(FrappeTestCase):
+	"""Biometric devices often push check-ins with no IN/OUT log type. Such
+	punches must still classify correctly: a lone punch means the person is In
+	for the day (not Out), and punches alternate IN/OUT thereafter."""
+
+	@classmethod
+	def setUpClass(cls):
+		super().setUpClass()
+		create_company()
+		cls.emp = make_employee("logtype_rollcall@example.com", company="_Test Company")
+
+	def setUp(self):
+		frappe.set_user("Administrator")
+		self._clear()
+
+	def tearDown(self):
+		self._clear()
+
+	def _clear(self):
+		frappe.db.sql("DELETE FROM `tabEmployee Checkin` WHERE employee=%s", (self.emp,))
+
+	def _at(self, h, m, s=0):
+		return datetime.combine(getdate(), dtime(h, m, s))
+
+	def _seed(self, punches):
+		"""punches: list of (datetime, log_type_str). Raw-insert to bypass shift
+		fetch / geolocation controllers and seed exactly the log types we want."""
+		for dt, lt in punches:
+			frappe.db.sql(
+				"""
+				INSERT INTO `tabEmployee Checkin`
+				(name, creation, modified, modified_by, owner, docstatus, employee, log_type, `time`)
+				VALUES (%s, now(), now(), %s, %s, 0, %s, %s, %s)
+				""",
+				(frappe.generate_hash(length=12), "Administrator", "Administrator", self.emp, lt, dt),
+			)
+
+	def _bucket_of(self):
+		out = get_org_attendance_today(company="_Test Company")
+		for bucket in ("in_now", "out", "on_leave", "not_yet_in"):
+			if any(card["employee"] == self.emp for card in out[bucket]):
+				return bucket
+		return None
+
+	def test_single_no_logtype_punch_reads_as_in(self):
+		self._seed([(self._at(9, 0), "")])
+		self.assertEqual(self._bucket_of(), "in_now")
+
+	def test_first_in_time_shown_for_no_logtype_punch(self):
+		self._seed([(self._at(9, 0), "")])
+		out = get_org_attendance_today(company="_Test Company")
+		card = next(c for c in out["in_now"] if c["employee"] == self.emp)
+		self.assertTrue(card.get("first_in"))
+
+	def test_two_no_logtype_punches_read_as_out(self):
+		self._seed([(self._at(9, 0), ""), (self._at(18, 0), "")])
+		self.assertEqual(self._bucket_of(), "out")
+
+	def test_three_no_logtype_punches_read_as_in(self):
+		self._seed([(self._at(9, 0), ""), (self._at(13, 0), ""), (self._at(17, 0), "")])
+		self.assertEqual(self._bucket_of(), "in_now")
+
+	def test_explicit_in_still_reads_as_in(self):
+		self._seed([(self._at(9, 0), "IN")])
+		self.assertEqual(self._bucket_of(), "in_now")
+
+	def test_explicit_out_still_reads_as_out(self):
+		self._seed([(self._at(18, 0), "OUT")])
+		self.assertEqual(self._bucket_of(), "out")

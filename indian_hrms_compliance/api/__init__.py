@@ -3,7 +3,7 @@ from frappe import _
 from frappe.model import get_permitted_fields
 from frappe.model.workflow import get_workflow_name
 from frappe.query_builder import Order
-from frappe.utils import add_days, date_diff, flt, getdate, now_datetime, strip_html
+from frappe.utils import add_days, cint, date_diff, flt, getdate, now_datetime, strip_html
 
 from erpnext.setup.doctype.employee.employee import get_holiday_list_for_employee
 
@@ -3304,26 +3304,28 @@ def _today_buckets(
 			"counts": {"in_now": 0, "out": 0, "on_leave": 0, "not_yet_in": 0, "total": 0},
 		}
 
-	# Today's check-ins, newest first per employee.
+	from indian_hrms_compliance.hr.doctype.employee_checkin.employee_checkin import (
+		dedupe_rapid_checkins,
+	)
+
+	# Today's check-ins, oldest→newest per employee so we can collapse rapid
+	# repeat swipes and reason about IN/OUT order.
 	checkins = frappe.db.sql(
 		"""
 		SELECT employee, log_type, time
 		FROM `tabEmployee Checkin`
 		WHERE employee IN %(emps)s
 		  AND DATE(time) = %(today)s
-		ORDER BY time DESC
+		ORDER BY employee, time ASC
 		""",
 		{"emps": tuple(emp_names) + ("__none__",), "today": today_d},
 		as_dict=True,
 	)
-	latest_by_emp: dict[str, dict] = {}
-	first_in_by_emp: dict[str, str] = {}
+	punches_by_emp: dict[str, list] = {}
 	for c in checkins:
-		emp = c["employee"]
-		if emp not in latest_by_emp:
-			latest_by_emp[emp] = c
-		if c["log_type"] == "IN":
-			first_in_by_emp[emp] = str(c["time"])
+		punches_by_emp.setdefault(c["employee"], []).append(c)
+
+	dup_window = cint(frappe.db.get_single_value("HR Settings", "duplicate_checkin_window_minutes"))
 
 	# Approved Leave Applications covering today.
 	on_leave_rows = frappe.db.sql(
@@ -3347,6 +3349,16 @@ def _today_buckets(
 	not_yet_in: list[dict] = []
 
 	for emp in emp_names:
+		punches = punches_by_emp.get(emp)
+		# Collapse accidental rapid repeat swipes before reasoning about
+		# IN/OUT, mirroring how attendance itself is finalised.
+		punches = dedupe_rapid_checkins(punches, dup_window) if punches else []
+		first_in = next(
+			(str(p["time"]) for p in punches if (p["log_type"] or "").upper() == "IN"), None
+		)
+		# Fall back to the earliest punch when the device sends no IN tag.
+		first_in = first_in or (str(punches[0]["time"]) if punches else None)
+
 		lv = leave_by_emp.get(emp)
 		if lv:
 			on_leave.append(
@@ -3356,21 +3368,34 @@ def _today_buckets(
 					{
 						"leave_type": lv["leave_type"],
 						"half_day": int(lv["half_day"] or 0),
-						"first_in": first_in_by_emp.get(emp),
+						"first_in": first_in,
 					},
 				)
 			)
 			continue
-		last = latest_by_emp.get(emp)
-		if not last:
+		if not punches:
 			not_yet_in.append(_make_card(emp, emp_index))
 			continue
+
+		last = punches[-1]
+		last_lt = (last["log_type"] or "").upper()
+		if last_lt == "IN":
+			currently_in = True
+		elif last_lt == "OUT":
+			currently_in = False
+		else:
+			# Biometric devices that don't tag IN/OUT: punches alternate
+			# (1st = IN, 2nd = OUT, ...), so an odd number of de-duplicated
+			# punches means the person is currently in. A lone punch reads as
+			# In for the day, not Out.
+			currently_in = (len(punches) % 2) == 1
+
 		extras = {
-			"first_in": first_in_by_emp.get(emp),
-			"last_action": last["log_type"] or "",
+			"first_in": first_in,
+			"last_action": last["log_type"] or ("IN" if currently_in else "OUT"),
 			"last_time": str(last["time"]),
 		}
-		if (last["log_type"] or "").upper() == "IN":
+		if currently_in:
 			in_now.append(_make_card(emp, emp_index, extras))
 		else:
 			out.append(_make_card(emp, emp_index, extras))
