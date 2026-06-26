@@ -7,7 +7,7 @@ from datetime import timedelta
 import frappe
 from frappe import _
 from frappe.model.document import Document
-from frappe.utils import add_days, cint, get_datetime, getdate, now_datetime
+from frappe.utils import add_days, cint, format_date, get_datetime, getdate, now_datetime
 
 from indian_hrms_compliance.hr.doctype.shift_assignment.shift_assignment import get_actual_start_end_datetime_of_shift
 from indian_hrms_compliance.hr.utils import (
@@ -27,11 +27,41 @@ class EmployeeCheckin(Document):
 
 	def validate(self):
 		validate_active_employee(self.employee)
+		self.validate_employment_period()
 		self.validate_duplicate_log()
 		self.validate_time_change()
 		self.fetch_shift()
 		self.set_geolocation()
 		self.validate_distance_from_shift_location()
+
+	def validate_employment_period(self):
+		"""Reject check-ins that fall outside the employee's employment window —
+		before the joining date or after the relieving date."""
+		if not self.employee:
+			return
+
+		date_of_joining, relieving_date = frappe.db.get_value(
+			"Employee", self.employee, ["date_of_joining", "relieving_date"]
+		)
+		checkin_date = getdate(self.time)
+
+		if date_of_joining and checkin_date < getdate(date_of_joining):
+			frappe.throw(
+				_("Check-in on {0} cannot be before employee {1}'s joining date: {2}").format(
+					frappe.bold(format_date(self.time)),
+					frappe.bold(self.employee),
+					frappe.bold(format_date(date_of_joining)),
+				)
+			)
+
+		if relieving_date and checkin_date > getdate(relieving_date):
+			frappe.throw(
+				_("Check-in on {0} cannot be after employee {1}'s relieving date: {2}").format(
+					frappe.bold(format_date(self.time)),
+					frappe.bold(self.employee),
+					frappe.bold(format_date(relieving_date)),
+				)
+			)
 
 	def validate_duplicate_log(self):
 		doc = frappe.db.exists(
