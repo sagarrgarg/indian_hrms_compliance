@@ -33,6 +33,7 @@ from indian_hrms_compliance.hr.utils import (
 	set_employee_name,
 	share_doc_with_approver,
 	validate_active_employee,
+	validate_employment_dates,
 )
 from indian_hrms_compliance.mixins.pwa_notifications import PWANotificationsMixin
 from indian_hrms_compliance.utils import get_employee_email
@@ -194,6 +195,8 @@ class LeaveApplication(Document, PWANotificationsMixin):
 
 		if self.from_date and self.to_date and (getdate(self.to_date) < getdate(self.from_date)):
 			frappe.throw(_("To date cannot be before from date"))
+
+		validate_employment_dates(self.employee, self.from_date, self.to_date)
 
 		if (
 			self.half_day

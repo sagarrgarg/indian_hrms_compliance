@@ -24,6 +24,7 @@ from indian_hrms_compliance.hr.utils import (
 	get_holiday_dates_for_employee,
 	get_holidays_for_employee,
 	validate_active_employee,
+	validate_employment_dates,
 )
 
 
@@ -55,16 +56,7 @@ class Attendance(Document):
 		self.unlink_attendance_from_checkins()
 
 	def validate_attendance_date(self):
-		date_of_joining = frappe.db.get_value("Employee", self.employee, "date_of_joining")
-
-		if date_of_joining and getdate(self.attendance_date) < getdate(date_of_joining):
-			frappe.throw(
-				_("Attendance date {0} can not be less than employee {1}'s joining date: {2}").format(
-					frappe.bold(format_date(self.attendance_date)),
-					frappe.bold(self.employee),
-					frappe.bold(format_date(date_of_joining)),
-				)
-			)
+		validate_employment_dates(self.employee, self.attendance_date)
 
 	def validate_duplicate_record(self):
 		duplicate = self.get_duplicate_attendance_record()

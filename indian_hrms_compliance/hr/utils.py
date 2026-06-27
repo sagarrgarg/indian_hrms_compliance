@@ -195,6 +195,43 @@ def validate_dates(doc, from_date, to_date, restrict_future_dates=True):
 		frappe.throw(_("To date can not greater than employee's relieving date"))
 
 
+def validate_employment_dates(employee, from_date, to_date=None):
+	"""Reject dates that fall outside the employee's employment window — before
+	the joining date or after the relieving date. On-boundary dates are allowed.
+
+	`from_date` is checked against the joining date (lower bound); `to_date` is
+	checked against the relieving date (upper bound) and defaults to `from_date`
+	for single-date documents or open-ended ranges with no end date."""
+	if not employee:
+		return
+
+	row = frappe.db.get_value("Employee", employee, ["date_of_joining", "relieving_date"])
+	if not row:
+		return
+	date_of_joining, relieving_date = row
+
+	if not to_date:
+		to_date = from_date
+
+	if date_of_joining and from_date and getdate(from_date) < getdate(date_of_joining):
+		frappe.throw(
+			_("Date {0} cannot be before employee {1}'s joining date: {2}").format(
+				frappe.bold(formatdate(from_date)),
+				frappe.bold(employee),
+				frappe.bold(formatdate(date_of_joining)),
+			)
+		)
+
+	if relieving_date and to_date and getdate(to_date) > getdate(relieving_date):
+		frappe.throw(
+			_("Date {0} cannot be after employee {1}'s relieving date: {2}").format(
+				frappe.bold(formatdate(to_date)),
+				frappe.bold(employee),
+				frappe.bold(formatdate(relieving_date)),
+			)
+		)
+
+
 def validate_overlap(doc, from_date, to_date, company=None):
 	query = """
 		select name

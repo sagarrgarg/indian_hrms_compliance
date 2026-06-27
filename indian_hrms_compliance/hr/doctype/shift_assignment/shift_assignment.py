@@ -10,7 +10,7 @@ from frappe.model.document import Document
 from frappe.query_builder import Criterion
 from frappe.utils import add_days, cint, cstr, get_link_to_form, get_time, getdate, now_datetime
 
-from indian_hrms_compliance.hr.utils import validate_active_employee
+from indian_hrms_compliance.hr.utils import validate_active_employee, validate_employment_dates
 from indian_hrms_compliance.utils import generate_date_range
 
 
@@ -27,11 +27,13 @@ class ShiftAssignment(Document):
 		validate_active_employee(self.employee)
 		if self.end_date:
 			self.validate_from_to_dates("start_date", "end_date")
+		validate_employment_dates(self.employee, self.start_date, self.end_date)
 		self.validate_overlapping_shifts()
 
 	def on_update_after_submit(self):
 		if self.end_date:
 			self.validate_from_to_dates("start_date", "end_date")
+		validate_employment_dates(self.employee, self.start_date, self.end_date)
 		self.validate_overlapping_shifts()
 
 	def on_cancel(self):

@@ -9,7 +9,11 @@ from frappe.utils import get_link_to_form
 
 import indian_hrms_compliance
 from indian_hrms_compliance.hr.doctype.shift_assignment.shift_assignment import has_overlapping_timings
-from indian_hrms_compliance.hr.utils import share_doc_with_approver, validate_active_employee
+from indian_hrms_compliance.hr.utils import (
+	share_doc_with_approver,
+	validate_active_employee,
+	validate_employment_dates,
+)
 from indian_hrms_compliance.mixins.pwa_notifications import PWANotificationsMixin
 
 
@@ -21,6 +25,7 @@ class ShiftRequest(Document, PWANotificationsMixin):
 	def validate(self):
 		validate_active_employee(self.employee)
 		self.validate_from_to_dates("from_date", "to_date")
+		validate_employment_dates(self.employee, self.from_date, self.to_date)
 		self.validate_overlapping_shift_requests()
 		self.validate_approver()
 		self.validate_default_shift()
