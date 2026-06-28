@@ -1506,17 +1506,19 @@ def set_leave_approver():
 
 
 def get_leave_period():
-	leave_period_name = frappe.db.get_value("Leave Period", {"company": "_Test Company"})
+	from_date = add_months(nowdate(), -6)
+	to_date = add_months(nowdate(), 6)
+	leave_period_name = frappe.db.get_value(
+		"Leave Period", {"from_date": from_date, "to_date": to_date}
+	)
 	if leave_period_name:
 		return frappe.get_doc("Leave Period", leave_period_name)
 	else:
 		return frappe.get_doc(
 			dict(
-				name="Test Leave Period",
 				doctype="Leave Period",
-				from_date=add_months(nowdate(), -6),
-				to_date=add_months(nowdate(), 6),
-				company="_Test Company",
+				from_date=from_date,
+				to_date=to_date,
 				is_active=1,
 			)
 		).insert()

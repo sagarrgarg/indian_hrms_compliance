@@ -1034,7 +1034,6 @@ def create_leave_period(name, start_date=None, end_date=None):
 		doctype="Leave Period",
 		from_date=start_date,
 		to_date=end_date or add_months(start_date, 12),
-		company="_Test Company",
 		is_active=1,
 	).insert()
 

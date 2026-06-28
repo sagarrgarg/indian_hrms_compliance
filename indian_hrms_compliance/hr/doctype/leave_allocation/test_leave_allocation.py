@@ -132,7 +132,6 @@ class TestLeaveAllocation(FrappeTestCase):
 				doctype="Leave Period",
 				from_date=add_months(nowdate(), -6),
 				to_date=add_months(nowdate(), 6),
-				company="_Test Company",
 				is_active=1,
 			)
 		).insert()
@@ -169,7 +168,6 @@ class TestLeaveAllocation(FrappeTestCase):
 				doctype="Leave Period",
 				from_date=add_months(nowdate(), -6),
 				to_date=add_months(nowdate(), 6),
-				company="_Test Company",
 				is_active=1,
 			)
 		).insert()

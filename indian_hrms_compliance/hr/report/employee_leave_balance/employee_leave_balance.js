@@ -65,7 +65,6 @@ frappe.query_reports["Employee Leave Balance"] = {
 			args: {
 				from_date: today,
 				to_date: today,
-				company: frappe.defaults.get_user_default("Company"),
 			},
 			freeze: true,
 			callback: (data) => {

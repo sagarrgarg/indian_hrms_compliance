@@ -57,7 +57,7 @@ class TestLeaveEncashment(FrappeTestCase):
 		# create employee, salary structure and assignment
 		self.employee = make_employee("test_employee_encashment@example.com", company="_Test Company")
 
-		self.leave_period = create_leave_period(year_start, year_end, "_Test Company")
+		self.leave_period = create_leave_period(year_start, year_end)
 
 		data = {
 			"assignment_based_on": "Leave Period",
@@ -283,7 +283,7 @@ class TestLeaveEncashment(FrappeTestCase):
 		# create new leave period that has end date of yesterday
 		start_date = add_days(getdate(), -30)
 		end_date = add_days(getdate(), -1)
-		self.leave_period = create_leave_period(start_date, end_date, "_Test Company")
+		self.leave_period = create_leave_period(start_date, end_date)
 		frappe.db.set_value(
 			"Leave Type",
 			self.leave_type,

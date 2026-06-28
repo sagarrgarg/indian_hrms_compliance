@@ -12,7 +12,6 @@
   "to_date",
   "is_active",
   "column_break_3",
-  "company",
   "optional_holiday_list"
  ],
  "fields": [
@@ -39,14 +38,6 @@
   {
    "fieldname": "column_break_3",
    "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "company",
-   "fieldtype": "Link",
-   "in_list_view": 1,
-   "label": "Company",
-   "options": "Company",
-   "reqd": 1
   },
   {
    "fieldname": "optional_holiday_list",
@@ -100,7 +91,7 @@
    "write": 1
   }
  ],
- "search_fields": "from_date, to_date, company",
+ "search_fields": "from_date, to_date",
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": [],

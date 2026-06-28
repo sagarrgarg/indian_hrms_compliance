@@ -8,13 +8,4 @@ frappe.ui.form.on("Leave Period", {
 			frm.set_value("to_date", frappe.datetime.add_days(a_year_from_start, -1));
 		}
 	},
-	onload: (frm) => {
-		frm.set_query("department", function () {
-			return {
-				filters: {
-					company: frm.doc.company,
-				},
-			};
-		});
-	},
 });

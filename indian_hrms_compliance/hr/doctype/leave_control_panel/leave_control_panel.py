@@ -6,8 +6,6 @@ import frappe
 from frappe.model.document import Document
 from frappe.utils import cint, flt, get_link_to_form
 
-from erpnext import get_default_company
-
 from indian_hrms_compliance.hr.utils import validate_bulk_tool_fields
 
 
@@ -175,10 +173,7 @@ class LeaveControlPanel(Document):
 	def get_latest_leave_period(self):
 		return frappe.db.get_value(
 			"Leave Period",
-			{
-				"is_active": 1,
-				"company": self.company or get_default_company(),
-			},
+			{"is_active": 1},
 			"name",
 			order_by="from_date desc",
 		)

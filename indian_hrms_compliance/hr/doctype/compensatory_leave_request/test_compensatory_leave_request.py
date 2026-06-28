@@ -20,7 +20,7 @@ class TestCompensatoryLeaveRequest(FrappeTestCase):
 		frappe.db.delete("Attendance")
 		frappe.db.delete("Leave Period")
 
-		create_leave_period(add_months(today(), -3), add_months(today(), 3), "_Test Company")
+		create_leave_period(add_months(today(), -3), add_months(today(), 3))
 		create_holiday_list()
 
 		employee = get_employee()
@@ -195,7 +195,7 @@ class TestCompensatoryLeaveRequest(FrappeTestCase):
 
 	def test_request_on_leave_period_boundary(self):
 		frappe.db.delete("Leave Period")
-		create_leave_period("2023-01-01", "2023-12-31", "_Test Company")
+		create_leave_period("2023-01-01", "2023-12-31")
 		create_holiday_list("2023-01-01", "2023-12-31")
 
 		employee = get_employee()
@@ -217,7 +217,7 @@ class TestCompensatoryLeaveRequest(FrappeTestCase):
 		compensatory_leave_request.insert()
 		self.assertRaises(frappe.ValidationError, compensatory_leave_request.submit)
 
-		create_leave_period("2024-01-01", "2024-12-31", "_Test Company")
+		create_leave_period("2024-01-01", "2024-12-31")
 		compensatory_leave_request.reload()
 		compensatory_leave_request.submit()
 

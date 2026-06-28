@@ -30,7 +30,7 @@ class TestLeaveControlPanel(FrappeTestCase):
 
 	@classmethod
 	def create_records(self):
-		self.leave_period = create_leave_period(date(2030, 1, 1), date(2030, 12, 31), "_Test Company")
+		self.leave_period = create_leave_period(date(2030, 1, 1), date(2030, 12, 31))
 		self.leave_policy = create_leave_policy(leave_type="Casual Leave", annual_allocation=10)
 		self.leave_policy.submit()
 
