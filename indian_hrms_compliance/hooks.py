@@ -557,7 +557,6 @@ company_data_to_be_ignored = [
 	"Salary Structure Assignment",
 	"Payroll Period",
 	"Income Tax Slab",
-	"Leave Period",
 	"Leave Policy Assignment",
 	"Employee Onboarding Template",
 	"Employee Separation Template",
