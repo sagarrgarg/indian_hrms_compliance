@@ -185,12 +185,12 @@ class BootStrapTestData:
 		records = [
 			{
 				"doctype": "Leave Period",
-				"company": "_Test Company",
 				"from_date": "2013-01-01",
 				"to_date": "2019-12-31",
 			}
 		]
-		self.make_records(["from_date", "to_date", "company"], records)
+		# Leave Period is global in indian_hrms_compliance (no company field)
+		self.make_records(["from_date", "to_date"], records)
 
 	def make_leave_allocations(self):
 		"""Create test leave applications"""

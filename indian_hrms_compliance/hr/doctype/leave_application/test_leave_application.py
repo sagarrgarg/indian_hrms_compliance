@@ -1663,17 +1663,22 @@ def get_employee():
 
 
 def get_leave_period(current=False):
-	leave_period_name = frappe.db.get_value("Leave Period", {"company": "_Test Company"})
-	if not current and leave_period_name:
+	# Leave Period is global in indian_hrms_compliance (no company field): look up the
+	# current -6/+6 month window by dates. `current` is kept for upstream v16 callers;
+	# the returned period always covers today.
+	from_date = add_months(nowdate(), -6)
+	to_date = add_months(nowdate(), 6)
+	leave_period_name = frappe.db.get_value(
+		"Leave Period", {"from_date": from_date, "to_date": to_date}
+	)
+	if leave_period_name:
 		return frappe.get_doc("Leave Period", leave_period_name)
 	else:
 		return frappe.get_doc(
 			dict(
-				name="Test Leave Period",
 				doctype="Leave Period",
-				from_date=add_months(nowdate(), -6),
-				to_date=add_months(nowdate(), 6),
-				company="_Test Company",
+				from_date=from_date,
+				to_date=to_date,
 				is_active=1,
 			)
 		).insert()

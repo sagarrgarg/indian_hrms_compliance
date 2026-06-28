@@ -78,7 +78,7 @@ frappe.pages["new-employee-setup"].on_page_load = function (wrapper) {
 			{ fieldtype: "Section Break", label: __("Leave") },
 			{ fieldname: "leave_policy", fieldtype: "Link", label: __("Leave Policy"), options: "Leave Policy", reqd: 1, description: __("Assigned (and allocated) on creation. Prefilled from the company default.") },
 			{ fieldtype: "Column Break" },
-			{ fieldname: "leave_period", fieldtype: "Link", label: __("Leave Period"), options: "Leave Period", get_query: () => ({ filters: { company: fg.get_value("company") } }) },
+			{ fieldname: "leave_period", fieldtype: "Link", label: __("Leave Period"), options: "Leave Period" },
 
 			{ fieldtype: "Section Break", label: __("Company Policies to Acknowledge"), description: __("Pre-selected from the company's active policies — untick any this joiner shouldn't have to acknowledge.") },
 			{ fieldname: "policies_to_ack", fieldtype: "MultiCheck", label: __("Policies"), columns: 2, select_all: 1, options: [] },

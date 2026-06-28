@@ -71,13 +71,12 @@ class CompensatoryLeaveRequest(Document):
 			frappe.throw(msg)
 
 	def on_submit(self):
-		company = frappe.db.get_value("Employee", self.employee, "company")
 		date_difference = date_diff(self.work_end_date, self.work_from_date) + 1
 		if self.half_day:
 			date_difference -= 0.5
 
 		comp_leave_valid_from = add_days(self.work_end_date, 1)
-		leave_period = get_leave_period(comp_leave_valid_from, comp_leave_valid_from, company)
+		leave_period = get_leave_period(comp_leave_valid_from, comp_leave_valid_from)
 		if leave_period:
 			leave_allocation = self.get_existing_allocation(comp_leave_valid_from)
 			if leave_allocation:

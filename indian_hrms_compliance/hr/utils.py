@@ -250,6 +250,7 @@ def validate_overlap(doc, from_date, to_date, company=None):
 	overlap_doc = query.run(as_dict=True)
 
 	if overlap_doc:
+		exists_for = None
 		if doc.get("employee"):
 			exists_for = doc.employee
 		if company:
@@ -269,7 +270,8 @@ def get_doc_condition(doctype, table, employee, from_date, to_date, company):
 			)
 		)
 	elif doctype == "Leave Period":
-		return (table.company == company) & (
+		# Leave Period is global in indian_hrms_compliance (no company field)
+		return (
 			table.from_date.between(from_date, to_date)
 			| table.to_date.between(from_date, to_date)
 			| ((table.from_date < from_date) & (table.to_date > to_date))
@@ -282,7 +284,7 @@ def throw_overlap_error(doc, exists_for, overlap_doc, from_date, to_date):
 			doc.doctype, formatdate(from_date), formatdate(to_date)
 		)
 		+ f""" <b><a href="/app/Form/{doc.doctype}/{overlap_doc}">{overlap_doc}</a></b>"""
-		+ _(") for {0}").format(exists_for)
+		+ (_(") for {0}").format(exists_for) if exists_for else ")")
 	)
 	frappe.throw(msg)
 
@@ -340,14 +342,14 @@ def get_total_exemption_amount(declarations):
 
 
 @frappe.whitelist()
-def get_leave_period(from_date: str | datetime.date, to_date: str | datetime.date, company: str):
+def get_leave_period(from_date: str | datetime.date, to_date: str | datetime.date):
+	# Leave Period is global in indian_hrms_compliance (no company field)
 	LeavePeriod = frappe.qb.DocType("Leave Period")
 	leave_period = (
 		frappe.qb.from_(LeavePeriod)
 		.select(LeavePeriod.name, LeavePeriod.from_date, LeavePeriod.to_date)
 		.where(
-			(LeavePeriod.company == company)
-			& (LeavePeriod.is_active == 1)
+			(LeavePeriod.is_active == 1)
 			& (
 				LeavePeriod.from_date[from_date:to_date]
 				| LeavePeriod.to_date[from_date:to_date]

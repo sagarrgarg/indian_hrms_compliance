@@ -29,7 +29,8 @@ function get_assignment_actions() {
 			prefill: (frm) => ({ employee: frm.doc.name }),
 			queries: (frm) => ({
 				leave_policy: { docstatus: 1 },
-				leave_period: { is_active: 1, company: frm.doc.company },
+				// Leave Period is global in indian_hrms_compliance (no company field)
+				leave_period: { is_active: 1 },
 			}),
 			on_change: {
 				assignment_based_on: set_leave_effective_dates,

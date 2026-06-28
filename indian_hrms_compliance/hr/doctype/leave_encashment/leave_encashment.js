@@ -85,7 +85,7 @@ frappe.ui.form.on("Leave Encashment", {
 		frappe.db.get_value(
 			"Leave Period",
 			{
-				company: frm.doc.company,
+				// Leave Period is global in indian_hrms_compliance (no company field)
 				is_active: 1,
 				from_date: ["<=", date],
 				to_date: [">=", date],

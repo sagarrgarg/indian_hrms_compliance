@@ -21,7 +21,7 @@ class TestLeaveControlPanel(HRMSTestSuite):
 
 	def create_records(self):
 		self.company = create_company("Test Leave Control Panel").name
-		self.leave_period = create_leave_period(date(2030, 1, 1), date(2030, 12, 31), self.company)
+		self.leave_period = create_leave_period(date(2030, 1, 1), date(2030, 12, 31))
 		self.leave_policy = create_leave_policy(leave_type="Casual Leave", annual_allocation=10)
 		self.leave_policy.submit()
 

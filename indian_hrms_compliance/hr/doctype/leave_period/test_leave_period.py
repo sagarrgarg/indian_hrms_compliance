@@ -3,16 +3,15 @@
 
 import frappe
 
-import erpnext
-
 from indian_hrms_compliance.tests.utils import HRMSTestSuite
 
 
 def create_leave_period(from_date, to_date, company=None):
+	# Leave Period is global in indian_hrms_compliance (no company field); `company`
+	# is accepted only for compatibility with upstream v16 test callers and ignored.
 	leave_period = frappe.db.get_value(
 		"Leave Period",
 		dict(
-			company=company or "_Test Company",
 			from_date=from_date,
 			to_date=to_date,
 			is_active=1,
@@ -25,7 +24,6 @@ def create_leave_period(from_date, to_date, company=None):
 	leave_period = frappe.get_doc(
 		{
 			"doctype": "Leave Period",
-			"company": company or "_Test Company",
 			"from_date": from_date,
 			"to_date": to_date,
 			"is_active": 1,

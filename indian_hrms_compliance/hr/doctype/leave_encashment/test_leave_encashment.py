@@ -37,7 +37,7 @@ class TestLeaveEncashment(HRMSTestSuite):
 		# create employee, salary structure and assignment
 		self.employee = make_employee("test_employee_encashment@example.com", company="_Test Company")
 
-		self.leave_period = create_leave_period(year_start, year_end, "_Test Company")
+		self.leave_period = create_leave_period(year_start, year_end)
 
 		# create the leave policy
 		leave_policy = create_leave_policy(leave_type=self.leave_type, annual_allocation=10)
@@ -268,7 +268,7 @@ class TestLeaveEncashment(HRMSTestSuite):
 		# create new leave period that has end date of yesterday
 		start_date = add_days(getdate(), -30)
 		end_date = add_days(getdate(), -1)
-		self.leave_period = create_leave_period(start_date, end_date, "_Test Company")
+		self.leave_period = create_leave_period(start_date, end_date)
 		frappe.db.set_value(
 			"Leave Type",
 			self.leave_type,
