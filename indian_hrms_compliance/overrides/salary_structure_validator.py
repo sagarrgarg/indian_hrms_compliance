@@ -59,6 +59,7 @@ HR_SETTINGS_DEFAULTS = {
 	"esi_employee_rate_pct": 0.75,
 	"esi_employer_rate_pct": 3.25,
 	"esi_employee_daily_wage_waiver": 176,
+	"pan_mandatory_annual_income": 700000,
 	"enforce_minimum_wage_validation": 1,
 	"dpdp_aadhaar_consent_required": 1,
 	"dpdp_data_retention_years": 8,
@@ -742,16 +743,35 @@ def check_employee_statutory_ids_at_assignment(doc):
 		return None
 	issues = []
 	if not emp.get("pan_number"):
-		issues.append(
-			(
-				"HARD",
-				"EMP_PAN_MISSING",
-				_(
-					"Employee {0} has no PAN number set. PAN is mandatory for Form 16 "
-					"and TDS deductions; salary cannot be processed without it."
-				).format(doc.employee),
+		# PAN only bites once TDS realistically applies. Below the configured
+		# annual-income threshold there's no TDS and no Form 16, so a missing PAN
+		# is a non-blocking WARN (low-paid staff often have none); at/above it the
+		# block stands. Annual income = (base + variable) * 12 — base is monthly CTC.
+		annual_income = (flt(doc.base or 0) + flt(doc.variable or 0)) * 12
+		pan_threshold = flt(_hr_setting("pan_mandatory_annual_income", 700000))
+		if pan_threshold and annual_income and annual_income < pan_threshold:
+			issues.append(
+				(
+					"WARN",
+					"EMP_PAN_MISSING",
+					_(
+						"Employee {0} has no PAN. Annual income {1:,.0f} is below the "
+						"PAN-mandatory threshold {2:,.0f}, so no TDS / Form 16 arises yet — "
+						"capture PAN before pay crosses the threshold."
+					).format(doc.employee, annual_income, pan_threshold),
+				)
 			)
-		)
+		else:
+			issues.append(
+				(
+					"HARD",
+					"EMP_PAN_MISSING",
+					_(
+						"Employee {0} has no PAN number set. PAN is mandatory for Form 16 "
+						"and TDS deductions; salary cannot be processed without it."
+					).format(doc.employee),
+				)
+			)
 	# PF applicability via company headcount or mapping
 	pf_applies = False
 	if emp.company:

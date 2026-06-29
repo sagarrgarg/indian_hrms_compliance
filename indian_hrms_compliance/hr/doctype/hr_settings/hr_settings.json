@@ -146,6 +146,8 @@
   "esi_employee_rate_pct",
   "esi_employer_rate_pct",
   "esi_employee_daily_wage_waiver",
+  "tds_section",
+  "pan_mandatory_annual_income",
   "min_wage_section",
   "enforce_minimum_wage_validation",
   "pt_lwf_section",
@@ -1052,6 +1054,18 @@
    "fieldtype": "Currency",
    "label": "ESI Employee Daily Wage Waiver",
    "description": "Employee ESI share is waived when daily wage is at or below this amount."
+  },
+  {
+   "fieldname": "tds_section",
+   "fieldtype": "Section Break",
+   "label": "Tax Deducted at Source (TDS)"
+  },
+  {
+   "default": "700000",
+   "fieldname": "pan_mandatory_annual_income",
+   "fieldtype": "Currency",
+   "label": "PAN Mandatory Above Annual Income",
+   "description": "Below this annual income (monthly base × 12) a missing PAN is a non-blocking warning — no TDS / Form 16 arises. At or above it, a missing PAN hard-blocks the Salary Structure Assignment. Set to 0 to make PAN mandatory for everyone."
   },
   {
    "fieldname": "min_wage_section",
