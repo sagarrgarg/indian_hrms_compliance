@@ -78,7 +78,9 @@ def _onboarding_theme(company: str | None) -> dict:
 	}
 
 # Documents every candidate MUST upload before an onboarding submission is
-# accepted. "Previous Payslip" is additionally required unless is_fresher.
+# accepted. "Previous Payslip" is additionally required only when Employment
+# Background (prior_employment) is left blank — any explicit choice ('Fresher' or
+# 'Already an Employee') waives it.
 REQUIRED_DOCUMENT_TYPES = ("Aadhaar Card",)
 PAYSLIP_DOCUMENT_TYPE = "Previous Payslip"
 # Required ONLY when HR attached an offer letter for this candidate to download +
@@ -189,10 +191,10 @@ class EmployeeOnboardingApplication(Document):
 		if self.same_as_current_address:
 			self.permanent_address = self.current_address
 
-		# The explicit "Fresher / Already an Employee" choice drives the internal
-		# is_fresher flag (which gates the Previous Payslip requirement). Only
-		# override when a choice was actually made, so HR drafts and direct
-		# programmatic sets keep whatever is_fresher value they were given.
+		# The explicit "Fresher / Already an Employee" choice records the internal
+		# is_fresher flag (informational). Only override when a choice was actually
+		# made, so HR drafts and direct programmatic sets keep whatever value they
+		# were given.
 		if self.prior_employment:
 			self.is_fresher = 1 if self.prior_employment == "Fresher" else 0
 
@@ -252,7 +254,9 @@ class EmployeeOnboardingApplication(Document):
 		a record before the candidate uploads.
 
 		- Aadhaar Card: always required.
-		- Previous Payslip: required unless the candidate flags themselves a fresher.
+		- Previous Payslip: required only when Employment Background is blank. Both
+		  'Fresher' (no prior job) and 'Already an Employee' (an existing employee of
+		  this organisation — no external payslip to give) waive it.
 		- Signed Offer Letter: required ONLY when an offer letter was attached for
 		  this candidate to download + sign via the invite (self.offer_letter set).
 		"""
@@ -266,7 +270,7 @@ class EmployeeOnboardingApplication(Document):
 		}
 
 		missing = [d for d in REQUIRED_DOCUMENT_TYPES if d not in attached]
-		if not self.is_fresher and PAYSLIP_DOCUMENT_TYPE not in attached:
+		if not self.prior_employment and PAYSLIP_DOCUMENT_TYPE not in attached:
 			missing.append(PAYSLIP_DOCUMENT_TYPE)
 		if self.offer_letter and SIGNED_OFFER_LETTER_DOCUMENT_TYPE not in attached:
 			missing.append(SIGNED_OFFER_LETTER_DOCUMENT_TYPE)
@@ -275,9 +279,9 @@ class EmployeeOnboardingApplication(Document):
 			return
 
 		hints = []
-		if not self.is_fresher and PAYSLIP_DOCUMENT_TYPE in missing:
+		if not self.prior_employment and PAYSLIP_DOCUMENT_TYPE in missing:
 			hints.append(
-				_("Select 'Fresher' under Employment Background if you have no previous employment to skip the payslip.")
+				_("Set your Employment Background (Fresher or Already an Employee) — either choice removes the Previous Payslip requirement.")
 			)
 		if SIGNED_OFFER_LETTER_DOCUMENT_TYPE in missing:
 			hints.append(

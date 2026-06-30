@@ -190,7 +190,7 @@
    "label": "Are you a fresher or already employed?",
    "options": "\nFresher\nAlready an Employee",
    "reqd": 1,
-   "description": "Choose 'Fresher' if this is your first job (no previous payslip needed), or 'Already an Employee' if you have prior or current employment."
+   "description": "Choose 'Fresher' if this is your first job, or 'Already an Employee' if you already work here / have prior employment. Either way, a previous payslip is not required."
   },
   {
    "fieldname": "documents",
@@ -198,7 +198,7 @@
    "label": "Upload your documents",
    "options": "Employee Onboarding Document",
    "reqd": 1,
-   "description": "REQUIRED: Aadhaar Card. Previous Payslip is required unless you selected 'Fresher' above. If you were sent an offer letter to sign (see the banner at the top), the signed copy is required — upload it as 'Signed Offer Letter'. Add a row per document and pick its type."
+   "description": "REQUIRED: Aadhaar Card. Previous Payslip is optional. If you were sent an offer letter to sign (see the banner at the top), the signed copy is required — upload it as 'Signed Offer Letter'. Add a row per document and pick its type."
   },
   {
    "fieldname": "page_consent",
