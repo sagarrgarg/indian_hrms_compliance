@@ -67,7 +67,7 @@ frappe.pages["new-employee-setup"].on_page_load = function (wrapper) {
 			{ fieldname: "income_tax_slab", fieldtype: "Link", label: __("Income Tax Slab"), options: "Income Tax Slab", depends_on: "salary_structure" },
 			{ fieldtype: "Column Break" },
 			{ fieldname: "payroll_effective_date", fieldtype: "Date", label: __("Payroll Effective From"), depends_on: "salary_structure" },
-			{ fieldname: "default_shift", fieldtype: "Link", label: __("Default Shift"), options: "Shift Type", reqd: 1 },
+			{ fieldname: "default_shift", fieldtype: "Link", label: __("Shift"), options: "Shift Type", reqd: 1, description: __("A Shift Assignment is created from the joining date. Holidays follow the Shift Type's holiday list.") },
 
 			{ fieldtype: "Section Break", label: __("Confirmation & Probation") },
 			{ fieldname: "place_on_probation", fieldtype: "Check", label: __("Place on Probation"), default: 0, description: __("Keeps the employee Active for payroll/attendance/leave, while flagging them on probation.") },

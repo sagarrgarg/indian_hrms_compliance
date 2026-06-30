@@ -94,6 +94,21 @@ def setup_new_employee(data):
 			frappe.log_error(title="Employee Setup: salary failed", message=frappe.get_traceback())
 			log.append(_("⚠ Salary Structure Assignment failed — assign it manually (see Error Log)."))
 
+	# --- Best-effort: Shift Assignment (shift is assignment-based, not a field) ---
+	if d.default_shift:
+		sp_shift = "nes_shift"
+		frappe.db.savepoint(sp_shift)
+		try:
+			sa_name = _assign_shift(d, emp)
+			log.append(_("Shift Assignment {0} submitted.").format(sa_name))
+		except Exception:
+			try:
+				frappe.db.rollback(save_point=sp_shift)
+			except Exception:
+				pass
+			frappe.log_error(title="Employee Setup: shift failed", message=frappe.get_traceback())
+			log.append(_("⚠ Shift Assignment failed — assign the shift manually (see Error Log)."))
+
 	# --- Best-effort: Leave Policy Assignment (exactly what HR picked) ---
 	if d.leave_policy:
 		sp_leave = "nes_leave"
@@ -177,7 +192,9 @@ def _create_employee(d):
 			"leave_approver": d.leave_approver,
 			"expense_approver": d.expense_approver,
 			"shift_request_approver": d.shift_request_approver,
-			"default_shift": d.default_shift,
+			# Shift is assignment-based, not a field: a submitted Shift Assignment is
+			# created below (best-effort) so attendance/holidays resolve from the Shift
+			# Type. Writing Employee.default_shift here would duplicate that source.
 			# Setting job_applicant here lets the Employee after_insert cascade mark
 			# the linked Job Applicant (and any Job Offer) as Accepted.
 			"job_applicant": d.job_applicant or None,
@@ -265,6 +282,23 @@ def _assign_salary(d, emp):
 	ssa.insert()
 	ssa.submit()
 	return ssa.name
+
+
+def _assign_shift(d, emp):
+	"""Create + submit a Shift Assignment from the joining date (open-ended).
+
+	The shift is the single source for attendance processing and holidays (via
+	Shift Type.holiday_list), replacing the old Employee.default_shift field.
+	"""
+	sa = frappe.new_doc("Shift Assignment")
+	sa.employee = emp.name
+	sa.shift_type = d.default_shift
+	sa.company = d.company
+	sa.start_date = d.date_of_joining
+	sa.status = "Active"
+	sa.insert()
+	sa.submit()
+	return sa.name
 
 
 def _assign_leave_policy(d, emp):
