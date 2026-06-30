@@ -13,10 +13,17 @@ frappe.ui.form.on("Employee Checkin", {
 		}
 		if (!frm.doc.__islocal) frm.trigger("add_fetch_shift_button");
 
-		const allow_geolocation_tracking = await frappe.db.get_single_value(
-			"HR Settings",
-			"allow_geolocation_tracking",
-		);
+		// Geolocation tracking is configured per Shift Type. Resolve it from the
+		// check-in's shift; no resolved shift ⇒ geolocation is off.
+		const allow_geolocation_tracking = frm.doc.shift
+			? (
+					await frappe.db.get_value(
+						"Shift Type",
+						frm.doc.shift,
+						"allow_geolocation_tracking",
+					)
+				).message?.allow_geolocation_tracking
+			: 0;
 
 		if (!allow_geolocation_tracking) {
 			hide_field(["fetch_geolocation", "latitude", "longitude", "geolocation"]);

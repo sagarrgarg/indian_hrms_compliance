@@ -57,10 +57,10 @@ async function setup_checkin_action(listview) {
 	if (!employee) return;
 
 	listview.checkin_employee = employee;
-	listview.track_geolocation = await frappe.db.get_single_value(
-		"HR Settings",
-		"allow_geolocation_tracking",
-	);
+	// Geolocation tracking is configured per Shift Type in indian_hrms_compliance;
+	// get_hr_settings resolves it from the active employee's shift(s) for today.
+	listview.track_geolocation = (await frappe.xcall("indian_hrms_compliance.api.get_hr_settings"))
+		?.allow_geolocation_tracking;
 	listview.set_primary_action = () => {
 		const next = listview.next_checkin;
 		if (!next) return;

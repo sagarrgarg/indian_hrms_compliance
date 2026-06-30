@@ -8,19 +8,11 @@
  "is_standard": 1,
  "mappings": [
   {
-   "setting_field": "allow_employee_checkin_from_mobile_app",
-   "settings_doctype": "HR Settings"
-  },
-  {
-   "setting_field": "allow_geolocation_tracking",
-   "settings_doctype": "HR Settings"
-  },
-  {
    "setting_field": "standard_working_hours",
    "settings_doctype": "HR Settings"
   }
  ],
- "modified": "2026-07-16 00:00:00.000000",
+ "modified": "2026-10-18 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "HR",
  "name": "Employee Checkin - HR",
