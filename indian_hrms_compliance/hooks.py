@@ -122,6 +122,7 @@ jinja = {
 after_install = "indian_hrms_compliance.install.after_install"
 after_migrate = [
 	"indian_hrms_compliance.setup.sync_custom_fields",
+	"indian_hrms_compliance.setup.apply_property_setters",
 	"indian_hrms_compliance.regional.india.tax_defaults.seed_all",
 	"indian_hrms_compliance.setup.update_select_perm_after_install",
 ]

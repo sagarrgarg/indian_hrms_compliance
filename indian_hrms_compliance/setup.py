@@ -2,6 +2,7 @@ import os
 
 import frappe
 from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
+from frappe.custom.doctype.property_setter.property_setter import make_property_setter
 from frappe.desk.page.setup_wizard.install_fixtures import (
 	_,  # NOTE: this is not the real translation function
 )
@@ -12,6 +13,7 @@ from indian_hrms_compliance.overrides.company import delete_company_fixtures
 
 def after_install():
 	sync_custom_fields()
+	apply_property_setters()
 	make_fixtures()
 	setup_notifications()
 	update_hr_defaults()
@@ -58,6 +60,22 @@ def sync_custom_fields():
 	this is safe to re-run."""
 	create_custom_fields(get_custom_fields(), ignore_validate=True)
 	create_salary_slip_loan_fields()
+
+
+def apply_property_setters():
+	"""Idempotently override properties on upstream (ERPNext) doctype fields.
+
+	Runs on after_install AND after_migrate (see hooks.py) so the overrides are a
+	single source of truth and self-heal, mirroring sync_custom_fields().
+	make_property_setter upserts, so this is safe to re-run."""
+	# Employee.salary_mode: default to Bank and never leave it blank. A missing
+	# salary mode silently breaks bank-transfer payout files and statutory exports.
+	make_property_setter(
+		"Employee", "salary_mode", "default", "Bank", "Data", validate_fields_for_doctype=False
+	)
+	make_property_setter(
+		"Employee", "salary_mode", "reqd", 1, "Check", validate_fields_for_doctype=False
+	)
 
 
 def get_custom_fields():
@@ -299,6 +317,16 @@ def get_custom_fields():
 				"fieldtype": "Data",
 				"label": _("Health Insurance No"),
 				"insert_after": "health_insurance_provider",
+			},
+			{
+				"fieldname": "father_or_husband_name",
+				"fieldtype": "Data",
+				"label": _("Father's / Husband's Name"),
+				"insert_after": "marital_status",
+				"description": _(
+					"Name as printed on statutory records (PF, ESI, Form 16, gratuity). "
+					"Use the husband's name for married women where applicable."
+				),
 			},
 			{
 				"fieldname": "approvers_section",
