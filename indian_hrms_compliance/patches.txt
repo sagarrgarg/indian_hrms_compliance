@@ -102,3 +102,4 @@ indian_hrms_compliance.patches.v15_0.backfill_primary_employer #2026-06-23
 indian_hrms_compliance.patches.v15_0.promote_backdated_attendance_fields_to_standard #2026-06-25
 indian_hrms_compliance.patches.v15_0.seed_pan_mandatory_threshold #2026-06-29
 indian_hrms_compliance.patches.v15_0.seed_salary_mode_default #2026-06-30
+indian_hrms_compliance.patches.v15_0.migrate_checkin_settings_to_shift_type #2026-06-30

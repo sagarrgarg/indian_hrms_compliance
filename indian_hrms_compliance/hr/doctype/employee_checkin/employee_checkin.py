@@ -88,8 +88,21 @@ class EmployeeCheckin(Document):
 				),
 			)
 
+	def shift_allows(self, flag: str) -> bool:
+		"""Whether the resolved Shift Type enables a check-in capability.
+
+		Mobile check-in and geolocation tracking are configured per Shift Type.
+		A check-in with no resolvable shift (offshift / no assignment) has the
+		capability disabled.
+		"""
+		if not self.shift:
+			return False
+		return bool(frappe.db.get_value("Shift Type", self.shift, flag))
+
 	@frappe.whitelist()
 	def set_geolocation(self):
+		if not self.shift_allows("allow_geolocation_tracking"):
+			return
 		set_geolocation_from_coordinates(self)
 
 	@frappe.whitelist()
@@ -123,7 +136,7 @@ class EmployeeCheckin(Document):
 			self.shift_end = shift_actual_timings.end_datetime
 
 	def validate_distance_from_shift_location(self):
-		if not frappe.db.get_single_value("HR Settings", "allow_geolocation_tracking"):
+		if not self.shift_allows("allow_geolocation_tracking"):
 			return
 
 		if not (self.latitude or self.longitude):

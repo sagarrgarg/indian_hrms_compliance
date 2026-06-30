@@ -2,21 +2,9 @@
 // For license information, please see license.txt
 
 frappe.ui.form.on("Shift Location", {
-	refresh: async (frm) => {
-		const allow_geolocation_tracking = await frappe.db.get_single_value(
-			"HR Settings",
-			"allow_geolocation_tracking",
-		);
-
-		if (!allow_geolocation_tracking)
-			hide_field([
-				"checkin_radius",
-				"fetch_geolocation",
-				"latitude",
-				"longitude",
-				"geolocation",
-			]);
-
+	refresh: (frm) => {
+		// A Shift Location always stores its own coordinates and geofence radius.
+		// Whether a check-in is geofenced is decided per Shift Type, not here.
 		if (!frm.doc.__islocal)
 			indian_hrms_compliance.add_shift_tools_button_to_form(frm, {
 				action: "Assign Shift",

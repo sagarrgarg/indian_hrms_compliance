@@ -941,9 +941,12 @@ def notify_bulk_action_status(doctype: str, failure: list, success: list) -> Non
 
 @frappe.whitelist()
 def set_geolocation_from_coordinates(doc):
-	if not frappe.db.get_single_value("HR Settings", "allow_geolocation_tracking"):
-		return
+	"""Pure converter: stamp the doc's lat/long onto its geolocation geojson.
 
+	Whether geolocation is captured at all is decided by the caller (Employee
+	Checkin gates on its resolved Shift Type; Shift Location always stores its
+	own coordinates), so this helper no longer consults any global setting.
+	"""
 	if not (doc.latitude and doc.longitude):
 		return
 

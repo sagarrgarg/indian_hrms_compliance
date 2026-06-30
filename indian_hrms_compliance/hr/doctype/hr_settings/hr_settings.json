@@ -53,8 +53,6 @@
   "column_break_34",
   "exit_questionnaire_notification_template",
   "attendance_settings_section",
-  "allow_employee_checkin_from_mobile_app",
-  "allow_geolocation_tracking",
   "duplicate_checkin_window_minutes",
   "backdated_attendance_approval_months",
   "role_allowed_to_approve_backdated_attendance",
@@ -429,18 +427,6 @@
    "fieldname": "shift_settings_section",
    "fieldtype": "Section Break",
    "label": "Shift Settings"
-  },
-  {
-   "default": "1",
-   "fieldname": "allow_employee_checkin_from_mobile_app",
-   "fieldtype": "Check",
-   "label": "Allow Employee Checkin from Mobile App"
-  },
-  {
-   "default": "0",
-   "fieldname": "allow_geolocation_tracking",
-   "fieldtype": "Check",
-   "label": "Allow Geolocation Tracking"
   },
   {
    "default": "0",

@@ -333,12 +333,65 @@ def get_current_employee() -> str:
 
 
 # HR Settings
+def _todays_shift_type_flags(employee: str) -> list[dict]:
+	"""Mobile check-in flags for every Shift Type the employee is on today.
+
+	Resolved at day level (today's active Shift Assignments plus any legacy
+	Employee.default_shift fallback) rather than the current instant, so the
+	PWA check-in surface stays stable across the whole shift instead of vanishing
+	outside the punch window. This mirrors how a real check-in resolves its
+	shift (assignment first, default_shift fallback)."""
+	today = getdate()
+	shift_types = frappe.get_all(
+		"Shift Assignment",
+		filters={
+			"employee": employee,
+			"docstatus": 1,
+			"status": "Active",
+			"start_date": ["<=", today],
+		},
+		or_filters=[["end_date", ">=", today], ["end_date", "is", "not set"]],
+		pluck="shift_type",
+	)
+	default_shift = frappe.db.get_value("Employee", employee, "default_shift")
+	if default_shift:
+		shift_types.append(default_shift)
+
+	flags = []
+	for shift_type in set(filter(None, shift_types)):
+		row = frappe.db.get_value(
+			"Shift Type",
+			shift_type,
+			["allow_employee_checkin_from_mobile_app", "allow_geolocation_tracking"],
+			as_dict=True,
+		)
+		if row:
+			flags.append(row)
+	return flags
+
+
 @frappe.whitelist()
 def get_hr_settings() -> dict:
+	"""Settings the PWA needs at startup.
+
+	Mobile check-in and geolocation tracking are configured per Shift Type, so
+	they are resolved from the active employee's shift(s) for today rather than a
+	global toggle. No resolvable shift ⇒ both off. When the employee has more
+	than one shift today, the flags are OR-ed (any shift that permits it wins);
+	per-shift enforcement still happens server-side on the actual check-in."""
 	settings = frappe.db.get_singles_dict("HR Settings", cast=True)
+
+	allow_checkin = 0
+	allow_geolocation = 0
+	employee = get_active_employee_name()
+	if employee:
+		for flags in _todays_shift_type_flags(employee):
+			allow_checkin = allow_checkin or cint(flags.allow_employee_checkin_from_mobile_app)
+			allow_geolocation = allow_geolocation or cint(flags.allow_geolocation_tracking)
+
 	return frappe._dict(
-		allow_employee_checkin_from_mobile_app=settings.allow_employee_checkin_from_mobile_app,
-		allow_geolocation_tracking=settings.allow_geolocation_tracking,
+		allow_employee_checkin_from_mobile_app=cint(allow_checkin),
+		allow_geolocation_tracking=cint(allow_geolocation),
 		prevent_self_leave_approval=settings.prevent_self_leave_approval,
 	)
 

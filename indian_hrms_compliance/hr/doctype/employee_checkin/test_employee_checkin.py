@@ -40,19 +40,22 @@ class TestEmployeeCheckin(FrappeTestCase):
 		to_date = get_year_ending(getdate())
 		self.holiday_list = make_holiday_list(from_date=from_date, to_date=to_date)
 
-		frappe.db.set_single_value("HR Settings", "allow_geolocation_tracking", 0)
-
 	def test_geolocation_tracking(self):
-		employee = make_employee("test_add_log_based_on_employee_field@example.com")
-		checkin = make_checkin(employee)
-		checkin.latitude = 23.31773
-		checkin.longitude = 66.82876
-		checkin.save()
+		# Geolocation tracking is configured per Shift Type. Start with it OFF.
+		employee = make_employee("test_geo@example.com", company="_Test Company")
+		shift = setup_shift_type(allow_geolocation_tracking=0)
+		date = getdate()
+		make_shift_assignment(shift.name, employee, date)
 
-		# geolocation tracking is disabled
+		timestamp = datetime.combine(date, get_time("10:00:00"))
+		checkin = make_checkin(employee, timestamp, 23.31773, 66.82876)
+		self.assertEqual(checkin.shift, shift.name)
+
+		# geolocation tracking is disabled on the shift type
 		self.assertIsNone(checkin.geolocation)
 
-		frappe.db.set_single_value("HR Settings", "allow_geolocation_tracking", 1)
+		# enable it on the shift type and re-save
+		frappe.db.set_value("Shift Type", shift.name, "allow_geolocation_tracking", 1)
 
 		checkin.save()
 		self.assertEqual(
@@ -493,14 +496,18 @@ class TestEmployeeCheckin(FrappeTestCase):
 		self.assertEqual(log.shift, shift2.name)
 
 	@change_settings("HR Settings", {"allow_multiple_shift_assignments": 1})
-	@change_settings("HR Settings", {"allow_geolocation_tracking": 1})
 	def test_geofencing(self):
 		employee = make_employee("test_shift@example.com", company="_Test Company")
 
-		# 8 - 12
-		shift1 = setup_shift_type()
+		# 8 - 12 — geolocation tracking enabled on the shift type
+		shift1 = setup_shift_type(allow_geolocation_tracking=1)
 		# 15 - 19
-		shift2 = setup_shift_type(shift_type="Consecutive Shift", start_time="15:00:00", end_time="19:00:00")
+		shift2 = setup_shift_type(
+			shift_type="Consecutive Shift",
+			start_time="15:00:00",
+			end_time="19:00:00",
+			allow_geolocation_tracking=1,
+		)
 
 		date = getdate()
 		location1 = make_shift_location("Loc A", 24, 72)

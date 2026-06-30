@@ -13,6 +13,9 @@
   "holiday_list",
   "color",
   "enable_auto_attendance",
+  "mobile_checkin_section",
+  "allow_employee_checkin_from_mobile_app",
+  "allow_geolocation_tracking",
   "auto_attendance_settings_section",
   "determine_check_in_and_check_out",
   "working_hours_calculation_based_on",
@@ -169,6 +172,25 @@
    "fieldtype": "Select",
    "label": "Roster Color",
    "options": "Blue\nCyan\nFuchsia\nGreen\nLime\nOrange\nPink\nRed\nViolet\nYellow"
+  },
+  {
+   "fieldname": "mobile_checkin_section",
+   "fieldtype": "Section Break",
+   "label": "Mobile Check-in"
+  },
+  {
+   "default": "1",
+   "description": "Allow employees assigned to this shift to check in from the mobile app.",
+   "fieldname": "allow_employee_checkin_from_mobile_app",
+   "fieldtype": "Check",
+   "label": "Allow Employee Checkin from Mobile App"
+  },
+  {
+   "default": "0",
+   "description": "Capture employee location on check-in for this shift and geofence it against the assignment's Shift Location.",
+   "fieldname": "allow_geolocation_tracking",
+   "fieldtype": "Check",
+   "label": "Allow Geolocation Tracking"
   }
  ],
  "links": [],
