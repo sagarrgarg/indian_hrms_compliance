@@ -77,6 +77,18 @@ def apply_property_setters():
 		"Employee", "salary_mode", "reqd", 1, "Check", validate_fields_for_doctype=False
 	)
 
+	# Hide Employee.ctc + salary_currency: redundant at intake — the authoritative pay
+	# figure lives on Salary Structure Assignment, and Salary Slip computes its own ctc
+	# from the structure, so Employee.ctc feeds no payroll. (Employee Promotion still
+	# writes ctc and the PWA Profile still reads it via API; hiding the form field
+	# touches neither.)
+	make_property_setter(
+		"Employee", "ctc", "hidden", 1, "Check", validate_fields_for_doctype=False
+	)
+	make_property_setter(
+		"Employee", "salary_currency", "hidden", 1, "Check", validate_fields_for_doctype=False
+	)
+
 
 def get_custom_fields():
 	"""HR specific custom fields that need to be added to the masters in ERPNext"""

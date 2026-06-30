@@ -1053,6 +1053,11 @@ def mark_converted(application: str, employee: str):
 		emp_updates["permanent_address"] = app.permanent_address
 	if app.photo:
 		emp_updates["image"] = app.photo
+	# mobile_no is captured on the application but the setup page never carried it,
+	# so it was being dropped on conversion — persist to Employee.cell_number (the
+	# field Travel Request, Job Offer, the profile-change flow and PWA Profile read).
+	if app.get("mobile_no"):
+		emp_updates["cell_number"] = app.mobile_no
 	if emp_updates:
 		frappe.db.set_value("Employee", employee, emp_updates)
 
