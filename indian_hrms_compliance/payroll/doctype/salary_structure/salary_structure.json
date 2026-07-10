@@ -14,6 +14,10 @@
   "is_active",
   "is_default",
   "currency",
+  "base_range_section",
+  "min_base",
+  "base_range_col",
+  "max_base",
   "amended_from",
   "time_sheet_earning_detail",
   "leave_encashment_amount_per_day",
@@ -38,6 +42,29 @@
   "payment_account"
  ],
  "fields": [
+  {
+   "fieldname": "base_range_section",
+   "fieldtype": "Section Break",
+   "label": "Assignment Base Range"
+  },
+  {
+   "description": "Minimum permitted assignment base for this structure. A Salary Structure Assignment with base below this is blocked. Leave 0 for no minimum.",
+   "fieldname": "min_base",
+   "fieldtype": "Currency",
+   "label": "Minimum Base",
+   "options": "currency"
+  },
+  {
+   "fieldname": "base_range_col",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Maximum permitted assignment base for this structure. A Salary Structure Assignment with base above this is blocked. Leave 0 for no maximum.",
+   "fieldname": "max_base",
+   "fieldtype": "Currency",
+   "label": "Maximum Base",
+   "options": "currency"
+  },
   {
    "fieldname": "company",
    "fieldtype": "Link",
@@ -242,7 +269,7 @@
  "idx": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2024-11-22 11:17:28.384386",
+ "modified": "2026-07-10 20:00:00.000000",
  "modified_by": "Administrator",
  "module": "Payroll",
  "name": "Salary Structure",
