@@ -242,6 +242,113 @@ class SalaryStructure(Document):
 		else:
 			frappe.msgprint(_("No Employee Found"))
 
+	@frappe.whitelist()
+	def preview_ctc(self, base=0, uan_number=0, variable=0):
+		"""Employee-free CTC preview.
+
+		Evaluate this structure's earnings/deductions against a hypothetical
+		``base`` (plus UAN / variable) and return each component amount with
+		gross, employer contributions, total deduction, net and CTC — so HR can
+		sanity-check a draft structure, and see how toggling PF (via UAN) shifts
+		the CTC, without creating a Salary Structure Assignment or an Employee.
+
+		Called with the live (possibly unsaved) form doc, so it works on drafts.
+		"""
+		from indian_hrms_compliance.payroll.doctype.salary_slip.salary_slip import _safe_eval
+
+		base = flt(base)
+		variable = flt(variable)
+		uan = 1 if cint(uan_number) else 0
+
+		eval_globals = _preview_eval_globals()
+		# seed every component abbr to 0 so cross-references never NameError
+		data = {
+			abbr: 0
+			for abbr in frappe.get_all("Salary Component", pluck="salary_component_abbr")
+			if abbr
+		}
+		data.update({"base": base, "variable": variable, "uan_number": uan})
+
+		def _eval_row(row):
+			condition = sanitize_expression(row.condition) if row.condition else ""
+			formula = sanitize_expression(row.formula) if row.formula else ""
+			try:
+				if condition and not _safe_eval(condition, eval_globals, data):
+					amount = 0.0
+				elif row.amount_based_on_formula and formula:
+					amount = flt(_safe_eval(formula, eval_globals, data))
+				else:
+					amount = flt(row.amount)
+			except Exception as exc:
+				frappe.throw(
+					_("Could not evaluate component {0}: {1}").format(
+						frappe.bold(row.salary_component), str(exc)
+					)
+				)
+			if row.abbr:
+				data[row.abbr] = amount
+			return amount
+
+		earnings, deductions = [], []
+		for row in self.earnings:
+			earnings.append(
+				{
+					"component": row.salary_component,
+					"abbr": row.abbr,
+					"amount": _eval_row(row),
+					"statistical": cint(row.statistical_component),
+				}
+			)
+		for row in self.deductions:
+			deductions.append(
+				{
+					"component": row.salary_component,
+					"abbr": row.abbr,
+					"amount": _eval_row(row),
+					"statistical": cint(row.statistical_component),
+				}
+			)
+
+		gross = sum(r["amount"] for r in earnings if not r["statistical"])
+		employer = sum(r["amount"] for r in earnings if r["statistical"])
+		total_deduction = sum(r["amount"] for r in deductions if not r["statistical"])
+		return {
+			"base": base,
+			"uan_number": uan,
+			"variable": variable,
+			"currency": self.currency,
+			"earnings": earnings,
+			"deductions": deductions,
+			"gross": gross,
+			"employer_contributions": employer,
+			"total_deduction": total_deduction,
+			"net": gross - total_deduction,
+			"ctc": gross + employer,
+		}
+
+
+def _preview_eval_globals():
+	"""Whitelisted globals for Salary Structure formula/condition evaluation
+	during a CTC preview — mirrors the Salary Slip eval sandbox."""
+	from datetime import date
+	from math import ceil, floor
+
+	from frappe.utils import get_first_day, get_last_day, getdate, rounded
+
+	return {
+		"int": int,
+		"float": float,
+		"long": int,
+		"round": round,
+		"rounded": rounded,
+		"date": date,
+		"getdate": getdate,
+		"get_first_day": get_first_day,
+		"get_last_day": get_last_day,
+		"ceil": ceil,
+		"floor": floor,
+	}
+
 
 def assign_salary_structure_for_employees(
 	employees,

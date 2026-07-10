@@ -160,6 +160,11 @@ frappe.ui.form.on("Salary Structure", {
 			);
 		}
 
+		// Employee-free CTC preview — available in draft too
+		frm.add_custom_button(__("Preview CTC"), function () {
+			frm.trigger("preview_ctc");
+		});
+
 		// set columns read-only
 		let fields_read_only = [
 			"is_tax_applicable",
@@ -175,6 +180,63 @@ frappe.ui.form.on("Salary Structure", {
 
 	salary_slip_based_on_timesheet: function (frm) {
 		frm.trigger("toggle_fields");
+	},
+
+	preview_ctc: function (frm) {
+		if (!(frm.doc.earnings || []).length) {
+			frappe.msgprint(__("Add earning components first."));
+			return;
+		}
+		const d = new frappe.ui.Dialog({
+			title: __("CTC Preview (no employee needed)"),
+			size: "large",
+			fields: [
+				{
+					fieldname: "base",
+					fieldtype: "Currency",
+					label: __("Base"),
+					reqd: 1,
+					description: __("Hypothetical monthly base to evaluate the formulas against"),
+				},
+				{
+					fieldname: "uan_number",
+					fieldtype: "Check",
+					label: __("Has UAN (PF applies)"),
+					description: __("Toggle to see how PF eligibility changes the CTC"),
+				},
+				{ fieldname: "cb", fieldtype: "Column Break" },
+				{ fieldname: "variable", fieldtype: "Currency", label: __("Variable (optional)") },
+				{ fieldname: "sb", fieldtype: "Section Break" },
+				{ fieldname: "result", fieldtype: "HTML" },
+			],
+		});
+
+		const render = () => {
+			const base = d.get_value("base");
+			if (!base) {
+				d.fields_dict.result.$wrapper.html(
+					`<div class="text-muted">${__("Enter a base to preview the CTC.")}</div>`,
+				);
+				return;
+			}
+			frm.call({
+				method: "preview_ctc",
+				doc: frm.doc,
+				args: {
+					base: base,
+					uan_number: d.get_value("uan_number") ? 1 : 0,
+					variable: d.get_value("variable") || 0,
+				},
+			}).then((r) => {
+				if (r.message) d.fields_dict.result.$wrapper.html(render_ctc_preview(r.message));
+			});
+		};
+
+		["base", "uan_number", "variable"].forEach((f) => {
+			d.fields_dict[f].df.onchange = render;
+		});
+		d.show();
+		render();
 	},
 
 	preview_salary_slip: function (frm) {
@@ -371,3 +433,45 @@ frappe.ui.form.on("Salary Detail", {
 		}
 	},
 });
+
+function render_ctc_preview(m) {
+	const fmt = (v) => format_currency(v, m.currency);
+	const rows = (arr) =>
+		arr
+			.map(
+				(r) => `
+			<tr class="${r.statistical ? "text-muted" : ""}">
+				<td>${frappe.utils.escape_html(r.component)}${
+					r.statistical
+						? ' <span class="indicator-pill gray">' + __("CTC · not paid") + "</span>"
+						: ""
+				}</td>
+				<td class="text-right">${fmt(r.amount)}</td>
+			</tr>`,
+			)
+			.join("");
+	return `
+		<div class="row">
+			<div class="col-sm-6">
+				<h6>${__("Earnings")}</h6>
+				<table class="table table-bordered"><tbody>${rows(m.earnings)}</tbody></table>
+			</div>
+			<div class="col-sm-6">
+				<h6>${__("Deductions")}</h6>
+				<table class="table table-bordered"><tbody>${
+					m.deductions.length
+						? rows(m.deductions)
+						: `<tr><td class="text-muted">${__("None")}</td><td></td></tr>`
+				}</tbody></table>
+			</div>
+		</div>
+		<table class="table table-bordered" style="margin-top:8px">
+			<tr><td>${__("Gross (paid earnings)")}</td><td class="text-right">${fmt(m.gross)}</td></tr>
+			<tr><td>${__("Total Deduction")}</td><td class="text-right">${fmt(m.total_deduction)}</td></tr>
+			<tr><th>${__("Net Pay")}</th><th class="text-right">${fmt(m.net)}</th></tr>
+			<tr><td>${__("Employer Contributions (statistical)")}</td><td class="text-right">${fmt(
+				m.employer_contributions,
+			)}</td></tr>
+			<tr class="text-primary"><th>${__("Total CTC")}</th><th class="text-right">${fmt(m.ctc)}</th></tr>
+		</table>`;
+}
