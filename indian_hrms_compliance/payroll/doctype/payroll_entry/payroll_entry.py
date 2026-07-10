@@ -9,7 +9,7 @@ import frappe
 from frappe import _
 from frappe.desk.reportview import get_match_cond
 from frappe.model.document import Document
-from frappe.query_builder.functions import Coalesce, Count
+from frappe.query_builder.functions import Coalesce, Count, Sum
 from frappe.utils import (
 	DATE_FORMAT,
 	add_days,
@@ -618,6 +618,18 @@ class PayrollEntry(Document):
 				employee_wise_accounting_enabled,
 			)
 
+			# Employer contributions / provisions (Employer PF, ESI, Gratuity):
+			# statistical components excluded from net pay, booked as a
+			# self-balancing Dr expense / Cr payable pair so the liability is
+			# recorded for compliance without paying the employee.
+			self.add_statutory_provision_entries(
+				accounts,
+				currencies,
+				company_currency,
+				accounting_dimensions,
+				precision,
+			)
+
 			self.make_journal_entry(
 				accounts,
 				currencies,
@@ -629,6 +641,92 @@ class PayrollEntry(Document):
 				submit_journal_entry=True,
 				submitted_salary_slips=submitted_salary_slips,
 				employee_wise_accounting_enabled=employee_wise_accounting_enabled,
+			)
+
+	def add_statutory_provision_entries(
+		self,
+		accounts,
+		currencies,
+		company_currency,
+		accounting_dimensions,
+		precision,
+	):
+		"""Book employer contributions / provisions that are marked as
+		statistical components (e.g. Employer PF, Employer ESI, Gratuity).
+
+		Statistical components are excluded from net pay and from the normal
+		accrual entries, so nothing hits the ledger for them. When such a
+		component carries a per-company Salary Component Account with BOTH an
+		``account`` (expense) and a ``payable_account`` (liability/provision),
+		post a self-balancing pair for the period total:
+
+		    Dr  account          (expense)
+		    Cr  payable_account   (liability / provision)
+
+		This records the employer's liability for compliance without paying the
+		employee and without disturbing the payroll payable / net figures (the
+		debit and credit cancel out).
+		"""
+		slips = self.get_sal_slip_list(ss_status=1, as_dict=True)
+		if not slips:
+			return
+
+		ssd = frappe.qb.DocType("Salary Detail")
+		sc = frappe.qb.DocType("Salary Component")
+		rows = (
+			frappe.qb.from_(ssd)
+			.join(sc)
+			.on(ssd.salary_component == sc.name)
+			.select(ssd.salary_component, Sum(ssd.amount).as_("amount"))
+			.where(
+				(ssd.parent.isin([d.name for d in slips]))
+				& (ssd.parentfield == "earnings")
+				& (sc.statistical_component == 1)
+			)
+			.groupby(ssd.salary_component)
+		).run(as_dict=True)
+
+		for row in rows:
+			amount = flt(row.amount, precision)
+			if not amount:
+				continue
+
+			mapping = frappe.db.get_value(
+				"Salary Component Account",
+				{"parent": row.salary_component, "company": self.company},
+				["account", "payable_account"],
+				as_dict=True,
+			)
+			# Only book when both sides are configured for this company; otherwise
+			# leave the component purely statistical (unchanged behaviour).
+			if not (mapping and mapping.account and mapping.payable_account):
+				continue
+
+			# Dr expense — throwaway payable var so real payable is untouched.
+			self.get_accounting_entries_and_payable_amount(
+				mapping.account,
+				self.cost_center,
+				amount,
+				currencies,
+				company_currency,
+				0,
+				accounting_dimensions,
+				precision,
+				entry_type="debit",
+				accounts=accounts,
+			)
+			# Cr liability / provision
+			self.get_accounting_entries_and_payable_amount(
+				mapping.payable_account,
+				self.cost_center,
+				amount,
+				currencies,
+				company_currency,
+				0,
+				accounting_dimensions,
+				precision,
+				entry_type="credit",
+				accounts=accounts,
 			)
 
 	def make_journal_entry(
