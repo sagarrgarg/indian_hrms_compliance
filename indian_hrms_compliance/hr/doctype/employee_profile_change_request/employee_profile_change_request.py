@@ -283,9 +283,16 @@ def record_consent_for_request(req: "EmployeeProfileChangeRequest"):
 
 
 def _get_current_employee_for_user() -> str:
-	"""Resolve the current session user → Employee.name. Throws if missing."""
-	user = frappe.session.user
-	emp = frappe.db.get_value("Employee", {"user_id": user, "status": "Active"}, "name")
+	"""Resolve the current session user → Employee.name. Throws if missing.
+
+	Uses the same active-employee resolution as the PWA context
+	(``get_active_employee_name`` — honours the multi-employment switcher /
+	Primary Employer), so ESS profile actions target the employer the user is
+	actually viewing rather than an arbitrary first Active row.
+	"""
+	from indian_hrms_compliance.api import get_active_employee_name
+
+	emp = get_active_employee_name()
 	if not emp:
 		frappe.throw(_("No active Employee record is linked to your User."))
 	return emp
