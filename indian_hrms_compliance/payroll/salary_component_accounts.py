@@ -41,13 +41,95 @@ def _sync_component(name: str) -> None:
 
 def ensure_company_rows(doc, method=None):
 	"""doc_event: Company ``after_insert`` — add the new company's row to every
-	Salary Component."""
+	Salary Component, then fill default accounts for the new company."""
 	for component in frappe.get_all("Salary Component", pluck="name"):
 		_sync_component(component)
+	ensure_default_accounts(company=doc.name)
 
 
 def backfill(*args, **kwargs):
 	"""after_migrate: self-heal — ensure every (component, company) pair has a
-	Salary Component Account row. Safe to run repeatedly."""
+	Salary Component Account row, then fill default accounts. Safe to re-run."""
 	for component in frappe.get_all("Salary Component", pluck="name"):
 		_sync_component(component)
+	ensure_default_accounts()
+
+
+# ---------------------------------------------------------------------------
+# Default account auto-provisioning
+# ---------------------------------------------------------------------------
+#
+# Fill the (expense) Account and (liability) Payable Account on each row so
+# payroll booking works out of the box, creating the accounts when missing:
+#   * in-hand earnings (non-statistical) -> Dr "Salary Expenses"; net already
+#     lands in the company's Payroll Payable.
+#   * deductions -> "<Component> Payable" (the account ERPNext credits).
+#   * statistical employer components -> Dr "Salary Expenses",
+#     Cr "<Component> Payable" (see Payroll Entry provisioning).
+# Only empty fields are filled — user-set accounts are never overwritten.
+
+_SHARED_EXPENSE = "Salary Expenses"
+
+
+def _ensure_account(company, account_name, parent_group, root_type):
+	"""Get-or-create a leaf Account under the named group. Returns the account
+	name, or None if the parent group doesn't exist for this company."""
+	abbr = frappe.get_cached_value("Company", company, "abbr")
+	full = f"{account_name} - {abbr}"
+	if frappe.db.exists("Account", full):
+		return full
+	parent = frappe.db.get_value(
+		"Account", {"company": company, "account_name": parent_group, "is_group": 1}, "name"
+	)
+	if not parent:
+		return None
+	acc = frappe.get_doc(
+		{
+			"doctype": "Account",
+			"account_name": account_name,
+			"company": company,
+			"parent_account": parent,
+			"is_group": 0,
+			"root_type": root_type,
+			"account_currency": frappe.get_cached_value("Company", company, "default_currency"),
+		}
+	)
+	acc.insert(ignore_permissions=True)
+	return acc.name
+
+
+def ensure_default_accounts(company=None):
+	"""Fill empty Account / Payable Account on Salary Component Account rows,
+	creating '<Component> Payable' liabilities and a shared 'Salary Expenses'
+	as needed. Scope to one company when given. Idempotent."""
+	comps = frappe.get_all("Salary Component", fields=["name", "type", "statistical_component"])
+	for comp in comps:
+		filters = {"parent": comp.name}
+		if company:
+			filters["company"] = company
+		rows = frappe.get_all(
+			"Salary Component Account", filters=filters,
+			fields=["name", "company", "account", "payable_account"],
+		)
+		for row in rows:
+			co = row.company
+			payable_name = f"{comp.name} Payable"
+			if comp.type == "Deduction":
+				if not row.account:
+					acc = _ensure_account(co, payable_name, "Current Liabilities", "Liability")
+					if acc:
+						frappe.db.set_value("Salary Component Account", row.name, "account", acc)
+			elif comp.statistical_component:
+				if not row.account:
+					exp = _ensure_account(co, _SHARED_EXPENSE, "Indirect Expenses", "Expense")
+					if exp:
+						frappe.db.set_value("Salary Component Account", row.name, "account", exp)
+				if not row.payable_account:
+					pay = _ensure_account(co, payable_name, "Current Liabilities", "Liability")
+					if pay:
+						frappe.db.set_value("Salary Component Account", row.name, "payable_account", pay)
+			else:  # in-hand earning
+				if not row.account:
+					exp = _ensure_account(co, _SHARED_EXPENSE, "Indirect Expenses", "Expense")
+					if exp:
+						frappe.db.set_value("Salary Component Account", row.name, "account", exp)
