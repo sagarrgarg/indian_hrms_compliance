@@ -30,6 +30,21 @@
 					:message="__('Loading...')"
 				/>
 
+				<!-- Load error (e.g. User not linked to an active Employee) -->
+				<div
+					v-else-if="editableProfileFields.error"
+					class="bg-red-50 border border-red-100 rounded-xl p-4 text-sm text-red-800"
+				>
+					<div class="font-semibold mb-1">{{ __("Couldn't load your profile fields") }}</div>
+					<div>{{ errorMessage }}</div>
+				</div>
+
+				<!-- Loaded, but nothing editable is configured -->
+				<EmptyState
+					v-else-if="!(editableProfileFields.data || []).length"
+					:message="__('No editable fields are available. Please contact HR.')"
+				/>
+
 				<!-- Fields -->
 				<div
 					v-for="f in editableProfileFields.data || []"
@@ -129,12 +144,27 @@ function onEmployeeUpdate(d) {
 	if (d?.doctype === "Employee") editableProfileFields.reload()
 }
 
+const errorMessage = computed(() => {
+	const e = editableProfileFields.error
+	if (!e) return ""
+	return (
+		(e.messages && e.messages.join(", ")) ||
+		e.message ||
+		__("Something went wrong while loading your profile. Please try again.")
+	)
+})
+
 onMounted(() => {
-	editableProfileFields.fetch().then(() => {
-		for (const f of editableProfileFields.data || []) {
-			if (!(f.fieldname in proposed)) proposed[f.fieldname] = ""
-		}
-	})
+	editableProfileFields
+		.fetch()
+		.then(() => {
+			for (const f of editableProfileFields.data || []) {
+				if (!(f.fieldname in proposed)) proposed[f.fieldname] = ""
+			}
+		})
+		.catch(() => {
+			// error is surfaced via editableProfileFields.error in the template
+		})
 	socket.emit("doctype_subscribe", "Employee")
 	socket.on("list_update", onEmployeeUpdate)
 })
