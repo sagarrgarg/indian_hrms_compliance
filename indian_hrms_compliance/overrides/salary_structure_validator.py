@@ -853,6 +853,54 @@ def check_dpdp_consent_for_aadhaar(doc):
 	return None
 
 
+def check_assignment_base_within_bounds(doc):
+	"""HARD — the assignment base must fall within the [min_base, max_base]
+	range configured on the linked Salary Structure. Either bound is optional
+	(0/blank = unbounded). Lets HR pin a structure to a wage band so an
+	assignment can't be created below the structure's min-wage floor or above
+	its intended ceiling."""
+	if not doc.salary_structure or not doc.base:
+		return None
+	# Defensive: fields ship with the doctype, but guard so a partial migrate
+	# (columns not yet added) degrades to "no check" instead of crashing.
+	meta = frappe.get_meta("Salary Structure")
+	if not (meta.has_field("min_base") or meta.has_field("max_base")):
+		return None
+	bounds = frappe.db.get_value(
+		"Salary Structure", doc.salary_structure, ["min_base", "max_base"], as_dict=True
+	)
+	if not bounds:
+		return None
+
+	base = flt(doc.base)
+	min_base = flt(bounds.get("min_base"))
+	max_base = flt(bounds.get("max_base"))
+	issues = []
+	if min_base and base < min_base:
+		issues.append(
+			(
+				"HARD",
+				"ASSIGN_BASE_BELOW_MIN",
+				_(
+					"Assigned base {0:.2f} is below the minimum base {1:.2f} permitted by "
+					"Salary Structure {2}. Raise the base or pick a structure for this wage band."
+				).format(base, min_base, doc.salary_structure),
+			)
+		)
+	if max_base and base > max_base:
+		issues.append(
+			(
+				"HARD",
+				"ASSIGN_BASE_ABOVE_MAX",
+				_(
+					"Assigned base {0:.2f} is above the maximum base {1:.2f} permitted by "
+					"Salary Structure {2}. Lower the base or pick a structure for this wage band."
+				).format(base, max_base, doc.salary_structure),
+			)
+		)
+	return issues or None
+
+
 # ---------------------------------------------------------------------------
 # Check registries
 # ---------------------------------------------------------------------------
@@ -873,4 +921,5 @@ ASSIGNMENT_LEVEL_CHECKS = (
 	check_employee_statutory_ids_at_assignment,
 	check_income_tax_slab_assigned,
 	check_dpdp_consent_for_aadhaar,
+	check_assignment_base_within_bounds,
 )
