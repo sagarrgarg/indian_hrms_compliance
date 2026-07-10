@@ -7,6 +7,7 @@
  "field_order": [
   "company",
   "account",
+  "payable_account",
   "liability_account"
  ],
  "fields": [
@@ -23,6 +24,14 @@
    "fieldtype": "Link",
    "in_list_view": 1,
    "label": "Account",
+   "options": "Account"
+  },
+  {
+   "description": "Only for statistical / employer components (Employer PF, ESI, Gratuity). When set together with Account, the accrual Journal Entry books a self-balancing provision: Dr Account (expense) / Cr this account (liability) — recording the liability for compliance without paying the employee.",
+   "fieldname": "payable_account",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Payable / Provision Account",
    "options": "Account"
   },
   {
