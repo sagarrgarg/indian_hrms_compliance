@@ -125,6 +125,7 @@ after_migrate = [
 	"indian_hrms_compliance.setup.apply_property_setters",
 	"indian_hrms_compliance.regional.india.tax_defaults.seed_all",
 	"indian_hrms_compliance.setup.update_select_perm_after_install",
+	"indian_hrms_compliance.payroll.salary_component_accounts.backfill",
 ]
 
 setup_wizard_complete = "indian_hrms_compliance.subscription_utils.update_erpnext_access"
@@ -203,12 +204,16 @@ doc_events = {
 	},
 	"Company": {
 		"validate": "indian_hrms_compliance.overrides.company.validate_default_accounts",
+		"after_insert": "indian_hrms_compliance.payroll.salary_component_accounts.ensure_company_rows",
 		"on_update": [
 			"indian_hrms_compliance.overrides.company.make_company_fixtures",
 			"indian_hrms_compliance.overrides.company.set_default_hr_accounts",
 			"indian_hrms_compliance.overrides.compliance_calendar.seed_compliance_return_definitions",
 		],
 		"on_trash": "indian_hrms_compliance.overrides.company.handle_linked_docs",
+	},
+	"Salary Component": {
+		"validate": "indian_hrms_compliance.payroll.salary_component_accounts.ensure_component_rows",
 	},
 	"Holiday List": {
 		"on_update": "indian_hrms_compliance.utils.holiday_list.invalidate_cache",

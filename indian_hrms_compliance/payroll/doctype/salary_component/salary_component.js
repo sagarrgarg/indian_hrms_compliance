@@ -25,6 +25,16 @@ frappe.ui.form.on("Salary Component", {
 	refresh: function (frm) {
 		indian_hrms_compliance.payroll_utils.set_autocompletions_for_condition_and_formula(frm);
 
+		// Per-company account rows are auto-managed (one per Company — created on
+		// company/component creation and back-filled on migrate). Lock the grid so
+		// users only fill in the Account / Payable Account values, not the company set.
+		const accounts_grid = frm.fields_dict.accounts && frm.fields_dict.accounts.grid;
+		if (accounts_grid) {
+			accounts_grid.cannot_add_rows = true;
+			accounts_grid.update_docfield_property("company", "read_only", 1);
+			accounts_grid.refresh();
+		}
+
 		if (!frm.doc.__islocal) {
 			frm.trigger("add_update_structure_button");
 			frm.add_custom_button(
