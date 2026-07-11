@@ -6,7 +6,7 @@ from datetime import date
 import frappe
 from frappe import _
 from frappe.model.document import Document
-from frappe.utils import cstr, flt, get_first_day, get_last_day, getdate
+from frappe.utils import cint, cstr, flt, get_first_day, get_last_day, getdate
 
 import erpnext
 
@@ -108,4 +108,60 @@ def eval_tax_slab_condition(condition, eval_globals=None, eval_locals=None):
 def apply_surcharge_with_marginal_relief(
 	tax_amount, annual_taxable_earning, tax_slab, eval_globals, eval_locals
 ):
-	return tax_amount, 0
+	"""Surcharge on income tax (high earners). New regime caps at 25%.
+
+	indian_hrms_compliance (sagarrgarg a80b3b266) implements the statutory Indian
+	surcharge here — v16's hook point for it (upstream returns 0). Runs after the
+	87A marginal relief and before cess, so cess is levied on tax + surcharge."""
+	if annual_taxable_earning <= tax_slab.tax_relief_limit:
+		return tax_amount, 0
+
+	def _slab_tax(income):
+		t = 0
+		for slab in tax_slab.slabs:
+			cond = cstr(slab.condition).strip()
+			if cond and not eval_tax_slab_condition(cond, eval_globals, eval_locals):
+				continue
+			if not slab.to_amount and income >= slab.from_amount:
+				t += (income - slab.from_amount + 1) * slab.percent_deduction * 0.01
+				continue
+			if income >= slab.from_amount and income < slab.to_amount:
+				t += (income - slab.from_amount + 1) * slab.percent_deduction * 0.01
+			elif income >= slab.from_amount and income >= slab.to_amount:
+				t += (slab.to_amount - slab.from_amount + 1) * slab.percent_deduction * 0.01
+		return t
+
+	is_new_regime = not cint(tax_slab.get("allow_tax_exemption"))
+	surcharge = _calculate_surcharge(tax_amount, annual_taxable_earning, is_new_regime, _slab_tax)
+	return tax_amount + surcharge, surcharge
+
+
+def _calculate_surcharge(base_tax, total_income, is_new_regime, slab_tax_fn):
+	"""Surcharge on income tax (FY 2025-26), with marginal relief.
+
+	Rates by total income: >₹50L 10%, >₹1Cr 15%, >₹2Cr 25%, >₹5Cr 37%. Under
+	the NEW regime the surcharge is capped at 25% (the 37% tier does not apply).
+	Marginal relief caps the combined (tax + surcharge) so it never exceeds the
+	amount at the threshold plus the income earned beyond it. ``slab_tax_fn``
+	recomputes the pre-surcharge slab tax at an arbitrary income (for the
+	threshold comparison)."""
+	if base_tax <= 0:
+		return 0.0
+	tiers = [(5000000, 10), (10000000, 15), (20000000, 25), (50000000, 37)]
+	if is_new_regime:
+		tiers = [(5000000, 10), (10000000, 15), (20000000, 25)]
+	rate = prev_rate = threshold = 0.0
+	for thr, r in tiers:
+		if total_income > thr:
+			prev_rate = rate
+			rate, threshold = float(r), float(thr)
+	if not rate:
+		return 0.0
+	surcharge = base_tax * rate / 100.0
+	# Marginal relief against the threshold (taxed at the previous tier's rate).
+	tax_at_threshold = slab_tax_fn(threshold)
+	surcharge_at_threshold = tax_at_threshold * prev_rate / 100.0
+	max_total = tax_at_threshold + surcharge_at_threshold + (total_income - threshold)
+	if base_tax + surcharge > max_total:
+		surcharge = max(max_total - base_tax, 0.0)
+	return surcharge
