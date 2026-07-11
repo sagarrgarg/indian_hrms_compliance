@@ -466,12 +466,18 @@ function render_ctc_preview(m) {
 			</div>
 		</div>
 		<table class="table table-bordered" style="margin-top:8px">
-			<tr><td>${__("Gross (paid earnings)")}</td><td class="text-right">${fmt(m.gross)}</td></tr>
-			<tr><td>${__("Total Deduction")}</td><td class="text-right">${fmt(m.total_deduction)}</td></tr>
-			<tr><th>${__("Net Pay")}</th><th class="text-right">${fmt(m.net)}</th></tr>
-			<tr><td>${__("Employer Contributions (statistical)")}</td><td class="text-right">${fmt(
-				m.employer_contributions,
+			<tr class="text-primary"><th>${__("Total CTC (cost to company)")}</th><th class="text-right">${fmt(
+				m.ctc,
+			)}</th></tr>
+			<tr><td style="padding-left:1.5em">${__("Gross (paid earnings)")}</td><td class="text-right">${fmt(
+				m.gross,
 			)}</td></tr>
-			<tr class="text-primary"><th>${__("Total CTC")}</th><th class="text-right">${fmt(m.ctc)}</th></tr>
+			<tr><td style="padding-left:1.5em">${__(
+				"Employer Contributions (PF / ESI / Gratuity — not paid)",
+			)}</td><td class="text-right">${fmt(m.employer_contributions)}</td></tr>
+			<tr><td>${__("Total Deduction")}</td><td class="text-right">${fmt(m.total_deduction)}</td></tr>
+			<tr class="text-success"><th>${__("Net Pay (take-home)")}</th><th class="text-right">${fmt(
+				m.net,
+			)}</th></tr>
 		</table>`;
 }
