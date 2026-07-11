@@ -449,14 +449,21 @@ def create_salary_structure_assignment(
 
 
 def get_existing_assignments(employees, salary_structure, from_date):
-	# nosemgrep: frappe-semgrep-rules.rules.frappe-using-db-sql
-	salary_structures_assignments = frappe.db.sql_list(
-		f"""
-		SELECT DISTINCT employee FROM `tabSalary Structure Assignment`
-		WHERE salary_structure=%s AND employee IN ({", ".join(["%s"] * len(employees))})
-		AND from_date=%s AND company=%s AND docstatus=1
-		""",
-		[salary_structure.name, *employees, from_date, salary_structure.company],
+	filters = {
+		"salary_structure": salary_structure.name,
+		"employee": ["in", employees],
+		"from_date": from_date,
+		"docstatus": 1,
+	}
+	# Only scope by company for company-specific structures. A company-independent
+	# (template) structure has a blank company but its assignments carry the
+	# employees' real companies, so keying on company here would never match and
+	# would let duplicates through — the (structure, employee, from_date) triple
+	# already uniquely identifies an existing assignment.
+	if salary_structure.company:
+		filters["company"] = salary_structure.company
+	salary_structures_assignments = frappe.get_all(
+		"Salary Structure Assignment", filters=filters, pluck="employee", distinct=True
 	)
 	if salary_structures_assignments:
 		frappe.msgprint(
