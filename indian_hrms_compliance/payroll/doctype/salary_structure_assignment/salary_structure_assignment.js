@@ -10,12 +10,17 @@ frappe.ui.form.on("Salary Structure Assignment", {
 			};
 		});
 		frm.set_query("salary_structure", function () {
+			// Offer both this company's structures and company-independent
+			// (blank-company) templates.
 			return {
 				filters: {
-					company: frm.doc.company,
 					docstatus: 1,
 					is_active: "Yes",
 				},
+				or_filters: [
+					["company", "=", frm.doc.company],
+					["company", "is", "not set"],
+				],
 			};
 		});
 

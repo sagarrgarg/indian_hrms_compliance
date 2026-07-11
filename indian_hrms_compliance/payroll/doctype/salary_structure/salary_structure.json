@@ -75,8 +75,8 @@
    "label": "Company",
    "options": "Company",
    "remember_last_selected_value": 1,
-   "reqd": 1,
-   "search_index": 1
+   "search_index": 1,
+   "description": "Leave blank to make this a company-independent template usable across all companies (accounts and statutory rules resolve from the employee's company at payroll time)."
   },
   {
    "allow_on_submit": 1,
