@@ -63,7 +63,10 @@ class SalaryStructureAssignment(Document):
 		salary_structure_company = frappe.db.get_value(
 			"Salary Structure", self.salary_structure, "company", cache=True
 		)
-		if self.company != salary_structure_company:
+		# A company-independent (template) Salary Structure has no company and
+		# may be assigned to employees of any company. Only enforce the match
+		# when the structure is actually scoped to a company.
+		if salary_structure_company and self.company != salary_structure_company:
 			frappe.throw(
 				_("Salary Structure {0} does not belong to company {1}").format(
 					frappe.bold(self.salary_structure), frappe.bold(self.company)
