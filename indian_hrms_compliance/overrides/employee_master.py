@@ -670,9 +670,10 @@ def auto_assign_leave_policy_on_activation(doc, method=None):
 	Policy. Submitting the Leave Policy Assignment cascades into Leave
 	Allocations, so this collapses the leave-setup chain to zero clicks.
 
-	Opt-in via HR Settings.auto_assign_leave_policy_on_activation, driven by the
-	per-company Company.default_leave_policy / default_leave_period. Idempotent
-	(skips if an overlapping assignment exists) and never blocks the Employee
+	Opt-in via HR Settings.auto_assign_leave_policy_on_activation, using the
+	per-company Company.default_leave_policy and the Fiscal-Year-derived Leave
+	Period (get_current_leave_period). Idempotent (skips if an overlapping
+	assignment exists) and never blocks the Employee
 	save — failures are logged, not raised.
 	"""
 	if doc.status != "Active":
@@ -693,12 +694,17 @@ def auto_assign_leave_policy_on_activation(doc, method=None):
 
 	if not doc.company:
 		return
-	leave_policy, leave_period = frappe.get_cached_value(
-		"Company", doc.company, ["default_leave_policy", "default_leave_period"]
-	)
-	if not (leave_policy and leave_period):
+	leave_policy = frappe.get_cached_value("Company", doc.company, "default_leave_policy")
+	if not leave_policy:
 		return
 
+	# The leave period is derived from the Fiscal Year (India), not stored per
+	# company.
+	from indian_hrms_compliance.hr.leave_period_setup import get_current_leave_period
+
+	leave_period = get_current_leave_period()
+	if not leave_period:
+		return
 	period = frappe.db.get_value("Leave Period", leave_period, ["from_date", "to_date"], as_dict=True)
 	if not period:
 		return

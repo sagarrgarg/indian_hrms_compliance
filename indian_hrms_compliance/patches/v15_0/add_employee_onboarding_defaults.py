@@ -31,17 +31,11 @@ def get_fields():
 				"options": "Leave Policy",
 				"insert_after": "employee_onboarding_defaults_section",
 			},
-			{
-				"fieldname": "default_leave_period",
-				"fieldtype": "Link",
-				"label": "Default Leave Period",
-				"options": "Leave Period",
-				"insert_after": "default_leave_policy",
-			},
+			# default_leave_period removed — derived from Fiscal Year, not stored.
 			{
 				"fieldname": "employee_onboarding_defaults_column",
 				"fieldtype": "Column Break",
-				"insert_after": "default_leave_period",
+				"insert_after": "default_leave_policy",
 			},
 			{
 				"fieldname": "default_shift_type",

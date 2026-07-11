@@ -60,6 +60,17 @@ def sync_custom_fields():
 	this is safe to re-run."""
 	create_custom_fields(get_custom_fields(), ignore_validate=True)
 	create_salary_slip_loan_fields()
+	remove_deprecated_custom_fields()
+
+
+def remove_deprecated_custom_fields():
+	"""Delete custom fields that were removed from the app (idempotent).
+
+	Company.default_leave_period is derived from the Fiscal Year now, so the
+	stored field is dropped to avoid a redundant, drift-prone second source."""
+	for name in ("Company-default_leave_period",):
+		if frappe.db.exists("Custom Field", name):
+			frappe.delete_doc("Custom Field", name, ignore_permissions=True)
 
 
 def apply_property_setters():
@@ -162,17 +173,13 @@ def get_custom_fields():
 				"options": "Leave Policy",
 				"insert_after": "employee_onboarding_defaults_section",
 			},
-			{
-				"fieldname": "default_leave_period",
-				"fieldtype": "Link",
-				"label": _("Default Leave Period"),
-				"options": "Leave Period",
-				"insert_after": "default_leave_policy",
-			},
+			# Default Leave Period is intentionally NOT a company field: the leave
+			# period is derived from the Fiscal Year (India), so storing it per
+			# company would be a redundant second source. See leave_period_setup.
 			{
 				"fieldname": "employee_onboarding_defaults_column",
 				"fieldtype": "Column Break",
-				"insert_after": "default_leave_period",
+				"insert_after": "default_leave_policy",
 			},
 			{
 				"fieldname": "default_shift_type",
