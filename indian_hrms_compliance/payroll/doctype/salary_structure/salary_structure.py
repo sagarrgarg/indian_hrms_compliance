@@ -297,6 +297,11 @@ class SalaryStructure(Document):
 					"abbr": row.abbr,
 					"amount": _eval_row(row),
 					"statistical": cint(row.statistical_component),
+					"show_on_slip": cint(
+						frappe.get_cached_value(
+							"Salary Component", row.salary_component, "show_on_salary_slip"
+						)
+					),
 				}
 			)
 		for row in self.deductions:
@@ -310,8 +315,13 @@ class SalaryStructure(Document):
 			)
 
 		gross = sum(r["amount"] for r in earnings if not r["statistical"])
-		employer = sum(r["amount"] for r in earnings if r["statistical"])
+		# Employer statutory contributions shown on the slip (PF / ESI) count
+		# toward CTC; hidden statistical provisions (Gratuity) are long-term and
+		# excluded from CTC — surfaced separately as a provision layer.
+		employer_ctc = sum(r["amount"] for r in earnings if r["statistical"] and r["show_on_slip"])
+		provisions = sum(r["amount"] for r in earnings if r["statistical"] and not r["show_on_slip"])
 		total_deduction = sum(r["amount"] for r in deductions if not r["statistical"])
+		ctc = gross + employer_ctc
 		return {
 			"base": base,
 			"uan_number": uan,
@@ -320,10 +330,14 @@ class SalaryStructure(Document):
 			"earnings": earnings,
 			"deductions": deductions,
 			"gross": gross,
-			"employer_contributions": employer,
+			"employer_ctc": employer_ctc,
+			"provisions": provisions,
+			# retained for backward compatibility (all employer-side statistical)
+			"employer_contributions": employer_ctc + provisions,
 			"total_deduction": total_deduction,
 			"net": gross - total_deduction,
-			"ctc": gross + employer,
+			"ctc": ctc,
+			"total_cost": ctc + provisions,
 		}
 
 
