@@ -207,13 +207,27 @@ def _sum_amounts(rows):
 NOTIONAL_BASE = 100000.0
 
 
+def _wage_code_base(doc):
+	"""Base at which to evaluate the Wage-Code formulas. A capped structure
+	(e.g. "Upto 21000" with a flat min-wage Basic) can have Basic < 50% at a
+	generic ₹1L base but ≥ 50% within its real band, so evaluate at the
+	structure's max_base when set — the worst case for a fixed Basic, since
+	Basic% falls as base rises. Falls back to the notional base otherwise."""
+	return flt(getattr(doc, "max_base", 0)) or NOTIONAL_BASE
+
+
 def _row_monthly_amount(row, base=NOTIONAL_BASE):
 	"""Best-effort monthly amount for a salary row. Flat rows use row.amount;
-	formula rows are evaluated against a notional base (falling back to
-	row.amount if the formula references things we can't resolve here)."""
+	formula rows are evaluated against ``base`` (falling back to row.amount if
+	the formula references things we can't resolve here). ``uan_number`` is
+	supplied (0) so PF-gated formulas evaluate instead of raising NameError."""
 	if getattr(row, "amount_based_on_formula", 0) and (row.formula or "").strip():
 		try:
-			return flt(frappe.safe_eval(row.formula.strip(), None, {"base": base, "gross_pay": base}))
+			return flt(
+				frappe.safe_eval(
+					row.formula.strip(), None, {"base": base, "gross_pay": base, "uan_number": 0}
+				)
+			)
 		except Exception:
 			return flt(row.amount)
 	return flt(row.amount)
@@ -233,8 +247,11 @@ def _earnings_total_monthly(doc):
 
 	Statistical components (employer PF/ESI, gratuity provision, etc.) are part
 	of CTC but not paid wages, so they're excluded from the Wage-Code denominator."""
+	base = _wage_code_base(doc)
 	return sum(
-		_row_monthly_amount(r) for r in (doc.earnings or []) if not getattr(r, "statistical_component", 0)
+		_row_monthly_amount(r, base)
+		for r in (doc.earnings or [])
+		if not getattr(r, "statistical_component", 0)
 	)
 
 
@@ -248,17 +265,18 @@ def _basic_plus_da(doc, mapping=None):
 			basic_names.add(mapping.basic_component)
 		if mapping.da_component:
 			da_names.add(mapping.da_component)
+	base = _wage_code_base(doc)
 	total = 0
 	for row in doc.earnings or []:
 		comp = row.salary_component or ""
 		if comp in basic_names or comp in da_names:
-			total += _row_monthly_amount(row)
+			total += _row_monthly_amount(row, base)
 			continue
 		# Fallback substring match — case-insensitive
 		lower = comp.lower()
 		if not (basic_names or da_names):
 			if "basic" in lower or "dearness" in lower or lower == "da":
-				total += _row_monthly_amount(row)
+				total += _row_monthly_amount(row, base)
 	return total
 
 
