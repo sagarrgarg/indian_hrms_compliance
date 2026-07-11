@@ -19,6 +19,32 @@ in the account values — the rows themselves are managed from here.
 import frappe
 
 
+@frappe.whitelist()
+def sync_salary_component_accounts():
+	"""Manual trigger (HR Settings → Actions → 'Sync Salary Component Accounts').
+
+	Ensures one accounts row per Company for every Salary Component and
+	creates/fills the default Account / Payable Account, without waiting for a
+	migrate. Idempotent — only fills empty fields, only creates missing
+	accounts. Returns a short summary for the UI.
+	"""
+	frappe.only_for(["System Manager", "HR Manager"])
+
+	empty_filter = {"account": ["is", "not set"]}
+	before_empty = frappe.db.count("Salary Component Account", empty_filter)
+
+	for component in frappe.get_all("Salary Component", pluck="name"):
+		_sync_component(component)
+	ensure_default_accounts()
+
+	after_empty = frappe.db.count("Salary Component Account", empty_filter)
+	return {
+		"rows_total": frappe.db.count("Salary Component Account"),
+		"accounts_filled": max(before_empty - after_empty, 0),
+		"account_empty_remaining": after_empty,
+	}
+
+
 def ensure_component_rows(doc, method=None):
 	"""doc_event: Salary Component ``validate``.
 
