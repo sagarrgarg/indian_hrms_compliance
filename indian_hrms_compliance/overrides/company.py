@@ -138,6 +138,67 @@ def set_default_hr_accounts(doc, method=None):
 
 		doc.db_set("default_employee_advance_account", employe_advance_account)
 
+	if not doc.default_expense_claim_payable_account:
+		# The standard chart of accounts has no "Expense Claim Payable", so
+		# create it (alongside Payroll Payable) then set it as the default —
+		# reimbursements owed to employees are a liability.
+		account = frappe.db.get_value(
+			"Account",
+			{"account_name": _("Expense Claim Payable"), "company": doc.name, "is_group": 0},
+		) or _ensure_expense_claim_payable_account(doc)
+		if account:
+			doc.db_set("default_expense_claim_payable_account", account)
+
+
+def ensure_hr_default_accounts_backfill():
+	"""after_migrate: back-fill HR default accounts (e.g. Expense Claim Payable)
+	for existing companies that predate the field. Idempotent — set_default_hr_accounts
+	only fills what's missing and only creates the account when absent."""
+	for company in frappe.get_all("Company", pluck="name"):
+		try:
+			set_default_hr_accounts(frappe.get_doc("Company", company))
+		except Exception:
+			frappe.log_error(
+				title="HR default-account backfill failed",
+				message=f"Company: {company}\n{frappe.get_traceback()}",
+			)
+
+
+def _ensure_expense_claim_payable_account(doc):
+	"""Create an 'Expense Claim Payable' leaf liability account for the company,
+	under the same parent as Payroll Payable (else a sensible liability group).
+	Returns the account name, or None if no suitable parent group exists."""
+	parent = None
+	payroll = doc.default_payroll_payable_account or frappe.db.get_value(
+		"Account", {"account_name": _("Payroll Payable"), "company": doc.name, "is_group": 0}
+	)
+	if payroll:
+		parent = frappe.db.get_value("Account", payroll, "parent_account")
+	if not parent:
+		for group in (_("Accounts Payable"), _("Current Liabilities")):
+			parent = frappe.db.get_value(
+				"Account", {"account_name": group, "company": doc.name, "is_group": 1}
+			)
+			if parent:
+				break
+	if not parent:
+		return None
+
+	account = frappe.get_doc(
+		{
+			"doctype": "Account",
+			"account_name": _("Expense Claim Payable"),
+			"company": doc.name,
+			"parent_account": parent,
+			"is_group": 0,
+			"root_type": "Liability",
+			"account_currency": doc.default_currency,
+		}
+	)
+	account.flags.ignore_permissions = True
+	account.insert()
+	return account.name
+
 
 def validate_default_accounts(doc, method=None):
 	if doc.default_payroll_payable_account:

@@ -126,6 +126,7 @@ after_migrate = [
 	"indian_hrms_compliance.regional.india.tax_defaults.seed_all",
 	"indian_hrms_compliance.setup.update_select_perm_after_install",
 	"indian_hrms_compliance.payroll.salary_component_accounts.backfill",
+	"indian_hrms_compliance.overrides.company.ensure_hr_default_accounts_backfill",
 ]
 
 setup_wizard_complete = "indian_hrms_compliance.subscription_utils.update_erpnext_access"
