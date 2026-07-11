@@ -1125,3 +1125,20 @@ def get_half_year_periods(date, effective_from):
 	half_year_end = add_days(add_months(half_year_start, 6), -1)
 
 	return half_year_start, half_year_end
+
+
+def has_overlapping_leave_assignment(employee, from_date, to_date):
+	"""True if the employee already has a non-cancelled Leave Policy Assignment
+	overlapping the [from_date, to_date] window. Shared by the activation hook
+	and the bulk leave grant so their idempotency check can't drift."""
+	return bool(
+		frappe.db.exists(
+			"Leave Policy Assignment",
+			{
+				"employee": employee,
+				"docstatus": ("<", 2),
+				"effective_from": ("<=", to_date),
+				"effective_to": (">=", from_date),
+			},
+		)
+	)

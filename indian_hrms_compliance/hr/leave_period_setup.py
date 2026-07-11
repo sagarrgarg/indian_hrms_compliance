@@ -46,6 +46,10 @@ def ensure_leave_period_for_fiscal_year(fiscal_year):
 		lp.flags.ignore_permissions = True
 		lp.insert()
 		lp_name = lp.name
+	elif not frappe.db.get_value("Leave Period", lp_name, "is_active"):
+		# Reactivate a reused period — it's the current FY's leave year and is
+		# about to become every company's default, so it must be active.
+		frappe.db.set_value("Leave Period", lp_name, "is_active", 1)
 
 	# Point every company's default Leave Period at this one so the activation
 	# hook and the bulk grant both resolve the current period.
@@ -88,13 +92,27 @@ def grant_default_leave_for_period(leave_period):
 	if not period:
 		return {"granted": 0, "skipped": 0, "failed": 0, "no_period": True}
 
+	# Prefetch everyone who already has an overlapping assignment in one query
+	# (avoids an exists() per employee).
+	already_assigned = set(
+		frappe.get_all(
+			"Leave Policy Assignment",
+			filters={
+				"docstatus": ("<", 2),
+				"effective_from": ("<=", period.to_date),
+				"effective_to": (">=", period.from_date),
+			},
+			pluck="employee",
+		)
+	)
+
 	policy_by_company = {}
 	granted = skipped = failed = 0
 
 	for emp in frappe.get_all(
 		"Employee", filters={"status": "Active"}, fields=["name", "company", "date_of_joining"]
 	):
-		if not emp.company:
+		if not emp.company or emp.name in already_assigned:
 			skipped += 1
 			continue
 		if emp.company not in policy_by_company:
@@ -103,19 +121,6 @@ def grant_default_leave_for_period(leave_period):
 			)
 		policy = policy_by_company[emp.company]
 		if not policy:
-			skipped += 1
-			continue
-
-		# Idempotent: skip an overlapping (non-cancelled) assignment.
-		if frappe.db.exists(
-			"Leave Policy Assignment",
-			{
-				"employee": emp.name,
-				"docstatus": ("<", 2),
-				"effective_from": ("<=", period.to_date),
-				"effective_to": (">=", period.from_date),
-			},
-		):
 			skipped += 1
 			continue
 
