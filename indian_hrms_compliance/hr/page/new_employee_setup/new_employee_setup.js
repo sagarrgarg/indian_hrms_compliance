@@ -62,7 +62,7 @@ frappe.pages["new-employee-setup"].on_page_load = function (wrapper) {
 			{ fieldname: "shift_request_approver", fieldtype: "Link", label: __("Shift Request Approver"), options: "Employee", get_query: approverQuery },
 
 			{ fieldtype: "Section Break", label: __("Payroll & Shift") },
-			{ fieldname: "salary_structure", fieldtype: "Link", label: __("Salary Structure"), options: "Salary Structure", get_query: () => ({ filters: { company: fg.get_value("company"), docstatus: 1, is_active: "Yes" } }) },
+			{ fieldname: "salary_structure", fieldtype: "Link", label: __("Salary Structure"), options: "Salary Structure", get_query: () => ({ filters: { docstatus: 1, is_active: "Yes" }, or_filters: [["company", "=", fg.get_value("company")], ["company", "is", "not set"]] }) },
 			{ fieldname: "base", fieldtype: "Currency", label: __("Base Amount"), depends_on: "salary_structure" },
 			{ fieldname: "income_tax_slab", fieldtype: "Link", label: __("Income Tax Slab"), options: "Income Tax Slab", depends_on: "salary_structure" },
 			{ fieldtype: "Column Break" },

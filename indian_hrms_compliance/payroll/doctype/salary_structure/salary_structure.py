@@ -410,6 +410,11 @@ def create_salary_structure_assignment(
 	variable=None,
 	income_tax_slab=None,
 ):
+	# A company-independent (template) structure has no company of its own;
+	# the assignment belongs to the employee's company.
+	if not company:
+		company = frappe.db.get_value("Employee", employee, "company")
+
 	assignment = frappe.new_doc("Salary Structure Assignment")
 
 	if not payroll_payable_account:

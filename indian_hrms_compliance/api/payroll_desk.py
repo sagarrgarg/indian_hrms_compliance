@@ -95,7 +95,14 @@ def _readiness(company, today):
 		"detail": pp.name if pp else _("None — auto-created from Fiscal Year"), "route": "/app/payroll-period",
 	})
 
-	structures = frappe.db.count("Salary Structure", {"company": company, "docstatus": 1, "is_active": "Yes"})
+	structures = len(
+		frappe.get_all(
+			"Salary Structure",
+			filters={"docstatus": 1, "is_active": "Yes"},
+			# company-scoped structures + company-independent templates
+			or_filters=[["company", "=", company], ["company", "is", "not set"]],
+		)
+	)
 	items.append({
 		"key": "structures", "label": _("Active Salary Structures"), "ok": structures > 0,
 		"detail": _("{0} active").format(structures), "route": "/app/salary-structure",

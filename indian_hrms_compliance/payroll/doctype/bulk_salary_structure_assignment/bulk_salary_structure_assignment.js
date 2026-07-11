@@ -57,12 +57,16 @@ frappe.ui.form.on("Bulk Salary Structure Assignment", {
 
 	set_queries(frm) {
 		frm.set_query("salary_structure", function () {
+			// Offer this company's structures plus company-independent templates.
 			return {
 				filters: {
-					company: frm.doc.company,
 					is_active: "Yes",
 					docstatus: 1,
 				},
+				or_filters: [
+					["company", "=", frm.doc.company],
+					["company", "is", "not set"],
+				],
 			};
 		});
 		frm.set_query("income_tax_slab", function () {

@@ -1357,7 +1357,9 @@ def get_salary_structure(
 		.where(
 			(SalaryStructure.docstatus == 1)
 			& (SalaryStructure.is_active == "Yes")
-			& (SalaryStructure.company == company)
+			# A blank company = a company-independent template usable by all
+			# companies; include it alongside this company's own structures.
+			& (Coalesce(SalaryStructure.company, "").isin([company, ""]))
 			& (SalaryStructure.currency == currency)
 			& (SalaryStructure.salary_slip_based_on_timesheet == salary_slip_based_on_timesheet)
 		)
