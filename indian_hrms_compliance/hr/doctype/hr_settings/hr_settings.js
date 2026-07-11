@@ -17,6 +17,30 @@ frappe.ui.form.on("HR Settings", {
 				},
 			};
 		});
+
+		frm.add_custom_button(
+			__("Sync Salary Component Accounts"),
+			function () {
+				frappe.call({
+					method: "indian_hrms_compliance.payroll.salary_component_accounts.sync_salary_component_accounts",
+					freeze: true,
+					freeze_message: __("Creating & filling Salary Component Accounts…"),
+					callback: function (r) {
+						if (!r.message) return;
+						const m = r.message;
+						frappe.msgprint({
+							title: __("Salary Component Accounts Synced"),
+							indicator: m.account_empty_remaining ? "orange" : "green",
+							message: __(
+								"Total rows: {0}<br>Accounts filled this run: {1}<br>Still empty: {2}",
+								[m.rows_total, m.accounts_filled, m.account_empty_remaining],
+							),
+						});
+					},
+				});
+			},
+			__("Actions"),
+		);
 	},
 
 	apply_indian_statutory_defaults: function (frm) {
