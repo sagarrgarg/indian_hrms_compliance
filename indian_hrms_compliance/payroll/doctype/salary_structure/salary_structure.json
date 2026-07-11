@@ -48,6 +48,7 @@
    "label": "Assignment Base Range"
   },
   {
+   "allow_on_submit": 1,
    "description": "Minimum permitted assignment base for this structure. A Salary Structure Assignment with base below this is blocked. Leave 0 for no minimum.",
    "fieldname": "min_base",
    "fieldtype": "Currency",
@@ -59,6 +60,7 @@
    "fieldtype": "Column Break"
   },
   {
+   "allow_on_submit": 1,
    "description": "Maximum permitted assignment base for this structure. A Salary Structure Assignment with base above this is blocked. Leave 0 for no maximum.",
    "fieldname": "max_base",
    "fieldtype": "Currency",
@@ -269,7 +271,7 @@
  "idx": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-07-11 10:00:00.000000",
+ "modified": "2026-07-11 14:00:00.000000",
  "modified_by": "Administrator",
  "module": "Payroll",
  "name": "Salary Structure",
