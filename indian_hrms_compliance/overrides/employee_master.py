@@ -704,15 +704,9 @@ def auto_assign_leave_policy_on_activation(doc, method=None):
 		return
 
 	# Idempotent: skip if an overlapping (non-cancelled) assignment already exists.
-	if frappe.db.exists(
-		"Leave Policy Assignment",
-		{
-			"employee": doc.name,
-			"docstatus": ("<", 2),
-			"effective_from": ("<=", period.to_date),
-			"effective_to": (">=", period.from_date),
-		},
-	):
+	from indian_hrms_compliance.hr.utils import has_overlapping_leave_assignment
+
+	if has_overlapping_leave_assignment(doc.name, period.from_date, period.to_date):
 		return
 
 	from indian_hrms_compliance.hr.doctype.leave_policy_assignment.leave_policy_assignment import (

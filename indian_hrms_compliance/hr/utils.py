@@ -1018,3 +1018,20 @@ def get_semester_end(date):
 		return get_year_ending(date)
 	else:
 		return add_months(get_year_ending(date), -6)
+
+
+def has_overlapping_leave_assignment(employee, from_date, to_date):
+	"""True if the employee already has a non-cancelled Leave Policy Assignment
+	overlapping the [from_date, to_date] window. Shared by the activation hook
+	and the bulk leave grant so their idempotency check can't drift."""
+	return bool(
+		frappe.db.exists(
+			"Leave Policy Assignment",
+			{
+				"employee": employee,
+				"docstatus": ("<", 2),
+				"effective_from": ("<=", to_date),
+				"effective_to": (">=", from_date),
+			},
+		)
+	)
