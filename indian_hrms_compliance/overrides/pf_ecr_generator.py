@@ -386,25 +386,44 @@ def generate_pf_ecr(pf_ecr_filing_name):
 	rows = []
 	exclude_no_uan = int(settings.get("pf_ecr_exclude_employees_with_no_uan") or 1)
 	skipped_no_uan = 0
-	skipped_not_pf_member = 0
-	processed_employees = set()
+	epf_rate = flt(settings["pf_employee_rate_pct"]) / 100.0
+	eps_rate = flt(settings["pf_eps_rate_pct"]) / 100.0
+	pf_ceiling = flt(settings["pf_wage_ceiling"])
 
+	# EPFO requires ONE line per UAN per wage month. If an employee has more than
+	# one slip in the month (e.g. a supplementary/arrear run), aggregate the wage
+	# bases rather than silently dropping the extras. The EPS/EDLI ceiling applies
+	# to the monthly total, so we sum the wages and recompute contributions once.
+	by_emp = {}
+	non_member = set()
 	for slip_meta in slips:
-		# Belt-and-braces: skip duplicate employee in same month.
-		if slip_meta.employee in processed_employees:
-			continue
-		processed_employees.add(slip_meta.employee)
-
 		slip = _load_slip(slip_meta.name)
 		row = _compute_pf_row(slip, mapping, settings)
 		if not row:
-			skipped_not_pf_member += 1
+			non_member.add(slip_meta.employee)
 			continue
+		if slip_meta.employee in by_emp:
+			base = by_emp[slip_meta.employee]
+			base["gross_wages"] += row["gross_wages"]
+			base["epf_wages"] += row["epf_wages"]
+			base["ncp_days"] += row["ncp_days"]
+		else:
+			by_emp[slip_meta.employee] = row
+	skipped_not_pf_member = len(non_member - set(by_emp))
+
+	for row in by_emp.values():
+		# Recompute capped EPS/EDLI + contributions from the (possibly aggregated)
+		# EPF wages — single-slip employees are unchanged.
+		row["eps_wages"] = min(row["epf_wages"], pf_ceiling)
+		row["edli_wages"] = min(row["epf_wages"], pf_ceiling)
+		row["epf_contribution"] = round(row["epf_wages"] * epf_rate)
+		row["eps_contribution"] = round(row["eps_wages"] * eps_rate)
+		row["epf_eps_diff"] = row["epf_contribution"] - row["eps_contribution"]
 
 		if not row["uan"]:
 			if exclude_no_uan:
 				exceptions.append(
-					f"- {slip.employee} ({slip.employee_name}): no UAN on Employee master — skipped."
+					f"- {row['employee']} ({row['employee_name']}): no UAN on Employee master — skipped."
 				)
 				skipped_no_uan += 1
 				continue
@@ -414,7 +433,7 @@ def generate_pf_ecr(pf_ecr_filing_name):
 						"Employee {0} ({1}) has no UAN on the Employee master. Set HR "
 						"Settings.pf_ecr_exclude_employees_with_no_uan = 1 to skip such "
 						"employees, or capture UAN before generating."
-					).format(slip.employee, slip.employee_name)
+					).format(row["employee"], row["employee_name"])
 				)
 
 		rows.append(row)
