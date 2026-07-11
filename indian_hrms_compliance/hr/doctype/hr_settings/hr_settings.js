@@ -41,6 +41,38 @@ frappe.ui.form.on("HR Settings", {
 			},
 			__("Actions"),
 		);
+
+		frm.add_custom_button(
+			__("Set Up This Year's Leave"),
+			function () {
+				frappe.confirm(
+					__(
+						"Create the Leave Period for the current Fiscal Year (Apr–Mar), set it as every company's default, and grant each company's default Leave Policy to all active employees? Safe and idempotent.",
+					),
+					function () {
+						frappe.call({
+							method: "indian_hrms_compliance.hr.leave_period_setup.setup_current_year_leave",
+							args: { grant: 1 },
+							freeze: true,
+							freeze_message: __("Setting up leave period & allocations…"),
+							callback: function (r) {
+								if (!r.message) return;
+								const m = r.message;
+								frappe.msgprint({
+									title: __("Leave Set Up"),
+									indicator: (m.failed || 0) ? "orange" : "green",
+									message: __(
+										"Fiscal Year: {0}<br>Leave Period: {1}<br>Granted: {2} · Skipped: {3} · Failed: {4}",
+										[m.fiscal_year, m.leave_period, m.granted || 0, m.skipped || 0, m.failed || 0],
+									),
+								});
+							},
+						});
+					},
+				);
+			},
+			__("Actions"),
+		);
 	},
 
 	apply_indian_statutory_defaults: function (frm) {

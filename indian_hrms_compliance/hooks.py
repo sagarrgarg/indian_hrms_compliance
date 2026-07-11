@@ -220,7 +220,10 @@ doc_events = {
 		"on_trash": "indian_hrms_compliance.utils.holiday_list.invalidate_cache",
 	},
 	"Fiscal Year": {
-		"after_insert": "indian_hrms_compliance.payroll.doctype.payroll_period.payroll_period.create_national_payroll_period_from_fiscal_year",
+		"after_insert": [
+			"indian_hrms_compliance.payroll.doctype.payroll_period.payroll_period.create_national_payroll_period_from_fiscal_year",
+			"indian_hrms_compliance.hr.leave_period_setup.create_leave_period_from_fiscal_year",
+		],
 	},
 	"Timesheet": {"validate": "indian_hrms_compliance.hr.utils.validate_active_employee"},
 	"Payment Entry": {
