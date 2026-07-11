@@ -670,10 +670,10 @@ def auto_assign_leave_policy_on_activation(doc, method=None):
 	Policy. Submitting the Leave Policy Assignment cascades into Leave
 	Allocations, so this collapses the leave-setup chain to zero clicks.
 
-	Opt-in via HR Settings.auto_assign_leave_policy_on_activation, using the
-	per-company Company.default_leave_policy and the Fiscal-Year-derived Leave
-	Period (get_current_leave_period). Idempotent (skips if an overlapping
-	assignment exists) and never blocks the Employee
+	Opt-in via HR Settings.auto_assign_leave_policy_on_activation. Policy =
+	Employee.leave_policy override if set, else Company.default_leave_policy;
+	period is Fiscal-Year-derived (get_current_leave_period). Idempotent (skips
+	if an overlapping assignment exists) and never blocks the Employee
 	save — failures are logged, not raised.
 	"""
 	if doc.status != "Active":
@@ -694,7 +694,10 @@ def auto_assign_leave_policy_on_activation(doc, method=None):
 
 	if not doc.company:
 		return
-	leave_policy = frappe.get_cached_value("Company", doc.company, "default_leave_policy")
+	# The employee's own Leave Policy override wins; else the company default.
+	leave_policy = doc.get("leave_policy") or frappe.get_cached_value(
+		"Company", doc.company, "default_leave_policy"
+	)
 	if not leave_policy:
 		return
 

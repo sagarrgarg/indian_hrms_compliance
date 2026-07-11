@@ -277,6 +277,16 @@ def get_custom_fields():
 		],
 		"Employee": [
 			{
+				"fieldname": "leave_policy",
+				"fieldtype": "Link",
+				"label": _("Leave Policy"),
+				"options": "Leave Policy",
+				"insert_after": "holiday_list",
+				"description": _(
+					"Overrides the company's default Leave Policy for this employee. Leave blank to use the company default."
+				),
+			},
+			{
 				"fieldname": "setup_status_tab",
 				"fieldtype": "Tab Break",
 				"label": _("Setup Status"),
