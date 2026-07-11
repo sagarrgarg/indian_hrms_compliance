@@ -49,6 +49,7 @@ EXEMPTION_CATEGORIES = {
 }
 
 OLD_REGIME_SLAB = "Old Tax Regime (FY 2025-26)"
+NEW_REGIME_SLAB = "New Tax Regime (FY 2025-26)"
 
 
 def seed_tax_exemption_masters():
@@ -109,8 +110,44 @@ def seed_old_regime_slab():
 	return slab.name
 
 
+def seed_new_regime_slab():
+	"""National New-Regime Income Tax Slab (FY 2025-26 — the default regime):
+	std deduction ₹75k, 87A rebate up to ₹12L taxable, 4% cess, restructured
+	slabs (nil up to ₹4L; 5/10/15/20/25/30%). The new regime does not allow
+	Chapter VI-A deductions / exemptions, so allow_tax_exemption is off."""
+	if frappe.db.exists("Income Tax Slab", NEW_REGIME_SLAB):
+		return None
+	slab = frappe.get_doc(
+		{
+			"doctype": "Income Tax Slab",
+			"name": NEW_REGIME_SLAB,
+			"effective_from": "2025-04-01",
+			"company": None,
+			"currency": "INR",
+			"allow_tax_exemption": 0,
+			"standard_tax_exemption_amount": 75000,
+			"tax_relief_limit": 1200000,
+			"slabs": [
+				{"from_amount": 400001, "to_amount": 800000, "percent_deduction": 5},
+				{"from_amount": 800001, "to_amount": 1200000, "percent_deduction": 10},
+				{"from_amount": 1200001, "to_amount": 1600000, "percent_deduction": 15},
+				{"from_amount": 1600001, "to_amount": 2000000, "percent_deduction": 20},
+				{"from_amount": 2000001, "to_amount": 2400000, "percent_deduction": 25},
+				{"from_amount": 2400001, "to_amount": 0, "percent_deduction": 30},
+			],
+			"other_taxes_and_charges": [
+				{"description": "Health & Education Cess", "percent": 4},
+			],
+		}
+	)
+	slab.insert(ignore_permissions=True)
+	slab.submit()
+	return slab.name
+
+
 def seed_all():
 	out = seed_tax_exemption_masters()
 	out["old_regime_slab"] = seed_old_regime_slab()
+	out["new_regime_slab"] = seed_new_regime_slab()
 	frappe.db.commit()
 	return out
