@@ -189,6 +189,9 @@ def _create_employee(d):
 			"bank_ac_no": d.bank_ac_no,
 			"ifsc_code": d.ifsc_code,
 			"reports_to": d.reports_to,
+			# Persist the chosen Leave Policy as the per-employee override so it
+			# sticks for future Fiscal-Year grants (blank falls back to company default).
+			"leave_policy": d.leave_policy,
 			"leave_approver": d.leave_approver,
 			"expense_approver": d.expense_approver,
 			"shift_request_approver": d.shift_request_approver,

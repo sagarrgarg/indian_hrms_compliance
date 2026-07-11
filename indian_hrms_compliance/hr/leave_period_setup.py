@@ -118,7 +118,9 @@ def grant_default_leave_for_period(leave_period):
 	granted = skipped = failed = 0
 
 	for emp in frappe.get_all(
-		"Employee", filters={"status": "Active"}, fields=["name", "company", "date_of_joining"]
+		"Employee",
+		filters={"status": "Active"},
+		fields=["name", "company", "date_of_joining", "leave_policy"],
 	):
 		if not emp.company or emp.name in already_assigned:
 			skipped += 1
@@ -127,7 +129,8 @@ def grant_default_leave_for_period(leave_period):
 			policy_by_company[emp.company] = frappe.get_cached_value(
 				"Company", emp.company, "default_leave_policy"
 			)
-		policy = policy_by_company[emp.company]
+		# The employee's own Leave Policy override wins; else the company default.
+		policy = emp.leave_policy or policy_by_company[emp.company]
 		if not policy:
 			skipped += 1
 			continue
