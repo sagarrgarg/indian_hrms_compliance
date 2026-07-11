@@ -350,9 +350,11 @@ def get_setup_defaults(company: str | None = None) -> dict:
 	if not company:
 		return out
 
-	out["leave_policy"], out["leave_period"] = frappe.get_cached_value(
-		"Company", company, ["default_leave_policy", "default_leave_period"]
-	)
+	from indian_hrms_compliance.hr.leave_period_setup import get_current_leave_period
+
+	out["leave_policy"] = frappe.get_cached_value("Company", company, "default_leave_policy")
+	# Leave period is derived from the Fiscal Year (India), not a company field.
+	out["leave_period"] = get_current_leave_period()
 
 	days = cint(frappe.db.get_single_value("HR Settings", "default_probation_period_days"))
 	if days > 0:

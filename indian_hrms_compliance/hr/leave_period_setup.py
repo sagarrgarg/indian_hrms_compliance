@@ -5,9 +5,10 @@
 
 India's leave year is the fiscal year (1 Apr – 31 Mar). This module keeps a
 national Leave Period aligned to each Fiscal Year (mirroring the national
-Payroll Period), points every company's ``default_leave_period`` at it, and
-auto-grants the company's default Leave Policy to every active employee for the
-period — so leave allocation is fully hands-off.
+Payroll Period). The current period is *derived* from the Fiscal Year via
+``get_current_leave_period`` — it is never stored per company — and the
+company's default Leave Policy is auto-granted to every active employee for the
+period, so leave allocation is fully hands-off.
 
 Wired in hooks.py:
     doc_events["Fiscal Year"]["after_insert"] += create_leave_period_from_fiscal_year
@@ -26,9 +27,8 @@ def _hr_setting(field, default=None):
 
 
 def ensure_leave_period_for_fiscal_year(fiscal_year):
-	"""Get-or-create the national Leave Period matching a Fiscal Year's dates,
-	and point every company's default_leave_period at it. Returns the Leave
-	Period name (or None). Idempotent."""
+	"""Get-or-create the national Leave Period matching a Fiscal Year's dates.
+	Returns the Leave Period name (or None). Idempotent."""
 	fy = frappe.db.get_value(
 		"Fiscal Year", fiscal_year, ["year_start_date", "year_end_date"], as_dict=True
 	)
@@ -47,24 +47,32 @@ def ensure_leave_period_for_fiscal_year(fiscal_year):
 		lp.insert()
 		lp_name = lp.name
 	elif not frappe.db.get_value("Leave Period", lp_name, "is_active"):
-		# Reactivate a reused period — it's the current FY's leave year and is
-		# about to become every company's default, so it must be active.
+		# Reactivate a reused period — it's the current FY's leave year.
 		frappe.db.set_value("Leave Period", lp_name, "is_active", 1)
-
-	# Point every company's default Leave Period at this one so the activation
-	# hook and the bulk grant both resolve the current period.
-	if frappe.get_meta("Company").has_field("default_leave_period"):
-		for company in frappe.get_all("Company", pluck="name"):
-			frappe.db.set_value(
-				"Company", company, "default_leave_period", lp_name, update_modified=False
-			)
 	return lp_name
 
 
+def get_current_leave_period(on_date=None):
+	"""The Leave Period for the Fiscal Year covering ``on_date`` (default: today).
+
+	India's leave year IS the fiscal year, so the current period is derived here
+	rather than stored per company — a single source of truth. Ensures the period
+	exists. Returns the Leave Period name, or None when no Fiscal Year covers the
+	date."""
+	from erpnext.accounts.utils import get_fiscal_year
+
+	target = getdate(on_date) if on_date else getdate()
+	try:
+		fy = get_fiscal_year(target, as_dict=True)
+	except Exception:
+		return None
+	return ensure_leave_period_for_fiscal_year(fy.name)
+
+
 def create_leave_period_from_fiscal_year(doc, method=None):
-	"""Fiscal Year ``after_insert`` hook: create the matching Leave Period, set
-	it as every company's default, and (when auto-assign is on) grant the
-	default Leave Policy to all active employees in the background."""
+	"""Fiscal Year ``after_insert`` hook: create the matching Leave Period and
+	(when auto-assign is on) grant the default Leave Policy to all active
+	employees in the background."""
 	lp_name = ensure_leave_period_for_fiscal_year(doc.name)
 	if lp_name and cint(_hr_setting("auto_assign_leave_policy_on_activation")):
 		frappe.enqueue(
