@@ -24,6 +24,7 @@
   "exempted_from_income_tax",
   "round_to_the_nearest_integer",
   "statistical_component",
+  "show_on_salary_slip",
   "accrual_component",
   "do_not_include_in_total",
   "do_not_include_in_accounts",
@@ -125,6 +126,14 @@
    "fieldname": "statistical_component",
    "fieldtype": "Check",
    "label": "Statistical Component"
+  },
+  {
+   "default": "0",
+   "depends_on": "eval:doc.statistical_component",
+   "description": "Statistical components are normally hidden from the salary slip. Enable this to also display this component on the slip as an information row (e.g. Employer PF / ESI, so the employee sees the full cost-to-company) without affecting gross or net pay. Leave off for provisions the employee need not see (e.g. Gratuity).",
+   "fieldname": "show_on_salary_slip",
+   "fieldtype": "Check",
+   "label": "Show on Salary Slip (info only)"
   },
   {
    "default": "0",

@@ -1317,6 +1317,7 @@ class SalarySlip(TransactionBase):
 			# update statistical component amount in reference data based on payment days
 			# since row for statistical component is not added to salary slip
 			self.default_data[struct_row.abbr] = flt(amount)
+			display_amount = flt(amount)
 			if struct_row.depends_on_payment_days:
 				amount = (
 					flt(amount) * flt(self.payment_days) / cint(self.total_working_days)
@@ -1324,6 +1325,18 @@ class SalarySlip(TransactionBase):
 					else 0
 				)
 				self.data[struct_row.abbr] = flt(amount, struct_row.precision)
+				display_amount = amount
+
+			# Optionally surface an employer-side statistical component (e.g.
+			# Employer PF / ESI) on the slip as an information row: visible to the
+			# employee so they see the full cost-to-company, but excluded from
+			# gross, net and the accrual JE (do_not_include_in_total /
+			# do_not_include_in_accounts). It stays statistical, so it is still
+			# booked as a provision (Dr expense / Cr payable) during accounting.
+			if display_amount and frappe.get_cached_value(
+				"Salary Component", struct_row.salary_component, "show_on_salary_slip"
+			):
+				self.add_statistical_info_row(struct_row, display_amount, component_type)
 
 			is_accrual_component = (
 				condition_met
@@ -1377,6 +1390,39 @@ class SalarySlip(TransactionBase):
 					default_amount=default_amount,
 					remove_if_zero_valued=remove_if_zero_valued,
 				)
+
+	def add_statistical_info_row(self, struct_row, amount, component_type):
+		"""Append a statistical (employer-side) component to the slip as an
+		information-only row. Shown to the employee, but flagged so it never
+		enters gross / net (``do_not_include_in_total``) nor the accrual JE
+		(``do_not_include_in_accounts``). The component stays statistical, so the
+		amount is still booked as a provision by ``add_statutory_provision_entries``."""
+		# v16: evaluated component rows carry `precision` as a value, not a method
+		amount = flt(amount, struct_row.precision)
+		# add_structure_component can run over several passes; find-or-update the
+		# existing info row instead of appending a duplicate each time.
+		row = next(
+			(
+				d
+				for d in self.get(component_type)
+				if d.salary_component == struct_row.salary_component and not d.additional_salary
+			),
+			None,
+		) or self.append(component_type, {})
+		row.update(
+			{
+				"salary_component": struct_row.salary_component,
+				"abbr": struct_row.abbr,
+				"amount": amount,
+				"default_amount": amount,
+				"depends_on_payment_days": struct_row.depends_on_payment_days,
+				"statistical_component": 1,
+				"do_not_include_in_total": 1,
+				"do_not_include_in_accounts": 1,
+				"is_tax_applicable": 0,
+			}
+		)
+		return row
 
 	def get_data_for_eval(self):
 		"""Returns data for evaluating formula"""
