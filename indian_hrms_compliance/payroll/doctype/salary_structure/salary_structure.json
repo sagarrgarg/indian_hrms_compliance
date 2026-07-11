@@ -56,7 +56,8 @@
    "fieldname": "min_base",
    "fieldtype": "Currency",
    "label": "Minimum Base",
-   "options": "currency"
+   "options": "currency",
+   "allow_on_submit": 1
   },
   {
    "fieldname": "base_range_col",
@@ -67,7 +68,8 @@
    "fieldname": "max_base",
    "fieldtype": "Currency",
    "label": "Maximum Base",
-   "options": "currency"
+   "options": "currency",
+   "allow_on_submit": 1
   },
   {
    "fieldname": "company",
