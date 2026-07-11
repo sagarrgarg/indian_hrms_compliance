@@ -421,7 +421,7 @@ def create_salary_structure_assignment(
 
 def get_existing_assignments(employees, salary_structure, from_date):
 	ssa = frappe.qb.DocType("Salary Structure Assignment")
-	salary_structures_assignments = (
+	query = (
 		frappe.qb.from_(ssa)
 		.select(ssa.employee)
 		.distinct()
@@ -429,10 +429,17 @@ def get_existing_assignments(employees, salary_structure, from_date):
 			(ssa.salary_structure == salary_structure.name)
 			& (ssa.employee.isin(employees))
 			& (ssa.from_date == from_date)
-			& (ssa.company == salary_structure.company)
 			& (ssa.docstatus == 1)
 		)
-	).run(pluck="employee")
+	)
+	# Only scope by company for company-specific structures. A company-independent
+	# (template) structure has a blank company but its assignments carry the
+	# employees' real companies, so keying on company here would never match and
+	# would let duplicates through — the (structure, employee, from_date) triple
+	# already uniquely identifies an existing assignment.
+	if salary_structure.company:
+		query = query.where(ssa.company == salary_structure.company)
+	salary_structures_assignments = query.run(pluck="employee")
 	if salary_structures_assignments:
 		frappe.msgprint(
 			_(
