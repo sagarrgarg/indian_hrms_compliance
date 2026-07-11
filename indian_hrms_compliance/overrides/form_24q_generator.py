@@ -28,9 +28,10 @@ the reason_for_lower_no_deduction code in a future iteration).
 Tax computation for Annexure II:
   We pull each employee's Salary Slips for the *full FY* and aggregate:
     gross_salary = sum of all earnings amounts
-    section_10_exemptions = HRA + LTA + conveyance (heuristic — substring)
-    section_16_deductions = ₹75,000 standard (new regime FY 2026-27) +
-                            PT deducted in the FY
+    section_10_exemptions = HRA + LTA + conveyance (heuristic; OLD regime only)
+    section_16_deductions = regime-aware standard deduction (₹50k old / ₹75k
+                            new, from the assigned Income Tax Slab) + PT (Sec
+                            16(iii), OLD regime only)
     tds_deducted = sum of Income Tax Component deductions
   This is intentionally approximate — the Income Tax Computation report
   in ERPNext does the exact math; we re-derive directly from slips so
@@ -65,11 +66,6 @@ from indian_hrms_compliance.payroll.doctype.tds_return_form_24q.tds_return_form_
 # RPU file delimiter — caret per NSDL spec.
 FIELD_SEP = "^"
 LINE_SEP = "\n"
-
-# Default Section 16 standard deduction under the new regime, FY 2026-27.
-# (Old regime: ₹50,000.) Generator uses new-regime by default; old regime
-# users can override Annexure II values after generation via the grid.
-SEC_16_STD_DEDUCTION = 75000
 
 # Filing window default (days after quarter end) — used by the scheduler.
 HR_SETTINGS_DEFAULTS = {
@@ -235,6 +231,38 @@ def _estimate_section_10_exemptions(slip):
 	return total
 
 
+def _employee_regime(company, employee, on_date):
+	"""(standard_deduction, is_old_regime) from the employee's assigned Income
+	Tax Slab as of ``on_date``.
+
+	The old regime allows HRA/LTA (Sec 10) exemptions and Professional Tax
+	(Sec 16(iii)); the new regime allows neither (only the standard deduction).
+	``allow_tax_exemption`` on the Income Tax Slab is the regime signal. Falls
+	back to the new-regime default (₹75,000 std deduction) when no slab is
+	assigned, since the new regime is the default."""
+	slab_name = frappe.db.get_value(
+		"Salary Structure Assignment",
+		{
+			"employee": employee,
+			"company": company,
+			"docstatus": 1,
+			"from_date": ["<=", on_date],
+		},
+		"income_tax_slab",
+		order_by="from_date desc",
+	)
+	if slab_name:
+		s = frappe.db.get_value(
+			"Income Tax Slab",
+			slab_name,
+			["standard_tax_exemption_amount", "allow_tax_exemption"],
+			as_dict=True,
+		)
+		if s:
+			return (flt(s.standard_tax_exemption_amount) or 75000.0, bool(s.allow_tax_exemption))
+	return 75000.0, False
+
+
 def _build_annexure_ii_rows(doc, mapping, fy_start, fy_end):
 	"""For each distinct employee in the FY, compute aggregate salary +
 	tax breakup. Skips employees with no PAN (consistent with Annex I)."""
@@ -271,6 +299,7 @@ def _build_annexure_ii_rows(doc, mapping, fy_start, fy_end):
 
 		# Aggregate slips for the FY.
 		slips = _employee_fy_slips(doc.company, emp, fy_start, fy_end)
+		std_ded, old_regime = _employee_regime(doc.company, emp, fy_end)
 		gross_salary = 0
 		section_10 = 0
 		pt_paid = 0
@@ -278,13 +307,16 @@ def _build_annexure_ii_rows(doc, mapping, fy_start, fy_end):
 		for s_meta in slips:
 			slip = frappe.get_doc("Salary Slip", s_meta.name)
 			gross_salary += _slip_gross_earnings(slip)
-			section_10 += _estimate_section_10_exemptions(slip)
+			# Sec 10 (HRA/LTA/conveyance) exemptions apply only under the old regime.
+			if old_regime:
+				section_10 += _estimate_section_10_exemptions(slip)
 			pt_paid += _pt_component_amount(slip, mapping)
 			tds += _income_tax_component_amount(slip, mapping)
 
-		# Section 16 = std deduction + PT (under both regimes PT is allowed
-		# u/s 16(iii)).
-		section_16 = SEC_16_STD_DEDUCTION + pt_paid
+		# Section 16 = regime-aware standard deduction (₹50k old / ₹75k new, read
+		# from the employee's assigned Income Tax Slab) + Professional Tax, which
+		# is deductible u/s 16(iii) under the OLD regime only.
+		section_16 = std_ded + (pt_paid if old_regime else 0)
 		income_under_salaries = max(gross_salary - section_10 - section_16, 0)
 		gross_total_income = income_under_salaries  # other_income unknown at HR end
 		taxable_income = gross_total_income  # Chapter VI-A unknown; HR overrides
