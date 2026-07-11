@@ -9,6 +9,23 @@ from frappe.utils import cstr, flt, get_datetime, get_link_to_form
 from erpnext.accounts.general_ledger import make_gl_entries
 from erpnext.controllers.accounts_controller import AccountsController
 
+# Statutory ceiling on gratuity payable — ₹20,00,000 under the Payment of
+# Gratuity Act, Sec 4(3) (retained by the Code on Social Security, 2020).
+# Anything above this is ex-gratia (taxable) and must be paid outside the
+# statutory gratuity, so the computed amount is capped here.
+DEFAULT_GRATUITY_CEILING = 2000000.0
+
+
+def _gratuity_ceiling() -> float:
+	"""The statutory gratuity ceiling. Overridable via HR Settings.gratuity_ceiling
+	when that field exists (defensive — never raises if it doesn't)."""
+	meta = frappe.get_meta("HR Settings")
+	if meta.has_field("gratuity_ceiling"):
+		val = frappe.db.get_single_value("HR Settings", "gratuity_ceiling")
+		if val:
+			return flt(val)
+	return DEFAULT_GRATUITY_CEILING
+
 
 class Gratuity(AccountsController):
 	def validate(self):
@@ -255,6 +272,11 @@ class Gratuity(AccountsController):
 					"No applicable slab found for the calculation of gratuity amount as per the Gratuity Rule: {0}"
 				).format(bold(self.gratuity_rule))
 			)
+
+		# Cap at the statutory ceiling (₹20L). Excess is ex-gratia / taxable.
+		ceiling = _gratuity_ceiling()
+		if ceiling and gratuity_amount > ceiling:
+			gratuity_amount = ceiling
 
 		return flt(gratuity_amount, self.precision("amount"))
 
