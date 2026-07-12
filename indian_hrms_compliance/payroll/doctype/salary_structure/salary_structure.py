@@ -297,9 +297,9 @@ class SalaryStructure(Document):
 					"abbr": row.abbr,
 					"amount": _eval_row(row),
 					"statistical": cint(row.statistical_component),
-					"show_on_slip": cint(
+					"exclude_from_ctc": cint(
 						frappe.get_cached_value(
-							"Salary Component", row.salary_component, "show_on_salary_slip"
+							"Salary Component", row.salary_component, "exclude_from_ctc"
 						)
 					),
 				}
@@ -315,11 +315,17 @@ class SalaryStructure(Document):
 			)
 
 		gross = sum(r["amount"] for r in earnings if not r["statistical"])
-		# Employer statutory contributions shown on the slip (PF / ESI) count
-		# toward CTC; hidden statistical provisions (Gratuity) are long-term and
-		# excluded from CTC — surfaced separately as a provision layer.
-		employer_ctc = sum(r["amount"] for r in earnings if r["statistical"] and r["show_on_slip"])
-		provisions = sum(r["amount"] for r in earnings if r["statistical"] and not r["show_on_slip"])
+		# Current-period employer contributions (PF / ESI / EDLI / EPS ...) count
+		# toward CTC; long-term / exit provisions flagged exclude_from_ctc
+		# (Gratuity, leave-encashment provision) are surfaced as a separate layer.
+		# Driven entirely by component flags, so any newly-added component
+		# classifies itself — no hard-coded component names.
+		employer_ctc = sum(
+			r["amount"] for r in earnings if r["statistical"] and not r["exclude_from_ctc"]
+		)
+		provisions = sum(
+			r["amount"] for r in earnings if r["statistical"] and r["exclude_from_ctc"]
+		)
 		total_deduction = sum(r["amount"] for r in deductions if not r["statistical"])
 		ctc = gross + employer_ctc
 		return {

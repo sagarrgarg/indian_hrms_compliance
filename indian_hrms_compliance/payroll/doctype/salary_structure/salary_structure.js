@@ -492,8 +492,8 @@ function render_ctc_ladder(m, fmt) {
 		const n = m.earnings.filter((r) => r.statistical && pred(r) && r.amount).map((r) => r.component);
 		return n.length ? n.join(", ") : fallback;
 	};
-	const provNames = names((r) => !r.show_on_slip, __("Gratuity"));
-	const emprNames = names((r) => r.show_on_slip, __("Employer PF / ESI"));
+	const provNames = names((r) => r.exclude_from_ctc, __("Gratuity"));
+	const emprNames = names((r) => !r.exclude_from_ctc, __("Employer PF / ESI"));
 
 	let out = "";
 	if (m.provisions) {

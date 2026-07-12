@@ -24,6 +24,7 @@
   "round_to_the_nearest_integer",
   "statistical_component",
   "show_on_salary_slip",
+  "exclude_from_ctc",
   "do_not_include_in_total",
   "do_not_include_in_accounts",
   "remove_if_zero_valued",
@@ -129,6 +130,14 @@
    "fieldname": "show_on_salary_slip",
    "fieldtype": "Check",
    "label": "Show on Salary Slip (info only)"
+  },
+  {
+   "default": "0",
+   "depends_on": "eval:doc.statistical_component",
+   "description": "Enable for a long-term / exit provision (e.g. Gratuity, leave-encashment provision): it is excluded from the CTC figure and shown as a separate provision layer in the CTC preview. Leave OFF for current-period employer contributions (Employer PF / ESI / EDLI / EPS), which should count toward CTC.",
+   "fieldname": "exclude_from_ctc",
+   "fieldtype": "Check",
+   "label": "Exclude from CTC (long-term provision)"
   },
   {
    "default": "0",
@@ -285,7 +294,7 @@
  "icon": "fa fa-flag",
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-07-11 13:00:00.000000",
+ "modified": "2026-07-12 10:00:00.000000",
  "modified_by": "Administrator",
  "module": "Payroll",
  "name": "Salary Component",
