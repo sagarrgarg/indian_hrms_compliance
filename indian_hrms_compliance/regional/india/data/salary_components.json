@@ -66,7 +66,8 @@
   "salary_component": "Gratuity",
   "description": "Employer gratuity provision (CTC component, not paid monthly)",
   "type": "Earning",
-  "statistical_component": 1
+  "statistical_component": 1,
+  "exclude_from_ctc": 1
  },
  {
   "doctype": "Salary Component",
