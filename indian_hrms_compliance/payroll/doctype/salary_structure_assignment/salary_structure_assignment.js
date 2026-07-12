@@ -61,6 +61,35 @@ frappe.ui.form.on("Salary Structure Assignment", {
 			__("Actions"),
 		);
 
+		// CTC ladder for this assignment's base + the employee's actual UAN.
+		frm.add_custom_button(
+			__("Preview CTC"),
+			() => {
+				if (!frm.doc.salary_structure) {
+					frappe.msgprint(__("Set a Salary Structure first."));
+					return;
+				}
+				const open = (uan) =>
+					indian_hrms_compliance.show_ctc_preview({
+						salary_structure: frm.doc.salary_structure,
+						base: frm.doc.base,
+						variable: frm.doc.variable,
+						uan_number: uan,
+						title: __("CTC Preview — {0}", [
+							frm.doc.employee_name || frm.doc.employee || frm.doc.salary_structure,
+						]),
+					});
+				if (frm.doc.employee) {
+					frappe.db
+						.get_value("Employee", frm.doc.employee, "uan_number")
+						.then((r) => open(r.message && r.message.uan_number ? 1 : 0));
+				} else {
+					open(0);
+				}
+			},
+			__("Actions"),
+		);
+
 		if (frm.doc.docstatus != 1) return;
 
 		frm.add_custom_button(
