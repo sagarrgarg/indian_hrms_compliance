@@ -278,3 +278,196 @@ $.extend(indian_hrms_compliance, {
 		);
 	},
 });
+
+// ---------------------------------------------------------------------------
+// Shared CTC preview — the cumulative ladder used by Salary Structure,
+// Salary Structure Assignment and the Bulk Assign tool. Kept here (app-wide
+// bundle) so all three render an identical breakdown from one source.
+// ---------------------------------------------------------------------------
+$.extend(indian_hrms_compliance, {
+	// A top-down cumulative ladder: each bold line is a real running subtotal,
+	// and the muted "− X" row beneath shows what to subtract to reach the next
+	// subtotal. Nothing is counted twice. Long-term provisions (Gratuity) sit
+	// above CTC and are excluded from it. Uses CSS vars for dark-theme safety.
+	render_ctc_ladder(m, fmt) {
+		const info = (t) =>
+			`<span class="text-muted" style="cursor:help;margin-left:4px" title="${frappe.utils.escape_html(
+				t,
+			)}">${frappe.utils.icon("help", "sm")}</span>`;
+		const total = (label, val, tip, highlight) =>
+			`<tr${highlight ? ' style="background:var(--control-bg)"' : ""}>
+				<td style="color:var(--text-color)"><b>${label}</b>${tip ? info(tip) : ""}</td>
+				<td class="text-right" style="color:var(--text-color)"><b>${fmt(val)}</b></td>
+			</tr>`;
+		const delta = (label, val, tip) =>
+			`<tr class="text-muted">
+				<td style="padding-left:1.75em">− ${label}${tip ? info(tip) : ""}</td>
+				<td class="text-right">${fmt(val)}</td>
+			</tr>`;
+
+		const names = (pred, fallback) => {
+			const n = m.earnings
+				.filter((r) => r.statistical && pred(r) && r.amount)
+				.map((r) => r.component);
+			return n.length ? n.join(", ") : fallback;
+		};
+		const provNames = names((r) => r.exclude_from_ctc, __("Gratuity"));
+		const emprNames = names((r) => !r.exclude_from_ctc, __("Employer PF / ESI"));
+
+		let out = "";
+		if (m.provisions) {
+			out += total(
+				__("Total cost to company"),
+				m.total_cost,
+				__("CTC plus long-term provisions ({0}) — the full cost including exit provisions.", [
+					provNames,
+				]),
+				true,
+			);
+			out += delta(
+				__("Long-term provisions ({0})", [provNames]),
+				m.provisions,
+				__("Accrued monthly but paid at exit (e.g. Gratuity). A real long-term liability, so it is kept out of CTC."),
+			);
+		}
+		out += total(
+			__("CTC (excl. long-term provisions)"),
+			m.ctc,
+			__("Gross earnings + employer statutory contributions ({0}). The standard cost-to-company.", [
+				emprNames,
+			]),
+		);
+		if (m.employer_ctc) {
+			out += delta(
+				__("Employer contributions ({0})", [emprNames]),
+				m.employer_ctc,
+				__("Employer's statutory share on top of gross — part of CTC, but not paid to the employee."),
+			);
+		}
+		out += total(
+			__("Gross (paid earnings)"),
+			m.gross,
+			__("Everything payable to the employee before deductions."),
+		);
+		if (m.total_deduction) {
+			out += delta(
+				__("Deductions"),
+				m.total_deduction,
+				__("Employee PF / ESI, Professional Tax and TDS withheld from gross."),
+			);
+		}
+		out += total(
+			__("Net Pay (take-home)"),
+			m.net,
+			__("What the employee actually receives in-hand."),
+			true,
+		);
+		return out;
+	},
+
+	render_ctc_preview(m) {
+		const fmt = (v) => format_currency(v, m.currency);
+		const rows = (arr) =>
+			arr
+				.map(
+					(r) => `
+			<tr class="${r.statistical ? "text-muted" : ""}">
+				<td>${frappe.utils.escape_html(r.component)}${
+					r.statistical
+						? ' <span class="indicator-pill gray">' + __("CTC · not paid") + "</span>"
+						: ""
+				}</td>
+				<td class="text-right">${fmt(r.amount)}</td>
+			</tr>`,
+				)
+				.join("");
+		return `
+			<div class="row">
+				<div class="col-sm-6">
+					<h6>${__("Earnings")}</h6>
+					<table class="table table-bordered"><tbody>${rows(m.earnings)}</tbody></table>
+				</div>
+				<div class="col-sm-6">
+					<h6>${__("Deductions")}</h6>
+					<table class="table table-bordered"><tbody>${
+						m.deductions.length
+							? rows(m.deductions)
+							: `<tr><td class="text-muted">${__("None")}</td><td></td></tr>`
+					}</tbody></table>
+				</div>
+			</div>
+			<table class="table table-bordered" style="margin-top:8px"><tbody>${indian_hrms_compliance.render_ctc_ladder(
+				m,
+				fmt,
+			)}</tbody></table>`;
+	},
+
+	// Reusable "Preview CTC" dialog for a SAVED salary structure (Assignment /
+	// Bulk Assign). Pass a default base / uan_number so it opens pre-filled with
+	// the assignment's actual figures; the user can still tweak them live.
+	show_ctc_preview(opts) {
+		opts = opts || {};
+		if (!opts.salary_structure) {
+			frappe.msgprint(__("Select a Salary Structure first."));
+			return;
+		}
+		const d = new frappe.ui.Dialog({
+			title: opts.title || __("CTC Preview — {0}", [opts.salary_structure]),
+			size: "large",
+			fields: [
+				{
+					fieldname: "base",
+					fieldtype: "Currency",
+					label: __("Base (monthly gross)"),
+					reqd: 1,
+					default: opts.base || 0,
+				},
+				{
+					fieldname: "uan_number",
+					fieldtype: "Check",
+					label: __("Has UAN (PF applies)"),
+					default: opts.uan_number ? 1 : 0,
+				},
+				{ fieldname: "cb", fieldtype: "Column Break" },
+				{
+					fieldname: "variable",
+					fieldtype: "Currency",
+					label: __("Variable (optional)"),
+					default: opts.variable || 0,
+				},
+				{ fieldname: "sb", fieldtype: "Section Break" },
+				{ fieldname: "result", fieldtype: "HTML" },
+			],
+		});
+		const render = () => {
+			const base = d.get_value("base");
+			if (!base) {
+				d.fields_dict.result.$wrapper.html(
+					`<div class="text-muted">${__("Enter a base to preview the CTC.")}</div>`,
+				);
+				return;
+			}
+			frappe
+				.call({
+					method: "indian_hrms_compliance.payroll.doctype.salary_structure.salary_structure.get_ctc_preview",
+					args: {
+						salary_structure: opts.salary_structure,
+						base: base,
+						uan_number: d.get_value("uan_number") ? 1 : 0,
+						variable: d.get_value("variable") || 0,
+					},
+				})
+				.then((r) => {
+					if (r.message)
+						d.fields_dict.result.$wrapper.html(
+							indian_hrms_compliance.render_ctc_preview(r.message),
+						);
+				});
+		};
+		["base", "uan_number", "variable"].forEach((f) => {
+			d.fields_dict[f].df.onchange = render;
+		});
+		d.show();
+		render();
+	},
+});

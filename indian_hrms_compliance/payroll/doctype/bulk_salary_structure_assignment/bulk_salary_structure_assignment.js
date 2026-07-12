@@ -18,6 +18,19 @@ frappe.ui.form.on("Bulk Salary Structure Assignment", {
 			"completed_bulk_salary_structure_assignment",
 			"Salary Structure Assignment",
 		);
+
+		// CTC ladder for the chosen structure — bulk has no single base, so the
+		// dialog takes a hypothetical base to sanity-check before assigning.
+		frm.add_custom_button(__("Preview CTC"), () => {
+			if (!frm.doc.salary_structure) {
+				frappe.msgprint(__("Select a Salary Structure first."));
+				return;
+			}
+			indian_hrms_compliance.show_ctc_preview({
+				salary_structure: frm.doc.salary_structure,
+				title: __("CTC Preview — {0}", [frm.doc.salary_structure]),
+			});
+		});
 	},
 
 	from_date(frm) {

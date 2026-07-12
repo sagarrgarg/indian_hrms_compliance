@@ -347,6 +347,15 @@ class SalaryStructure(Document):
 		}
 
 
+@frappe.whitelist()
+def get_ctc_preview(salary_structure, base=0, uan_number=0, variable=0):
+	"""CTC preview for a *saved* structure referenced by name — so the same
+	ladder can be shown from a Salary Structure Assignment or the bulk-assign
+	tool (where the structure is chosen by link, not edited inline)."""
+	doc = frappe.get_cached_doc("Salary Structure", salary_structure)
+	return doc.preview_ctc(base=base, uan_number=uan_number, variable=variable)
+
+
 def _preview_eval_globals():
 	"""Whitelisted globals for Salary Structure formula/condition evaluation
 	during a CTC preview — mirrors the Salary Slip eval sandbox."""
