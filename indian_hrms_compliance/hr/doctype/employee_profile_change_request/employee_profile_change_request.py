@@ -108,7 +108,11 @@ def get_editable_fieldnames() -> list[str]:
 	"""Resolve the active editable fieldname list from HR Settings, falling back
 	to DEFAULT_EDITABLE_FIELDS. One fieldname per line, blank lines / # comments
 	ignored. Filters to fields that actually exist on Employee."""
-	raw = frappe.db.get_single_value("HR Settings", "self_editable_employee_fields") or ""
+	# §1 guard: get_single_value RAISES (not None) if the field is absent from the
+	# meta — e.g. on a site that hasn't migrated the field yet. Degrade to defaults.
+	raw = ""
+	if frappe.get_meta("HR Settings").has_field("self_editable_employee_fields"):
+		raw = frappe.db.get_single_value("HR Settings", "self_editable_employee_fields") or ""
 	configured = [
 		line.strip()
 		for line in raw.splitlines()
