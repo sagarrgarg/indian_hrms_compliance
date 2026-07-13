@@ -84,6 +84,9 @@
   "probation_defaults_section",
   "default_probation_period_days",
   "probation_review_reminder_window_days",
+  "onboarding_settings_section",
+  "onboarding_invite_validity_days",
+  "onboarding_min_employment_age",
   "exit_settlement_tab",
   "notice_recovery_section",
   "notice_recovery_basis",
@@ -136,6 +139,9 @@
   "pf_edli_rate_pct",
   "pf_admin_charges_pct",
   "pf_admin_charges_min",
+  "pf_ecr_filing_window_days",
+  "pf_ecr_exclude_employees_with_no_uan",
+  "pf_edli_per_member_cap",
   "pf_minimum_headcount_for_applicability",
   "esi_section",
   "esi_wage_ceiling",
@@ -144,6 +150,27 @@
   "esi_employee_rate_pct",
   "esi_employer_rate_pct",
   "esi_employee_daily_wage_waiver",
+  "esi_filing_window_days",
+  "form_24q_filing_window_days",
+  "pt_filing_window_days",
+  "lwf_filing_window_days",
+  "responsible_person_default_designation",
+  "compliance_calendar_section_break",
+  "compliance_calendar_upcoming_days",
+  "compliance_calendar_escalation_days_after_due",
+  "compliance_calendar_col_break",
+  "send_compliance_calendar_daily_digest",
+  "compliance_calendar_digest_recipients_role",
+  "auto_link_filings_to_calendar",
+  "labour_code_section_break",
+  "standing_orders_threshold_workers",
+  "works_committee_threshold_workers",
+  "grc_threshold_workers",
+  "labour_code_col_break",
+  "safety_committee_threshold_workers",
+  "posh_ic_threshold_workers",
+  "enable_uan_aadhaar_validation",
+  "enable_monthly_labour_code_compliance_check",
   "tds_section",
   "pan_mandatory_annual_income",
   "min_wage_section",
@@ -152,8 +179,14 @@
   "default_pt_state",
   "dpdp_section",
   "dpdp_aadhaar_consent_required",
+  "self_editable_employee_fields",
+  "employee_consent_text_version",
   "column_break_dpdp_1",
   "dpdp_data_retention_years",
+  "dpdp_enable_access_logging",
+  "dpdp_access_log_throttle_seconds",
+  "dpdp_purge_max_per_run",
+  "dpdp_breach_notification_recipients_role",
   "compliance_assistant_tab",
   "statutory_defaults_section",
   "statutory_defaults_help",
@@ -430,7 +463,7 @@
   },
   {
    "default": "0",
-   "description": "Treat multiple check-ins for the same employee within this many minutes as one accidental repeat punch (biometric double-taps), ignoring the extras when computing status and working hours. All raw logs stay linked to the attendance. Note: a day still needs at least two distinct punches (an in and an out) to be marked Present — a single punch always stays Absent. Set 0 to disable de-duplication.",
+   "description": "Treat multiple check-ins for the same employee within this many minutes as one accidental repeat punch (biometric double-taps), ignoring the extras when computing status and working hours. All raw logs stay linked to the attendance. Note: a day still needs at least two distinct punches (an in and an out) to be marked Present \u2014 a single punch always stays Absent. Set 0 to disable de-duplication.",
    "fieldname": "duplicate_checkin_window_minutes",
    "fieldtype": "Int",
    "label": "Ignore Repeat Check-ins Within (Minutes)",
@@ -487,13 +520,11 @@
    "fieldtype": "Check",
    "label": "Auto-assign Leave Policy on Employee Activation"
   },
-
   {
    "fieldname": "general_tab",
    "fieldtype": "Tab Break",
    "label": "General"
   },
-
   {
    "fieldname": "performance_tab",
    "fieldtype": "Tab Break",
@@ -584,7 +615,6 @@
    "label": "Auto-populate KRA Performance on Appraisal Save",
    "description": "When enabled, the Appraisal form's KRA Performance HTML is recomputed on validate from the Employee's Task Instance accumulation for the Appraisal Cycle window. Disable for appraisal cycles where you want manual override only."
   },
-
   {
    "fieldname": "policies_tab",
    "fieldtype": "Tab Break",
@@ -638,7 +668,6 @@
    "options": "Role",
    "description": "Users holding this role receive the daily overdue-policy digest. Default: HR Manager."
   },
-
   {
    "fieldname": "probation_tab",
    "fieldtype": "Tab Break",
@@ -666,7 +695,6 @@
    "non_negative": 1,
    "description": "Daily scheduler creates Probation Review reminder ToDos for Employees whose Scheduled Confirmation Date falls within this many days from today. Default 30."
   },
-
   {
    "fieldname": "exit_settlement_tab",
    "fieldtype": "Tab Break",
@@ -676,7 +704,7 @@
    "fieldname": "notice_recovery_section",
    "fieldtype": "Section Break",
    "label": "Notice Period Recovery / Pay-in-Lieu",
-   "description": "Drives the FnF notice math: per-day rate × notice balance. Used in receivables (Short Notice) or payables (Pay in Lieu)."
+   "description": "Drives the FnF notice math: per-day rate \u00d7 notice balance. Used in receivables (Short Notice) or payables (Pay in Lieu)."
   },
   {
    "default": "Basic Only",
@@ -716,7 +744,7 @@
    "fieldname": "auto_create_gratuity_on_fnf",
    "fieldtype": "Check",
    "label": "Auto-create Gratuity on FnF",
-   "description": "When tenure ≥ Gratuity Rule's minimum years AND no Gratuity exists for the Employee, FnF.validate creates a Gratuity draft using the Company's Gratuity Rule (or the first one found) and adds a payables line."
+   "description": "When tenure \u2265 Gratuity Rule's minimum years AND no Gratuity exists for the Employee, FnF.validate creates a Gratuity draft using the Company's Gratuity Rule (or the first one found) and adds a payables line."
   },
   {
    "default": "1",
@@ -734,7 +762,7 @@
    "fieldname": "compute_tds_on_fnf",
    "fieldtype": "Check",
    "label": "Compute TDS on Final Settlement",
-   "description": "FnF.validate computes projected_annual_tax via Income Tax Slab applied to (YTD gross + FnF taxable payables) − YTD TDS deducted. Adds a 'TDS on Final Settlement' line to receivables. Skipped silently when no slab applies."
+   "description": "FnF.validate computes projected_annual_tax via Income Tax Slab applied to (YTD gross + FnF taxable payables) \u2212 YTD TDS deducted. Adds a 'TDS on Final Settlement' line to receivables. Skipped silently when no slab applies."
   },
   {
    "fieldname": "exit_letters_section",
@@ -774,7 +802,6 @@
    "non_negative": 1,
    "description": "Daily scheduler alerts HR when within this many days of the Form 16 issuance deadline (June 15 each year)."
   },
-
   {
    "fieldname": "compliance_tab",
    "fieldtype": "Tab Break",
@@ -849,7 +876,7 @@
    "fieldtype": "Int",
    "label": "Statutory SLA (days)",
    "non_negative": 1,
-   "description": "Sec 11 of POSH Act 2013 mandates 90 days. Editable for jurisdictions that adopt different timelines — change with legal advice."
+   "description": "Sec 11 of POSH Act 2013 mandates 90 days. Editable for jurisdictions that adopt different timelines \u2014 change with legal advice."
   },
   {
    "default": "HR Manager",
@@ -857,7 +884,7 @@
    "fieldtype": "Link",
    "options": "Role",
    "label": "POSH IC Alert Role",
-   "description": "Role notified when the IC for a Company is missing or has fewer than 4 active members (informational — not enforced)."
+   "description": "Role notified when the IC for a Company is missing or has fewer than 4 active members (informational \u2014 not enforced)."
   },
   {
    "fieldname": "column_break_posh_1",
@@ -875,7 +902,7 @@
    "fieldname": "disciplinary_section",
    "fieldtype": "Section Break",
    "label": "Disciplinary Action Triggers",
-   "description": "Each downstream document trigger can be disabled here — useful for staged rollouts or when HR wants to keep manual control."
+   "description": "Each downstream document trigger can be disabled here \u2014 useful for staged rollouts or when HR wants to keep manual control."
   },
   {
    "default": "30",
@@ -919,7 +946,7 @@
    "fieldname": "wage_code_section",
    "fieldtype": "Section Break",
    "label": "Wage Code Enforcement",
-   "description": "Wage Code §2(y) (live since 21 Nov 2025) requires Basic + DA + Retaining Allowance ≥ 50% of total wages."
+   "description": "Wage Code \u00a72(y) (live since 21 Nov 2025) requires Basic + DA + Retaining Allowance \u2265 50% of total wages."
   },
   {
    "default": "HARD",
@@ -950,7 +977,7 @@
    "fieldname": "pf_wage_ceiling",
    "fieldtype": "Currency",
    "label": "PF Wage Ceiling",
-   "description": "EPS / EDLI capped at this monthly wage (₹15,000 in 2026)."
+   "description": "EPS / EDLI capped at this monthly wage (\u20b915,000 in 2026)."
   },
   {
    "default": "12.0",
@@ -991,7 +1018,7 @@
    "fieldname": "pf_admin_charges_min",
    "fieldtype": "Currency",
    "label": "PF Admin Charges Minimum",
-   "description": "Per-establishment per-month minimum (₹500 in 2026)."
+   "description": "Per-establishment per-month minimum (\u20b9500 in 2026)."
   },
   {
    "default": "20",
@@ -1010,7 +1037,7 @@
    "fieldname": "esi_wage_ceiling",
    "fieldtype": "Currency",
    "label": "ESI Wage Ceiling",
-   "description": "Monthly gross at or below which ESI applies (₹21,000 standard)."
+   "description": "Monthly gross at or below which ESI applies (\u20b921,000 standard)."
   },
   {
    "default": "25000",
@@ -1051,7 +1078,7 @@
    "fieldname": "pan_mandatory_annual_income",
    "fieldtype": "Currency",
    "label": "PAN Mandatory Above Annual Income",
-   "description": "Below this annual income (monthly base × 12) a missing PAN is a non-blocking warning — no TDS / Form 16 arises. At or above it, a missing PAN hard-blocks the Salary Structure Assignment. Set to 0 to make PAN mandatory for everyone."
+   "description": "Below this annual income (monthly base \u00d7 12) a missing PAN is a non-blocking warning \u2014 no TDS / Form 16 arises. At or above it, a missing PAN hard-blocks the Salary Structure Assignment. Set to 0 to make PAN mandatory for everyone."
   },
   {
    "fieldname": "min_wage_section",
@@ -1081,7 +1108,7 @@
    "fieldname": "dpdp_section",
    "fieldtype": "Section Break",
    "label": "Digital Personal Data Protection (DPDP)",
-   "description": "Forward-looking — DPDP Rules 2026 implementation."
+   "description": "Forward-looking \u2014 DPDP Rules 2026 implementation."
   },
   {
    "default": "1",
@@ -1174,13 +1201,235 @@
    "fieldtype": "Markdown Editor",
    "label": "AI Remarks",
    "read_only": 1
+  },
+  {
+   "fieldname": "dpdp_enable_access_logging",
+   "label": "DPDP: Enable Access Logging",
+   "fieldtype": "Check",
+   "default": "1",
+   "description": "Master kill-switch for the DPDP Access Logger. When OFF, sensitive-field-access logging is bypassed entirely. Useful for disabling during bulk operations or load tests."
+  },
+  {
+   "fieldname": "dpdp_access_log_throttle_seconds",
+   "label": "DPDP: Access Log Throttle (Seconds)",
+   "fieldtype": "Int",
+   "default": "3600",
+   "description": "Minimum seconds between identical access log entries for (user \u00d7 doctype \u00d7 record \u00d7 field). Prevents log floods on repeated form refreshes. Default 3600 (1 hour)."
+  },
+  {
+   "fieldname": "dpdp_purge_max_per_run",
+   "label": "DPDP: Purge Max Records Per Run",
+   "fieldtype": "Int",
+   "default": "50",
+   "description": "Hard cap on records the weekly retention purge scheduler processes in one run. Safety bound against runaway purges from a misconfigured Data Retention Rule. Default 50."
+  },
+  {
+   "fieldname": "dpdp_breach_notification_recipients_role",
+   "label": "DPDP: Breach Notification Role",
+   "fieldtype": "Link",
+   "options": "Role",
+   "default": "HR Manager",
+   "description": "Role whose holders receive PWA breach-notification alerts. The DPB (Data Protection Board) notification is separate."
+  },
+  {
+   "fieldname": "employee_consent_text_version",
+   "label": "Employee Consent Text Version",
+   "fieldtype": "Data",
+   "default": "1.0",
+   "description": "Snapshotted on every Onboarding Application and Profile Change Request at submission time. Bump when the consent wording materially changes; existing records remain pinned to the version under which they were captured."
+  },
+  {
+   "fieldname": "self_editable_employee_fields",
+   "label": "Self-Editable Employee Fields",
+   "fieldtype": "Long Text",
+   "description": "One Employee fieldname per line. Employees can request changes to these fields via the PWA. Blank lines and lines starting with '#' are ignored. Leave blank to use the built-in defaults."
+  },
+  {
+   "fieldname": "onboarding_settings_section",
+   "label": "Employee Onboarding",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "onboarding_invite_validity_days",
+   "label": "Onboarding: Invite Link Validity (Days)",
+   "fieldtype": "Int",
+   "default": "30",
+   "description": "How many days an Employee Onboarding invite link stays valid once generated. Tokens are HMAC-signed with this expiry baked in so a leaked link self-disables. Default 30."
+  },
+  {
+   "fieldname": "onboarding_min_employment_age",
+   "label": "Onboarding: Minimum Employment Age",
+   "fieldtype": "Int",
+   "default": "14",
+   "description": "Hard lock on the Employee Onboarding Application: candidates with a DOB implying age below this number are blocked. Default 14 (Child Labour (Prohibition and Regulation) Act, 1986). Set to 18 to enforce 'adults only' onboarding."
+  },
+  {
+   "fieldname": "pf_ecr_filing_window_days",
+   "label": "PF ECR Filing Window (Days)",
+   "fieldtype": "Int",
+   "default": "15",
+   "description": "Number of days after wage month end by which PF ECR must be filed. Daily reminders fire from wage_month_end + 1 to wage_month_end + window."
+  },
+  {
+   "fieldname": "pf_ecr_exclude_employees_with_no_uan",
+   "label": "PF ECR: Skip Employees Missing UAN",
+   "fieldtype": "Check",
+   "default": "1",
+   "description": "When ON, employees without a UAN are skipped (logged in Exceptions). When OFF, ECR generation throws \u2014 useful in strict environments where missing UAN must be fixed before filing."
+  },
+  {
+   "fieldname": "pf_edli_per_member_cap",
+   "label": "PF EDLI Per-Member Cap (\u20b9)",
+   "fieldtype": "Int",
+   "default": "75",
+   "description": "Per-member EDLI contribution cap. Computed as EDLI wage cap \u00d7 0.50% (15,000 \u00d7 0.005 = 75). Set higher only if Notification 2024-XX raises it."
+  },
+  {
+   "fieldname": "esi_filing_window_days",
+   "label": "ESI Filing Window (Days)",
+   "fieldtype": "Int",
+   "default": "15",
+   "description": "Number of days after wage month end by which ESI contribution must be filed."
+  },
+  {
+   "fieldname": "form_24q_filing_window_days",
+   "label": "Form 24Q Filing Window (Days)",
+   "fieldtype": "Int",
+   "default": "30",
+   "description": "Days BEFORE the statutory Form 24Q due date by which to start nagging HR Managers. Reminders continue for this many days AFTER the due date too. Q1 due 31 Jul, Q2 due 31 Oct, Q3 due 31 Jan, Q4 due 31 May."
+  },
+  {
+   "fieldname": "pt_filing_window_days",
+   "label": "PT Filing Window (Days)",
+   "fieldtype": "Int",
+   "default": "10",
+   "description": "Days after the PT filing period closes (monthly / half-yearly per state) within which to nag for an unfiled PT Return."
+  },
+  {
+   "fieldname": "lwf_filing_window_days",
+   "label": "LWF Filing Window (Days)",
+   "fieldtype": "Int",
+   "default": "15",
+   "description": "Days after the LWF filing period closes within which to nag for an unfiled LWF Return."
+  },
+  {
+   "fieldname": "responsible_person_default_designation",
+   "label": "Default Responsible-Person Designation (Form 24Q)",
+   "fieldtype": "Link",
+   "options": "Designation",
+   "description": "Pre-fills the 'Person Responsible for Deduction' designation on new TDS Return Form 24Q docs (e.g., 'Director - Finance' or 'CFO'). HR can override per return."
+  },
+  {
+   "fieldname": "compliance_calendar_section_break",
+   "label": "Compliance Calendar",
+   "fieldtype": "Section Break",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "compliance_calendar_upcoming_days",
+   "label": "Compliance Calendar Upcoming Days",
+   "fieldtype": "Int",
+   "default": "7",
+   "description": "Days ahead of the due date to start nagging the responsible person about an upcoming compliance filing."
+  },
+  {
+   "fieldname": "compliance_calendar_escalation_days_after_due",
+   "label": "Compliance Calendar Escalation Days After Due",
+   "fieldtype": "Int",
+   "default": "3",
+   "description": "Number of days past the due date after which to escalate to HR Manager."
+  },
+  {
+   "fieldname": "compliance_calendar_col_break",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "send_compliance_calendar_daily_digest",
+   "label": "Send Compliance Calendar Daily Digest",
+   "fieldtype": "Check",
+   "default": "1",
+   "description": "Send a per-Company HTML digest email of upcoming + overdue filings to the HR Manager role each day."
+  },
+  {
+   "fieldname": "compliance_calendar_digest_recipients_role",
+   "label": "Compliance Calendar Digest Recipients Role",
+   "fieldtype": "Link",
+   "options": "Role",
+   "default": "HR Manager",
+   "description": "Role whose users receive the digest + escalation alerts."
+  },
+  {
+   "fieldname": "auto_link_filings_to_calendar",
+   "label": "Auto-link Filings to Calendar",
+   "fieldtype": "Check",
+   "default": "1",
+   "description": "When a PF ECR / ESI / 24Q / PT / LWF / Form 16 / POSH Annual Report saves, automatically find + back-link its Compliance Filing row."
+  },
+  {
+   "fieldname": "labour_code_section_break",
+   "label": "Labour Code 2025",
+   "fieldtype": "Section Break",
+   "collapsible": 1
+  },
+  {
+   "fieldname": "standing_orders_threshold_workers",
+   "label": "Standing Orders Threshold (Workers)",
+   "fieldtype": "Int",
+   "default": "300",
+   "description": "IR Code \u00a728 \u2014 Standing Orders mandatory at this worker count."
+  },
+  {
+   "fieldname": "works_committee_threshold_workers",
+   "label": "Works Committee Threshold (Workers)",
+   "fieldtype": "Int",
+   "default": "100",
+   "description": "IR Code \u00a73 \u2014 Works Committee mandatory at this worker count."
+  },
+  {
+   "fieldname": "grc_threshold_workers",
+   "label": "GRC Threshold (Workers)",
+   "fieldtype": "Int",
+   "default": "20",
+   "description": "IR Code \u00a74 \u2014 Grievance Redressal Committee mandatory at this worker count."
+  },
+  {
+   "fieldname": "labour_code_col_break",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "safety_committee_threshold_workers",
+   "label": "Safety Committee Threshold (Workers)",
+   "fieldtype": "Int",
+   "default": "250",
+   "description": "OSH&WC \u00a796 \u2014 Safety Committee mandatory at this worker count."
+  },
+  {
+   "fieldname": "posh_ic_threshold_workers",
+   "label": "POSH IC Threshold (Workers)",
+   "fieldtype": "Int",
+   "default": "10",
+   "description": "POSH Act \u00a74 \u2014 Internal Committee mandatory at this worker count."
+  },
+  {
+   "fieldname": "enable_uan_aadhaar_validation",
+   "label": "Enable UAN Aadhaar Validation",
+   "fieldtype": "Check",
+   "default": "1",
+   "description": "Warn on Employee.validate when UAN is set but not seeded with Aadhaar (SS Code \u00a7142)."
+  },
+  {
+   "fieldname": "enable_monthly_labour_code_compliance_check",
+   "label": "Enable Monthly Labour Code Compliance Check",
+   "fieldtype": "Check",
+   "default": "1",
+   "description": "Monthly scheduler \u2014 compare worker count vs thresholds; notify HR Manager on gaps."
   }
  ],
  "icon": "fa fa-cog",
  "idx": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-06-19 18:30:00.000000",
+ "modified": "2026-07-13 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "HR",
  "name": "HR Settings",

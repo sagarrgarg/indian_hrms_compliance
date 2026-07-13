@@ -1,7 +1,9 @@
 [pre_model_sync]
+indian_hrms_compliance.patches.v15_0.nativize_hr_settings_drop_stale_custom_fields #2026-07-13
 indian_hrms_compliance.patches.v15_0.check_version_compatibility_with_frappe #2023-06-27
 
 [post_model_sync]
+indian_hrms_compliance.patches.v15_0.nativize_hr_settings_seed #2026-07-13
 indian_hrms_compliance.patches.post_install.set_payroll_entry_status
 indian_hrms_compliance.patches.v1_0.rearrange_employee_fields
 indian_hrms_compliance.patches.post_install.update_allocate_on_in_leave_type
@@ -62,18 +64,13 @@ indian_hrms_compliance.patches.v15_0.add_minimum_wage_category_fields #2026-05-3
 indian_hrms_compliance.patches.v15_0.seed_indian_states #2026-05-30
 indian_hrms_compliance.patches.v15_0.seed_statutory_defaults #2026-05-30
 indian_hrms_compliance.patches.v15_0.extend_salary_component_types #2026-05-31
-indian_hrms_compliance.patches.v15_0.add_pf_esi_hr_settings #2026-05-31
 indian_hrms_compliance.patches.v15_0.seed_pf_esi_hr_settings_defaults #2026-05-31
-indian_hrms_compliance.patches.v15_0.add_phase6b2_hr_settings #2026-06-01
 indian_hrms_compliance.patches.v15_0.seed_phase6b2_defaults #2026-06-01
-indian_hrms_compliance.patches.v15_0.add_compliance_calendar_hr_settings #2026-06-02
 indian_hrms_compliance.patches.v15_0.seed_compliance_calendar_defaults #2026-06-02
 indian_hrms_compliance.patches.v15_0.setup_standing_orders_workflow #2026-06-03
-indian_hrms_compliance.patches.v15_0.add_labour_code_hr_settings #2026-06-03
 indian_hrms_compliance.patches.v15_0.seed_labour_code_defaults #2026-06-03
 indian_hrms_compliance.patches.v15_0.dpdp_add_doctypes_seed #2026-06-03
 indian_hrms_compliance.patches.v15_0.dpdp_setup_data_erasure_workflow #2026-06-03
-indian_hrms_compliance.patches.v15_0.dpdp_add_hr_settings #2026-06-03
 indian_hrms_compliance.patches.v15_0.dpdp_seed_defaults #2026-06-03
 indian_hrms_compliance.patches.v15_0.dpdp_seed_data_retention_rules #2026-06-03
 indian_hrms_compliance.patches.v15_0.convert_approvers_to_employee #2026-05-31
@@ -82,11 +79,8 @@ indian_hrms_compliance.patches.v15_0.update_leave_notification_templates #2026-0
 indian_hrms_compliance.patches.v15_0.add_company_salary_component_defaults #2026-05-31
 indian_hrms_compliance.patches.v15_0.add_employee_readiness_tab #2026-05-31
 indian_hrms_compliance.patches.v15_0.add_task_delegation_fields #2026-05-31
-indian_hrms_compliance.patches.v15_0.onboarding_compliance_lockdown #2026-06-04
 indian_hrms_compliance.patches.v15_0.posh_text_accused_split #2026-06-04
 indian_hrms_compliance.patches.v15_0.add_full_aadhaar_field #2026-06-04
-indian_hrms_compliance.patches.v15_0.add_profile_change_request_settings #2026-06-04
-indian_hrms_compliance.patches.v15_0.add_consent_text_version_setting #2026-06-04
 indian_hrms_compliance.patches.v15_0.onboarding_required_documents #2026-06-12
 indian_hrms_compliance.patches.v15_0.attendance_backdated_master_approval #2026-06-12
 indian_hrms_compliance.patches.v15_0.seed_notify_employee_policy_email #2026-06-12
@@ -94,7 +88,6 @@ indian_hrms_compliance.patches.v15_0.promote_auto_leave_policy_to_standard_field
 indian_hrms_compliance.patches.v15_0.add_biometric_id_mode_setting #2026-06-19
 indian_hrms_compliance.patches.v15_0.add_employee_permanent_address_same_as_current #2026-06-19
 indian_hrms_compliance.patches.v15_0.add_company_onboarding_colors #2026-06-19
-indian_hrms_compliance.patches.v15_0.relocate_onboarding_hr_settings #2026-06-19
 indian_hrms_compliance.patches.v15_0.enable_guest_onboarding_uploads #2026-06-19
 indian_hrms_compliance.patches.v15_0.add_employee_documents_table #2026-06-19
 indian_hrms_compliance.patches.v15_0.link_onboarding_document_files #2026-06-20
