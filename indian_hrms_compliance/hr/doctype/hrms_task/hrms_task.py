@@ -27,6 +27,27 @@ class HRMSTask(NestedSet):
 		self._validate_scope()
 		self._validate_approval_routing()
 		self._validate_kpi_fields()
+		self._sync_cadence_schedule()
+
+	def _sync_cadence_schedule(self):
+		"""Adding schedule rows auto-enables the explicit schedule; occurrence
+		labels must be unique because they seed each Task Instance's period label
+		(the idempotency key). Mirrors Compliance Return Definition."""
+		rows = self.get("cadence_schedule") or []
+		if rows and not self.use_cadence_schedule:
+			self.use_cadence_schedule = 1
+
+		seen = set()
+		for row in rows:
+			label = (row.occurrence_label or "").strip()
+			if not label:
+				continue
+			key = label.lower()
+			if key in seen:
+				frappe.throw(
+					_("Duplicate occurrence '{0}' in the Cadence Schedule — labels must be unique.").format(label)
+				)
+			seen.add(key)
 
 	def _validate_weight(self):
 		if self.weight is not None and (self.weight < 0 or self.weight > 100):
@@ -190,6 +211,41 @@ def compute_period_for_today(frequency, today_d=None):
 	return None  # On-demand (and One-time, handled by the caller)
 
 
+def _cadence_periods_active_on(rows, target_d):
+	"""For a Task carrying an explicit Cadence Schedule, return the period_info
+	dict(s) whose window [period_start .. due_date] contains target_d — i.e. the
+	occurrences that should have a live Task Instance on that date, each with its
+	exact due date. Usually one; more only if schedules overlap.
+
+	We resolve against both the FY containing target_d and the previous one, so
+	an occurrence whose period opened last April but is still due (e.g. an annual
+	item due in December of the following year) is still caught in Jan–Mar."""
+	if not rows:
+		return []
+	from indian_hrms_compliance.utils import cadence as _cadence
+
+	target_d = getdate(target_d)
+	base_fy = _cadence.fy_start_year_for(target_d)
+	out, seen = [], set()
+	for fy_start_year in (base_fy, base_fy - 1):
+		suffix = _cadence.fy_label(fy_start_year)
+		for occ in _cadence.resolve_schedule(rows, fy_start_year):
+			if occ["period_start"] <= target_d <= occ["due_date"]:
+				label = f"{occ['label']} {suffix}"
+				if label in seen:
+					continue
+				seen.add(label)
+				out.append(
+					{
+						"label": label,
+						"start": occ["period_start"],
+						"end": occ["period_end"],
+						"due_date": occ["due_date"],
+					}
+				)
+	return out
+
+
 def instantiate_due_tasks(target_date=None):
 	"""Scheduler (daily): for each Active leaf HRMS Task whose frequency ticks
 	in the lookahead window, create a Goal record (goal_type='Task Instance')
@@ -246,6 +302,7 @@ def _instantiate_for_date(target_d):
 			"company",
 			"effective_from",
 			"effective_to",
+			"use_cadence_schedule",
 		],
 	)
 
@@ -254,33 +311,56 @@ def _instantiate_for_date(target_d):
 		if task.effective_to and getdate(task.effective_to) < target_d:
 			continue
 
-		# One-off work is created directly as a Goal (by a manager/HR), not via a
-		# recurring HRMS Task template — so the scheduler only handles recurring
-		# frequencies here.
-		period_info = compute_period_for_today(task.frequency, target_d)
-		if not period_info:
+		# An explicit Cadence Schedule pins exact due dates; otherwise fall back
+		# to the frequency-derived single period (due = period end). One-off work
+		# is created directly as a Goal, so the scheduler only handles recurring
+		# frequencies / scheduled cadences here.
+		if task.get("use_cadence_schedule"):
+			rows = frappe.get_all(
+				"Cadence Schedule",
+				filters={"parent": task.name, "parenttype": "HRMS Task"},
+				fields=[
+					"occurrence_label",
+					"active",
+					"period_start_month",
+					"period_start_year_index",
+					"period_end_month",
+					"period_end_year_index",
+					"due_month",
+					"due_day",
+					"due_year_index",
+				],
+				order_by="idx asc",
+			)
+			period_infos = _cadence_periods_active_on(rows, target_d)
+		else:
+			pi = compute_period_for_today(task.frequency, target_d)
+			period_infos = [pi] if pi else []
+
+		if not period_infos:
 			continue
 
 		assigned = resolve_assigned_employees(task)
 
-		for emp_name in assigned:
-			if frappe.db.exists(
-				"Goal",
-				{
-					"task_template": task.name,
-					"employee": emp_name,
-					"period_label": period_info["label"],
-				},
-			):
-				continue
-			try:
-				_create_task_instance(task, emp_name, period_info)
-				created += 1
-			except Exception:
-				frappe.log_error(
-					title=f"Task Instance creation failed for {task.name}/{emp_name}",
-					message=frappe.get_traceback(),
-				)
+		for period_info in period_infos:
+			for emp_name in assigned:
+				if frappe.db.exists(
+					"Goal",
+					{
+						"task_template": task.name,
+						"employee": emp_name,
+						"period_label": period_info["label"],
+					},
+				):
+					continue
+				try:
+					_create_task_instance(task, emp_name, period_info)
+					created += 1
+				except Exception:
+					frappe.log_error(
+						title=f"Task Instance creation failed for {task.name}/{emp_name}",
+						message=frappe.get_traceback(),
+					)
 	return created
 
 

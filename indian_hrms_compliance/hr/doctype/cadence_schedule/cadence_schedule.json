@@ -1,0 +1,127 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-07-19 10:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "occurrence_label",
+  "active",
+  "period_section",
+  "period_start_month",
+  "period_start_year_index",
+  "column_break_period",
+  "period_end_month",
+  "period_end_year_index",
+  "due_section",
+  "due_month",
+  "due_day",
+  "due_year_index"
+ ],
+ "fields": [
+  {
+   "columns": 2,
+   "description": "Unique tag for this occurrence within the schedule (e.g. GSTR3B-Apr, 26Q-Q1, Annual). Drives the generated period label — keep it distinct.",
+   "fieldname": "occurrence_label",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Occurrence",
+   "reqd": 1
+  },
+  {
+   "columns": 1,
+   "default": "1",
+   "fieldname": "active",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Active"
+  },
+  {
+   "fieldname": "period_section",
+   "fieldtype": "Section Break",
+   "label": "Period Covered"
+  },
+  {
+   "columns": 2,
+   "description": "First month of the tax/work period this occurrence covers.",
+   "fieldname": "period_start_month",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Period From",
+   "options": "January\nFebruary\nMarch\nApril\nMay\nJune\nJuly\nAugust\nSeptember\nOctober\nNovember\nDecember",
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "description": "Years after the FY start (0 = same FY year, 1 = next). Auto-set for Jan–Mar periods. Advanced — leave 0 unless the date wraps.",
+   "fieldname": "period_start_year_index",
+   "fieldtype": "Int",
+   "label": "From · +Years"
+  },
+  {
+   "fieldname": "column_break_period",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Last month of the period (may be earlier in the year when the period wraps the FY, e.g. Jan–Mar).",
+   "fieldname": "period_end_month",
+   "fieldtype": "Select",
+   "label": "Period To",
+   "options": "January\nFebruary\nMarch\nApril\nMay\nJune\nJuly\nAugust\nSeptember\nOctober\nNovember\nDecember",
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "description": "Years after the FY start for the period-end month.",
+   "fieldname": "period_end_year_index",
+   "fieldtype": "Int",
+   "label": "To · +Years"
+  },
+  {
+   "fieldname": "due_section",
+   "fieldtype": "Section Break",
+   "label": "Due Date"
+  },
+  {
+   "columns": 2,
+   "description": "Month the filing / task is due.",
+   "fieldname": "due_month",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Due Month",
+   "options": "January\nFebruary\nMarch\nApril\nMay\nJune\nJuly\nAugust\nSeptember\nOctober\nNovember\nDecember",
+   "reqd": 1
+  },
+  {
+   "columns": 1,
+   "default": "0",
+   "description": "Day of the due month (1–31). 0 = last day of the month (auto-adjusts for 28/29/30/31).",
+   "fieldname": "due_day",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Due Day",
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "description": "Years after the FY start for the due date. Use 1 for returns due in the following year (e.g. an annual return due next December).",
+   "fieldname": "due_year_index",
+   "fieldtype": "Int",
+   "label": "Due · +Years"
+  }
+ ],
+ "idx": 0,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-07-19 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "HR",
+ "name": "Cadence Schedule",
+ "naming_rule": "Random",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

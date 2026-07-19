@@ -196,10 +196,31 @@ def _half_year_due_date(period_end):
 def _spec_for_definition(definition, fy_start_date):
 	"""Yield (period_label, period_start, period_end, due_date) for a given
 	definition over the supplied FY window. fy_start_date is the FY's
-	April 1."""
-	frequency = (definition.frequency or "").strip()
+	April 1.
+
+	If the definition carries an explicit Cadence Schedule (and it's enabled),
+	that wins: each active row resolves to exact dates for this FY via the pure
+	`utils.cadence` engine. Otherwise we fall back to the classic frequency +
+	due_offset derivation, so every pre-existing definition behaves unchanged.
+	"""
 	fy_start_d = getdate(fy_start_date)
 	fy_end_d = date_cls(fy_start_d.year + 1, 3, 31)
+
+	schedule = getattr(definition, "cadence_schedule", None)
+	if getattr(definition, "use_cadence_schedule", 0) and schedule:
+		from indian_hrms_compliance.utils import cadence as _cadence
+
+		fy_suffix = _cadence.fy_label(fy_start_d.year)
+		for occ in _cadence.resolve_schedule(schedule, fy_start_d.year):
+			yield (
+				f"{occ['label']} {fy_suffix}",
+				occ["period_start"],
+				occ["period_end"],
+				occ["due_date"],
+			)
+		return
+
+	frequency = (definition.frequency or "").strip()
 
 	if frequency == "Monthly":
 		for (ms, me) in _months_between(fy_start_d, fy_end_d):
@@ -395,6 +416,7 @@ def populate_compliance_filings_for_period(company, from_date, to_date):
 			"frequency",
 			"due_offset_days",
 			"due_offset_from",
+			"use_cadence_schedule",
 			"responsible_person",
 			"linked_filing_doctype",
 			"effective_from",
@@ -419,6 +441,29 @@ def populate_compliance_filings_for_period(company, from_date, to_date):
 		ddef.return_type = d.return_type
 		ddef.due_offset_days = d.due_offset_days
 		ddef.due_offset_from = d.due_offset_from
+		ddef.use_cadence_schedule = d.get("use_cadence_schedule")
+		# Child rows aren't returned by get_all — fetch the explicit schedule
+		# (if any) so _spec_for_definition can resolve exact dates.
+		ddef.cadence_schedule = (
+			frappe.get_all(
+				"Cadence Schedule",
+				filters={"parent": d.name, "parenttype": "Compliance Return Definition"},
+				fields=[
+					"occurrence_label",
+					"active",
+					"period_start_month",
+					"period_start_year_index",
+					"period_end_month",
+					"period_end_year_index",
+					"due_month",
+					"due_day",
+					"due_year_index",
+				],
+				order_by="idx asc",
+			)
+			if d.get("use_cadence_schedule")
+			else []
+		)
 
 		for fy_start in sorted(fy_starts):
 			for label, ps, pe, due in _spec_for_definition(ddef, fy_start):

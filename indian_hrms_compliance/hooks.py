@@ -78,6 +78,15 @@ doctype_js["Company"] = ["public/js/erpnext/company.js", "public/js/labour_code_
 doctype_js["Data Consent"] = "public/js/data_consent.js"
 doctype_js["Data Erasure Request"] = "public/js/data_erasure_request.js"
 doctype_js["DPDP Compliance Profile"] = "public/js/dpdp_compliance_profile.js"
+
+# Cadence — shared "Generate rows / Preview dates" helpers for any doctype that
+# carries a `cadence_schedule` child table. Appended as a list so the existing
+# CRD script is preserved.
+doctype_js["Compliance Return Definition"] = [
+	"public/js/compliance_return_definition.js",
+	"public/js/cadence_schedule.js",
+]
+doctype_js["HRMS Task"] = "public/js/cadence_schedule.js"
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
 # doctype_calendar_js = {"doctype" : "public/js/doctype_calendar.js"}

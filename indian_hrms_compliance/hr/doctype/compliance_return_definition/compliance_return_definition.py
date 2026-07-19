@@ -20,6 +20,29 @@ class ComplianceReturnDefinition(Document):
 	def validate(self):
 		self._validate_state_required_for_state_returns()
 		self._enforce_unique_definition()
+		self._sync_cadence_schedule()
+
+	def _sync_cadence_schedule(self):
+		"""Keep the 'use explicit schedule' flag honest and the rows sane.
+
+		Adding rows auto-enables the schedule so a user doesn't have to remember
+		the checkbox; occurrence labels must be distinct because they seed the
+		Compliance Filing period label (and its unique name)."""
+		rows = self.get("cadence_schedule") or []
+		if rows and not self.use_cadence_schedule:
+			self.use_cadence_schedule = 1
+
+		seen = set()
+		for row in rows:
+			label = (row.occurrence_label or "").strip()
+			if not label:
+				continue
+			key = label.lower()
+			if key in seen:
+				frappe.throw(
+					_("Duplicate occurrence '{0}' in the Cadence Schedule — labels must be unique.").format(label)
+				)
+			seen.add(key)
 
 	def _validate_state_required_for_state_returns(self):
 		"""PT / LWF / S&E require a state. Federal returns must not have one."""

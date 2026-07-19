@@ -26,6 +26,9 @@
   "expected_count_per_period",
   "col_break_schedule",
   "weight",
+  "cadence_section",
+  "use_cadence_schedule",
+  "cadence_schedule",
   "completion_section",
   "completion_type",
   "col_break_completion",
@@ -193,6 +196,27 @@
    "label": "Weight",
    "default": "1",
    "description": "Relative scoring weight for KRA aggregation (0-100). Higher = bigger contribution to KRA score."
+  },
+  {
+   "fieldname": "cadence_section",
+   "fieldtype": "Section Break",
+   "label": "Explicit Due Schedule (Cadence)",
+   "collapsible": 1,
+   "description": "Optional. Pin exact due dates (which months, which day) per occurrence instead of deriving due = period end from Frequency above. When any row is present the schedule wins; leave empty to keep the plain Frequency behaviour."
+  },
+  {
+   "default": "0",
+   "fieldname": "use_cadence_schedule",
+   "fieldtype": "Check",
+   "label": "Use Explicit Due Schedule",
+   "description": "Auto-ticks when you add schedule rows. When on, Frequency is ignored and instances are created from the schedule with exact due dates."
+  },
+  {
+   "fieldname": "cadence_schedule",
+   "fieldtype": "Table",
+   "label": "Cadence Schedule",
+   "options": "Cadence Schedule",
+   "depends_on": "eval:doc.use_cadence_schedule || (doc.cadence_schedule && doc.cadence_schedule.length)"
   },
   {
    "fieldname": "completion_section",
@@ -437,7 +461,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-05-29 18:00:00.000000",
+ "modified": "2026-07-19 10:10:00.000000",
  "modified_by": "Administrator",
  "module": "HR",
  "name": "HRMS Task",
