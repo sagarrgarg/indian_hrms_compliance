@@ -5,7 +5,7 @@ from calendar import monthrange
 
 import frappe
 from frappe import _
-from frappe.utils import add_days, getdate, today
+from frappe.utils import add_days, add_months, getdate, today
 from frappe.utils.nestedset import NestedSet
 
 SCOPE_FIELDS = (
@@ -211,11 +211,26 @@ def compute_period_for_today(frequency, today_d=None):
 	return None  # On-demand (and One-time, handled by the caller)
 
 
+def _occurrence_months(occ):
+	"""Length of an occurrence's period in whole months (Monthly=1, Quarterly=3,
+	Half-Yearly=6, Annual=12). Used as the lead time so a future instance is
+	created ONE PERIOD ahead — a month before for monthly, a quarter before for
+	quarterly, etc."""
+	ps, pe = occ["period_start"], occ["period_end"]
+	return (pe.year - ps.year) * 12 + (pe.month - ps.month) + 1
+
+
 def _cadence_periods_active_on(rows, target_d):
 	"""For a Task carrying an explicit Cadence Schedule, return the period_info
-	dict(s) whose window [period_start .. due_date] contains target_d — i.e. the
-	occurrences that should have a live Task Instance on that date, each with its
-	exact due date. Usually one; more only if schedules overlap.
+	dict(s) that should have a live Task Instance on target_d, each with its
+	exact due date.
+
+	The activation window is [period_start − one period .. due_date]: opening it
+	one whole period early means the NEXT occurrence is surfaced ahead of time —
+	a monthly goal appears ~1 month before its period, a quarterly goal ~1
+	quarter before — giving the assignee lead time to prepare. The due date is
+	unchanged (real statutory date); only when the goal first appears moves
+	earlier. Past-due occurrences still drop off once due_date passes.
 
 	We resolve against both the FY containing target_d and the previous one, so
 	an occurrence whose period opened last April but is still due (e.g. an annual
@@ -227,10 +242,13 @@ def _cadence_periods_active_on(rows, target_d):
 	target_d = getdate(target_d)
 	base_fy = _cadence.fy_start_year_for(target_d)
 	out, seen = [], set()
-	for fy_start_year in (base_fy, base_fy - 1):
+	# Look back two FYs as well as the current one: with a lead of up to a full
+	# year (annual cadence), an occurrence in the next FY can already be active.
+	for fy_start_year in (base_fy + 1, base_fy, base_fy - 1):
 		suffix = _cadence.fy_label(fy_start_year)
 		for occ in _cadence.resolve_schedule(rows, fy_start_year):
-			if occ["period_start"] <= target_d <= occ["due_date"]:
+			window_open = getdate(add_months(occ["period_start"], -_occurrence_months(occ)))
+			if window_open <= target_d <= occ["due_date"]:
 				label = f"{occ['label']} {suffix}"
 				if label in seen:
 					continue
