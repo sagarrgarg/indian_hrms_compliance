@@ -26,6 +26,7 @@
   "expected_count_per_period",
   "col_break_schedule",
   "weight",
+  "reminder_lead_days",
   "cadence_section",
   "use_cadence_schedule",
   "cadence_schedule",
@@ -196,6 +197,13 @@
    "label": "Weight",
    "default": "1",
    "description": "Relative scoring weight for KRA aggregation (0-100). Higher = bigger contribution to KRA score."
+  },
+  {
+   "fieldname": "reminder_lead_days",
+   "fieldtype": "Int",
+   "label": "Reminder Lead (Days Before Due)",
+   "default": "0",
+   "description": "Send a one-time heads-up this many days before the due date, for work that needs a running start. 0 = only due-date/overdue reminders. Presets: 1 = 1 day, 7 = 1 week. Caps by frequency — Weekly ≤ 6, Monthly ≤ 15, Quarterly ≤ 45, Yearly ≤ 180; not applicable to Daily / On-demand."
   },
   {
    "fieldname": "cadence_section",
@@ -461,7 +469,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-07-19 10:10:00.000000",
+ "modified": "2026-07-19 10:20:00.000000",
  "modified_by": "Administrator",
  "module": "HR",
  "name": "HRMS Task",

@@ -17,6 +17,18 @@ SCOPE_FIELDS = (
 	"assigned_to_employee_group",
 )
 
+# Maximum reminder lead (days before due) allowed per frequency. Daily / On-demand
+# tasks have no meaningful lead (0). A monthly task shouldn't nag more than a
+# fortnight out; a quarterly one no more than ~6 weeks.
+FREQ_MAX_LEAD_DAYS = {
+	"Daily": 0,
+	"Weekly": 6,
+	"Monthly": 15,
+	"Quarterly": 45,
+	"Yearly": 180,
+	"On-demand": 0,
+}
+
 
 class HRMSTask(NestedSet):
 	nsm_parent_field = "parent_task"
@@ -27,7 +39,28 @@ class HRMSTask(NestedSet):
 		self._validate_scope()
 		self._validate_approval_routing()
 		self._validate_kpi_fields()
+		self._validate_reminder_lead()
 		self._sync_cadence_schedule()
+
+	def _validate_reminder_lead(self):
+		lead = int(self.reminder_lead_days or 0)
+		if lead < 0:
+			frappe.throw(_("Reminder Lead (days before due) cannot be negative."))
+		if lead == 0:
+			return
+		cap = FREQ_MAX_LEAD_DAYS.get(self.frequency)
+		if cap is None:
+			return
+		if cap == 0:
+			frappe.throw(
+				_("A reminder lead does not apply to {0} tasks — set it to 0.").format(self.frequency)
+			)
+		if lead > cap:
+			frappe.throw(
+				_("Reminder Lead for {0} tasks cannot exceed {1} days (got {2}).").format(
+					self.frequency, cap, lead
+				)
+			)
 
 	def _sync_cadence_schedule(self):
 		"""Adding schedule rows auto-enables the explicit schedule; occurrence
@@ -452,6 +485,60 @@ def _safe_pwa_notification(to_user, message, ref_type, ref_name):
 		except Exception:
 			pass
 		frappe.log_error(title="Task Instance notification failed", message=frappe.get_traceback())
+
+
+def send_upcoming_task_reminders():
+	"""Scheduler (daily): a one-time 'due soon' heads-up to the employee once
+	today reaches (due_date - reminder_lead_days) for their open Task Instances.
+
+	This is for work that needs a running start — a monthly filing you can't
+	leave to the 20th, a quarterly return that takes a week to compile. It fires
+	exactly once per instance (idempotent via lead_reminder_sent_on); the
+	separate overdue pass takes over after the due date. Ad-hoc tasks have no
+	template, hence no lead, so they're naturally skipped."""
+	today_d = getdate(today())
+
+	templates = frappe.get_all(
+		"HRMS Task",
+		filters={"reminder_lead_days": (">", 0)},
+		fields=["name", "reminder_lead_days"],
+	)
+	if not templates:
+		return
+	lead_by_template = {t.name: int(t.reminder_lead_days or 0) for t in templates}
+
+	goals = frappe.get_all(
+		"Goal",
+		filters={
+			"goal_type": "Task Instance",
+			"status": ("in", ["Pending", "In Progress"]),
+			"due_date": (">=", today_d),
+			"task_template": ("in", list(lead_by_template)),
+			"lead_reminder_sent_on": ("is", "not set"),
+		},
+		fields=["name", "employee", "goal_name", "due_date", "task_template"],
+	)
+
+	for g in goals:
+		lead = lead_by_template.get(g.task_template, 0)
+		if not lead:
+			continue
+		if add_days(getdate(g.due_date), -lead) > today_d:
+			continue  # lead window not open yet
+
+		emp_user = frappe.db.get_value("Employee", g.employee, "user_id")
+		if emp_user:
+			days_left = (getdate(g.due_date) - today_d).days
+			when = _("due today") if days_left <= 0 else _("due {0} (in {1} day(s))").format(
+				g.due_date, days_left
+			)
+			_safe_pwa_notification(
+				to_user=emp_user,
+				message=_("Upcoming task: {0} — {1}. Best to start now.").format(g.goal_name, when),
+				ref_type="Goal",
+				ref_name=g.name,
+			)
+		frappe.db.set_value("Goal", g.name, "lead_reminder_sent_on", today_d, update_modified=False)
 
 
 def send_overdue_task_reminders():

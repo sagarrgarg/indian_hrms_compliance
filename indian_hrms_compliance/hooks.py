@@ -399,6 +399,7 @@ scheduler_events = {
 		"indian_hrms_compliance.hr.doctype.probation_review.probation_review.create_probation_review_reminders",
 		"indian_hrms_compliance.hr.doctype.hrms_policy.hrms_policy.send_overdue_policy_ack_reminders",
 		"indian_hrms_compliance.hr.doctype.hrms_task.hrms_task.instantiate_due_tasks",
+		"indian_hrms_compliance.hr.doctype.hrms_task.hrms_task.send_upcoming_task_reminders",
 		"indian_hrms_compliance.hr.doctype.hrms_task.hrms_task.send_overdue_task_reminders",
 		"indian_hrms_compliance.hr.doctype.hrms_task.hrms_task.archive_old_completed_task_instances",
 		"indian_hrms_compliance.overrides.grievance_workflow.send_overdue_grievance_reminders",

@@ -768,6 +768,14 @@ def get_custom_fields():
 				"insert_after": "approval_notes",
 				"depends_on": "eval:doc.goal_type=='Task Instance'",
 			},
+			{
+				"fieldname": "lead_reminder_sent_on",
+				"fieldtype": "Date",
+				"label": _("Lead Reminder Sent On"),
+				"read_only": 1,
+				"insert_after": "last_reminder_sent_on",
+				"depends_on": "eval:doc.goal_type=='Task Instance'",
+			},
 		],
 		"Task": [
 			{
