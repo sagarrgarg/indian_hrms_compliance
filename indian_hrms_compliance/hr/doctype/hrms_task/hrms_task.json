@@ -6,8 +6,6 @@
  "doctype": "DocType",
  "editable_grid": 0,
  "engine": "InnoDB",
- "is_tree": 1,
- "nsm_parent_field": "parent_task",
  "field_order": [
   "naming_series",
   "identity_section",
@@ -22,14 +20,14 @@
   "task_owner",
   "company",
   "schedule_section",
+  "use_cadence_schedule",
   "frequency",
   "expected_count_per_period",
   "col_break_schedule",
   "weight",
-  "reminder_lead_days",
   "cadence_section",
-  "use_cadence_schedule",
   "cadence_schedule",
+  "reminder_lead_days",
   "completion_section",
   "completion_type",
   "col_break_completion",
@@ -59,13 +57,7 @@
   "assigned_to_employment_type",
   "assigned_to_employee_group",
   "description_section",
-  "description",
-  "tree_section",
-  "is_group",
-  "parent_task",
-  "lft",
-  "rgt",
-  "old_parent"
+  "description"
  ],
  "fields": [
   {
@@ -107,11 +99,11 @@
    "fieldname": "task_kind",
    "fieldtype": "Select",
    "label": "Task Kind",
-   "options": "Individual Task\nSOP Container\nKPI Metric",
+   "options": "Individual Task\nKPI Metric",
    "default": "Individual Task",
    "in_list_view": 1,
    "in_standard_filter": 1,
-   "description": "SOP Container groups child tasks; KPI Metric is a measurable outcome; Individual Task is a standalone action."
+   "description": "KPI Metric is a measurable outcome; Individual Task is a standalone action."
   },
   {
    "fieldname": "color",
@@ -166,7 +158,14 @@
   {
    "fieldname": "schedule_section",
    "fieldtype": "Section Break",
-   "label": "Schedule & Weight"
+   "label": "Schedule"
+  },
+  {
+   "default": "0",
+   "fieldname": "use_cadence_schedule",
+   "fieldtype": "Check",
+   "label": "Use Explicit Due Schedule (Cadence)",
+   "description": "Scheduling mode switch. OFF = plain Frequency (due = period end). ON = explicit Cadence Schedule with exact due dates — the Frequency and Weight fields are then hidden. Auto-ticks when you add schedule rows."
   },
   {
    "fieldname": "frequency",
@@ -174,7 +173,8 @@
    "label": "Frequency",
    "options": "Daily\nWeekly\nMonthly\nQuarterly\nYearly\nOn-demand",
    "description": "Recurring schedule. For a single one-off task, assign it directly as a team task (Goal) instead of creating a template here.",
-   "reqd": 1,
+   "mandatory_depends_on": "eval:!doc.use_cadence_schedule",
+   "depends_on": "eval:!doc.use_cadence_schedule",
    "default": "Daily",
    "in_list_view": 1,
    "in_standard_filter": 1
@@ -184,7 +184,7 @@
    "fieldtype": "Int",
    "label": "Expected Count per Period",
    "default": "1",
-   "depends_on": "eval:!in_list(['One-time','On-demand'], doc.frequency)",
+   "depends_on": "eval:!doc.use_cadence_schedule && !in_list(['One-time','On-demand'], doc.frequency)",
    "description": "How many times this task should be executed per period (e.g., 5 line inspections per day)."
   },
   {
@@ -196,7 +196,22 @@
    "fieldtype": "Float",
    "label": "Weight",
    "default": "1",
+   "depends_on": "eval:!doc.use_cadence_schedule",
    "description": "Relative scoring weight for KRA aggregation (0-100). Higher = bigger contribution to KRA score."
+  },
+  {
+   "fieldname": "cadence_section",
+   "fieldtype": "Section Break",
+   "label": "Explicit Due Schedule (Cadence)",
+   "depends_on": "eval:doc.use_cadence_schedule",
+   "description": "One row = one occurrence per fiscal year. Use the Generate rows / Preview dates buttons above."
+  },
+  {
+   "fieldname": "cadence_schedule",
+   "fieldtype": "Table",
+   "label": "Cadence Schedule",
+   "options": "Cadence Schedule",
+   "depends_on": "eval:doc.use_cadence_schedule"
   },
   {
    "fieldname": "reminder_lead_days",
@@ -204,27 +219,6 @@
    "label": "Reminder Lead (Days Before Due)",
    "default": "0",
    "description": "Send a one-time heads-up this many days before the due date, for work that needs a running start. 0 = only due-date/overdue reminders. Presets: 1 = 1 day, 7 = 1 week. Caps by frequency — Weekly ≤ 6, Monthly ≤ 15, Quarterly ≤ 45, Yearly ≤ 180; not applicable to Daily / On-demand."
-  },
-  {
-   "fieldname": "cadence_section",
-   "fieldtype": "Section Break",
-   "label": "Explicit Due Schedule (Cadence)",
-   "collapsible": 1,
-   "description": "Optional. Pin exact due dates (which months, which day) per occurrence instead of deriving due = period end from Frequency above. When any row is present the schedule wins; leave empty to keep the plain Frequency behaviour."
-  },
-  {
-   "default": "0",
-   "fieldname": "use_cadence_schedule",
-   "fieldtype": "Check",
-   "label": "Use Explicit Due Schedule",
-   "description": "Auto-ticks when you add schedule rows. When on, Frequency is ignored and instances are created from the schedule with exact due dates."
-  },
-  {
-   "fieldname": "cadence_schedule",
-   "fieldtype": "Table",
-   "label": "Cadence Schedule",
-   "options": "Cadence Schedule",
-   "depends_on": "eval:doc.use_cadence_schedule || (doc.cadence_schedule && doc.cadence_schedule.length)"
   },
   {
    "fieldname": "completion_section",
@@ -418,58 +412,11 @@
    "fieldname": "description",
    "fieldtype": "Text Editor",
    "label": "Description"
-  },
-  {
-   "fieldname": "tree_section",
-   "fieldtype": "Section Break",
-   "label": "Hierarchy",
-   "collapsible": 1
-  },
-  {
-   "fieldname": "is_group",
-   "fieldtype": "Check",
-   "label": "Is Group (SOP Container)",
-   "description": "Tick to mark this as an SOP container with child tasks below."
-  },
-  {
-   "fieldname": "parent_task",
-   "fieldtype": "Link",
-   "label": "Parent Task",
-   "options": "HRMS Task",
-   "ignore_user_permissions": 1
-  },
-  {
-   "fieldname": "lft",
-   "fieldtype": "Int",
-   "label": "lft",
-   "hidden": 1,
-   "no_copy": 1,
-   "print_hide": 1,
-   "read_only": 1
-  },
-  {
-   "fieldname": "rgt",
-   "fieldtype": "Int",
-   "label": "rgt",
-   "hidden": 1,
-   "no_copy": 1,
-   "print_hide": 1,
-   "read_only": 1
-  },
-  {
-   "fieldname": "old_parent",
-   "fieldtype": "Link",
-   "label": "Old Parent",
-   "options": "HRMS Task",
-   "hidden": 1,
-   "no_copy": 1,
-   "print_hide": 1,
-   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-07-19 10:20:00.000000",
+ "modified": "2026-07-20 11:00:00.000000",
  "modified_by": "Administrator",
  "module": "HR",
  "name": "HRMS Task",
