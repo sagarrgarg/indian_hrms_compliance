@@ -86,7 +86,7 @@ doctype_js["Compliance Return Definition"] = [
 	"public/js/compliance_return_definition.js",
 	"public/js/cadence_schedule.js",
 ]
-doctype_js["HRMS Task"] = "public/js/cadence_schedule.js"
+doctype_js["HRMS Task"] = ["public/js/cadence_schedule.js", "public/js/hrms_task.js"]
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
 # doctype_calendar_js = {"doctype" : "public/js/doctype_calendar.js"}
