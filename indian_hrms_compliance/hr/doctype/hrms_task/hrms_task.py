@@ -5,8 +5,8 @@ from calendar import monthrange
 
 import frappe
 from frappe import _
+from frappe.model.document import Document
 from frappe.utils import add_days, add_months, getdate, today
-from frappe.utils.nestedset import NestedSet
 
 SCOPE_FIELDS = (
 	"assigned_to_department",
@@ -30,9 +30,7 @@ FREQ_MAX_LEAD_DAYS = {
 }
 
 
-class HRMSTask(NestedSet):
-	nsm_parent_field = "parent_task"
-
+class HRMSTask(Document):
 	def validate(self):
 		self._validate_weight()
 		self._validate_dates()
@@ -94,11 +92,8 @@ class HRMSTask(NestedSet):
 			frappe.throw(_("'Effective From' is required when status is Active."))
 
 	def _validate_scope(self):
-		"""At least one scope rule must be set, unless 'Applicable to All Active' is ticked.
-		SOP Containers (is_group) inherit assignment from their child tasks."""
+		"""At least one scope rule must be set, unless 'Applicable to All Active' is ticked."""
 		if self.applicable_to_all_active:
-			return
-		if self.is_group:
 			return
 		if not any(self.get(f) for f in SCOPE_FIELDS):
 			frappe.throw(
@@ -331,7 +326,6 @@ def _instantiate_for_date(target_d):
 		"HRMS Task",
 		filters={
 			"status": "Active",
-			"is_group": 0,  # only leaf tasks get instantiated
 			"effective_from": ("<=", target_d),
 		},
 		fields=[
