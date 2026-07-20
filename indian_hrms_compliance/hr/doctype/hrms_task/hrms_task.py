@@ -112,6 +112,51 @@ class HRMSTask(Document):
 		if self.approver_resolution == "Specific Role" and not self.approver_role:
 			frappe.throw(_("Approver Role is required when approver resolution is 'Specific Role'."))
 
+	@frappe.whitelist()
+	def create_test_instance(self, employee=None):
+		"""Materialise ONE Task Instance now, for a single assigned employee, so
+		you can verify the whole flow (scope resolution, period, due date,
+		notification) without waiting for the scheduler. Idempotent — returns the
+		existing instance if it's already there."""
+		if self.is_new():
+			frappe.throw(_("Save the task first."))
+		if self.status != "Active":
+			frappe.throw(_("Set the task to Active before creating a test instance."))
+
+		assigned = resolve_assigned_employees(self)
+		if not assigned:
+			frappe.throw(
+				_("No active employees match this task's assignment scope, so no instance can be created.")
+			)
+		employee = employee if employee in assigned else assigned[0]
+
+		period_info = _pick_test_period(self)
+		if not period_info:
+			frappe.throw(
+				_("This task has no computable period (On-demand tasks are triggered manually).")
+			)
+
+		emp_name = frappe.db.get_value("Employee", employee, "employee_name")
+		existing = frappe.db.exists(
+			"Goal",
+			{"task_template": self.name, "employee": employee, "period_label": period_info["label"]},
+		)
+		result = {
+			"employee": employee,
+			"employee_name": emp_name,
+			"period": period_info["label"],
+			"due_date": str(period_info["due_date"]),
+			"candidate_count": len(assigned),
+		}
+		if existing:
+			result.update(goal=existing, created=False)
+			return result
+
+		goal = _create_task_instance(self, employee, period_info)
+		frappe.db.commit()
+		result.update(goal=goal.name if goal else None, created=True)
+		return result
+
 	def _validate_kpi_fields(self):
 		if self.completion_type != "Numeric Entry":
 			return
@@ -292,6 +337,35 @@ def _cadence_periods_active_on(rows, target_d):
 	return out
 
 
+def _pick_test_period(task):
+	"""Choose one period_info for the 'Create Test Instance' button: the
+	occurrence active today (label identical to what the scheduler produces, so
+	the test instance is the real one — not a stray duplicate), else the soonest
+	upcoming occurrence. Falls back to the frequency-derived current period."""
+	today_d = getdate(today())
+	if task.get("use_cadence_schedule"):
+		rows = task.get("cadence_schedule") or []
+		active = _cadence_periods_active_on(rows, today_d)
+		if active:
+			return sorted(active, key=lambda p: p["due_date"])[0]
+		# Nothing active in the lead window — offer the soonest future occurrence.
+		from indian_hrms_compliance.utils import cadence as _cadence
+
+		best = None
+		for fy in (_cadence.fy_start_year_for(today_d), _cadence.fy_start_year_for(today_d) + 1):
+			suffix = _cadence.fy_label(fy)
+			for occ in _cadence.resolve_schedule(rows, fy):
+				if occ["due_date"] >= today_d and (best is None or occ["due_date"] < best["due_date"]):
+					best = {
+						"label": f"{occ['label']} {suffix}",
+						"start": occ["period_start"],
+						"end": occ["period_end"],
+						"due_date": occ["due_date"],
+					}
+		return best
+	return compute_period_for_today(task.frequency, today_d)
+
+
 def instantiate_due_tasks(target_date=None):
 	"""Scheduler (daily): for each Active leaf HRMS Task whose frequency ticks
 	in the lookahead window, create a Goal record (goal_type='Task Instance')
@@ -456,6 +530,8 @@ def _create_task_instance(task, employee, period_info):
 			ref_type="Goal",
 			ref_name=goal.name,
 		)
+
+	return goal
 
 
 def _safe_pwa_notification(to_user, message, ref_type, ref_name):
