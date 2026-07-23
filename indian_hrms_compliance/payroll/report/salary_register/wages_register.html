@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Salary / Wages Register &mdash; {{ company.name }} &mdash; {{ period_label }}</title>
+<style>
+	@page { size: A4 landscape; margin: 8mm 6mm; }
+	* { box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+	body { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; color: #111; margin: 0; }
+	.toolbar { position: fixed; top: 8px; right: 8px; z-index: 99; }
+	.toolbar button { font-size: 12px; padding: 6px 12px; border: 1px solid #333; background: #1f2937;
+		color: #fff; border-radius: 5px; cursor: pointer; }
+	@media print { .toolbar { display: none; } }
+
+	.wr-head { margin-bottom: 6px; }
+	.wr-co { font-size: 15px; font-weight: 700; }
+	.wr-addr { font-size: 9.5px; color: #444; }
+	.wr-meta { font-size: 9.5px; margin-top: 2px; }
+	.wr-meta b { color: #000; }
+	.wr-title { font-size: 12px; font-weight: 700; margin-top: 4px; }
+
+	table.wr { width: 100%; border-collapse: collapse; table-layout: auto; }
+	table.wr th, table.wr td { border: 0.6px solid #555; padding: 2px 3px; font-size: 8px; }
+	table.wr thead th { background: #e5e7eb; text-align: center; font-weight: 700; vertical-align: middle; }
+	table.wr td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+	table.wr td.ctr { text-align: center; }
+	.grp { background: #d1d5db !important; text-transform: uppercase; letter-spacing: 0.02em; }
+	.sub { font-size: 8.5px; color: #333; display: block; }
+	tr.total td { font-weight: 700; background: #f3f4f6; border-top: 1.2px solid #111; }
+	tbody tr:nth-child(even) td { background: #fafafa; }
+	.sign { min-width: 90px; }
+</style>
+</head>
+<body>
+{%- macro n(v) -%}<td class="num">{{ inr(v) }}</td>{%- endmacro -%}
+
+<div class="toolbar"><button onclick="window.print()">Print / Save PDF</button></div>
+
+<div class="wr-head">
+	<div class="wr-co">{{ company.company_name or company.name }}</div>
+	{% if company.address %}<div class="wr-addr">{{ company.address }}</div>{% endif %}
+	<div class="wr-meta">
+		{% if company.pan %}<b>PAN:</b> {{ company.pan }} &nbsp;&middot;&nbsp; {% endif %}
+		<b>Firm PF No.:</b> {{ company.pf_establishment_code or "—" }} &nbsp;&middot;&nbsp;
+		<b>Firm ESIC No.:</b> {{ company.esic_establishment_code or "—" }}
+		{% if company.lwf_establishment_code %} &nbsp;&middot;&nbsp; <b>LWF No.:</b> {{ company.lwf_establishment_code }}{% endif %}
+	</div>
+	<div class="wr-title">Salary / Wages Register for the month of {{ period_label }}</div>
+</div>
+
+{% set ncols = 5 + (earn_cols|length + 1) + 4 + (earn_cols|length + 1) + (ded_cols|length + 1) + ((emp_cols|length + 1) if emp_cols else 0) + 2 %}
+<table class="wr">
+	<thead>
+		<tr>
+			<th class="grp" colspan="5">Particulars</th>
+			<th class="grp" colspan="{{ earn_cols|length + 1 }}">Salary / Wage Rate</th>
+			<th class="grp" colspan="4">Attendance</th>
+			<th class="grp" colspan="{{ earn_cols|length + 1 }}">Earnings</th>
+			<th class="grp" colspan="{{ ded_cols|length + 1 }}">Deductions</th>
+			{% if emp_cols %}<th class="grp" colspan="{{ emp_cols|length + 1 }}">Employer Share</th>{% endif %}
+			<th class="grp" rowspan="2">Net<br>Payment</th>
+			<th class="grp sign" rowspan="2">Signature with<br>Revenue Stamp</th>
+		</tr>
+		<tr>
+			<th>S.No.<span class="sub">ID #</span></th>
+			<th>Employee Name<span class="sub">F / H Name</span></th>
+			<th>Designation<span class="sub">U.A.N.</span></th>
+			<th>P.F. Number<span class="sub">D.O.J.</span></th>
+			<th>Insurance<br>Number</th>
+			{% for c in earn_cols %}<th>{{ c }}</th>{% endfor %}
+			<th>Total</th>
+			<th>W.D.</th><th>E.L.</th><th>LWP</th><th>P.D.</th>
+			{% for c in earn_cols %}<th>{{ c }}</th>{% endfor %}
+			<th>Gross</th>
+			{% for c in ded_cols %}<th>{{ c }}</th>{% endfor %}
+			<th>Total</th>
+			{% if emp_cols %}{% for c in emp_cols %}<th>{{ c }}</th>{% endfor %}<th>Total</th>{% endif %}
+		</tr>
+	</thead>
+	<tbody>
+		{% for r in rows %}
+		<tr>
+			<td class="ctr">{{ r.sno }}<span class="sub">{{ r.employee }}</span></td>
+			<td>{{ r.employee_name }}<span class="sub">{{ r.father_or_husband_name }}</span></td>
+			<td>{{ r.designation }}<span class="sub">{{ r.uan }}</span></td>
+			<td>{{ r.pf_no }}<span class="sub">{{ r.doj }}</span></td>
+			<td>{{ r.esic_no }}</td>
+			{% for c in earn_cols %}{{ n(r.rate[c]) }}{% endfor %}
+			{{ n(r.rate_total) }}
+			<td class="num">{{ "%g"|format(r.wd) }}</td>
+			<td class="num">{{ "%g"|format(r.el) if r.el else "" }}</td>
+			<td class="num">{{ "%g"|format(r.lwp) if r.lwp else "" }}</td>
+			<td class="num">{{ "%g"|format(r.pd) }}</td>
+			{% for c in earn_cols %}{{ n(r.earn[c]) }}{% endfor %}
+			{{ n(r.gross) }}
+			{% for c in ded_cols %}{{ n(r.ded[c]) }}{% endfor %}
+			{{ n(r.ded_total) }}
+			{% if emp_cols %}{% for c in emp_cols %}{{ n(r.emp[c]) }}{% endfor %}{{ n(r.emp_total) }}{% endif %}
+			{{ n(r.net) }}
+			<td class="sign"></td>
+		</tr>
+		{% endfor %}
+		<tr class="total">
+			<td class="ctr" colspan="5">TOTAL &nbsp;({{ rows|length }} employees)</td>
+			{% for c in earn_cols %}{{ n(totals.rate[c]) }}{% endfor %}
+			{{ n(totals.rate_total) }}
+			<td colspan="4"></td>
+			{% for c in earn_cols %}{{ n(totals.earn[c]) }}{% endfor %}
+			{{ n(totals.gross) }}
+			{% for c in ded_cols %}{{ n(totals.ded[c]) }}{% endfor %}
+			{{ n(totals.ded_total) }}
+			{% if emp_cols %}{% for c in emp_cols %}{{ n(totals.emp[c]) }}{% endfor %}{{ n(totals.emp_total) }}{% endif %}
+			{{ n(totals.net) }}
+			<td></td>
+		</tr>
+	</tbody>
+</table>
+
+<div style="font-size:8.5px; color:#555; margin-top:6px; display:flex; justify-content:space-between;">
+	<span>Rate columns = contracted (Salary Structure) full-month amounts; Earnings = actual paid for the period.</span>
+	<span>Printed on {{ printed_on }}</span>
+</div>
+</body>
+</html>
