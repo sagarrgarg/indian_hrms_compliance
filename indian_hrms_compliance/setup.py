@@ -195,6 +195,40 @@ def get_custom_fields():
 				"options": "Salary Structure",
 				"insert_after": "default_shift_type",
 			},
+			{
+				"fieldname": "statutory_registration_section",
+				"fieldtype": "Section Break",
+				"label": _("Statutory Registration"),
+				"description": _(
+					"Establishment codes printed on the Wage Register and statutory returns."
+				),
+				"insert_after": "default_salary_structure",
+			},
+			{
+				"fieldname": "pf_establishment_code",
+				"fieldtype": "Data",
+				"label": _("PF Establishment Code"),
+				"description": _("Firm PF Number, e.g. DL/CPM/10709"),
+				"insert_after": "statutory_registration_section",
+			},
+			{
+				"fieldname": "esic_establishment_code",
+				"fieldtype": "Data",
+				"label": _("ESIC Establishment Code"),
+				"description": _("Firm ESIC Number (17 digits)"),
+				"insert_after": "pf_establishment_code",
+			},
+			{
+				"fieldname": "statutory_registration_column",
+				"fieldtype": "Column Break",
+				"insert_after": "esic_establishment_code",
+			},
+			{
+				"fieldname": "lwf_establishment_code",
+				"fieldtype": "Data",
+				"label": _("LWF Registration Number"),
+				"insert_after": "statutory_registration_column",
+			},
 		],
 		"Department": [
 			{

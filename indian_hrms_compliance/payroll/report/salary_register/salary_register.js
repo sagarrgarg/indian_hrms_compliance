@@ -80,4 +80,30 @@ frappe.query_reports["Salary Register"] = {
 			width: "100px",
 		},
 	],
+
+	onload: function (report) {
+		report.page.add_inner_button(__("Wages Register (PDF)"), function () {
+			const filters = report.get_values();
+			if (!filters.company) {
+				frappe.msgprint(__("Please select a Company."));
+				return;
+			}
+			frappe.dom.freeze(__("Building Wages Register…"));
+			frappe
+				.call({
+					method:
+						"indian_hrms_compliance.payroll.report.salary_register.salary_register.get_wages_register_html",
+					args: { filters: filters },
+				})
+				.then((r) => {
+					frappe.dom.unfreeze();
+					if (r.message) {
+						const w = window.open("", "_blank");
+						w.document.write(r.message);
+						w.document.close();
+					}
+				})
+				.catch(() => frappe.dom.unfreeze());
+		});
+	},
 };

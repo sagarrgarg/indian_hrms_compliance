@@ -2,9 +2,12 @@
 # License: GNU General Public License v3. See license.txt
 
 
+import json
+import os
+
 import frappe
 from frappe import _
-from frappe.utils import flt
+from frappe.utils import flt, formatdate, getdate
 
 import erpnext
 
@@ -352,3 +355,326 @@ def get_salary_slip_details(salary_slips, currency, company_currency, component_
 			ss_map[d.parent][d.salary_component] += flt(d.amount)
 
 	return ss_map
+
+
+# ---------------------------------------------------------------------------
+# Statutory Salary / Wages Register  (landscape PDF, employee-wise)
+# ---------------------------------------------------------------------------
+
+# Employer-contribution component classification (name-based, case-insensitive).
+_EMPLOYER_PF_HINTS = ("employer provident", "employer pf", "employer's provident", "employer p f")
+_EMPLOYER_ESI_HINTS = ("employer esi", "employer state insurance", "employer's esi", "employer e s i")
+_EMPLOYER_LWF_HINTS = ("employer lwf", "employer labour welfare", "labour welfare fund - employer")
+
+# EPS (pension) share of the 12% employer PF, i.e. 8.33 / 12.
+_EPS_FRACTION = 8.33 / 12.0
+
+
+def _employer_kind(name):
+	n = (name or "").lower()
+	if any(h in n for h in _EMPLOYER_PF_HINTS):
+		return "pf"
+	if any(h in n for h in _EMPLOYER_ESI_HINTS):
+		return "esi"
+	if any(h in n for h in _EMPLOYER_LWF_HINTS):
+		return "lwf"
+	return None
+
+
+def _get_lwp_leave_types():
+	return set(frappe.get_all("Leave Type", filters={"is_lwp": 1}, pluck="name"))
+
+
+def _get_el_days(employee, from_date, to_date, lwp_types):
+	"""Approved paid-leave (non-LWP) days that fall within the period."""
+	fd, td = getdate(from_date), getdate(to_date)
+	apps = frappe.get_all(
+		"Leave Application",
+		filters={
+			"employee": employee,
+			"status": "Approved",
+			"docstatus": 1,
+			"from_date": ["<=", td],
+			"to_date": [">=", fd],
+		},
+		fields=["from_date", "to_date", "total_leave_days", "leave_type"],
+	)
+	total = 0.0
+	for a in apps:
+		if a.leave_type in lwp_types:
+			continue
+		a_fd, a_td = getdate(a.from_date), getdate(a.to_date)
+		span = (a_td - a_fd).days + 1
+		if span <= 0:
+			continue
+		# clip the application to the register period, then scale total_leave_days
+		clip_start = max(a_fd, fd)
+		clip_end = min(a_td, td)
+		clipped = (clip_end - clip_start).days + 1
+		if clipped <= 0:
+			continue
+		total += flt(a.total_leave_days) * (clipped / span)
+	return round(total, 2)
+
+
+def _get_company_header(company):
+	c = frappe.db.get_value(
+		"Company",
+		company,
+		[
+			"company_name",
+			"pan",
+			"pf_establishment_code",
+			"esic_establishment_code",
+			"lwf_establishment_code",
+		],
+		as_dict=True,
+	) or frappe._dict()
+	addr_name = frappe.db.get_value(
+		"Dynamic Link",
+		{"link_doctype": "Company", "link_name": company, "parenttype": "Address"},
+		"parent",
+	)
+	address = ""
+	if addr_name:
+		a = frappe.db.get_value(
+			"Address", addr_name, ["address_line1", "city", "state", "pincode"], as_dict=True
+		)
+		if a:
+			parts = [a.address_line1, a.city, a.state, a.pincode]
+			address = ", ".join(p for p in parts if p)
+	c["address"] = address
+	c["name"] = company
+	return c
+
+
+def _period_label(from_date):
+	d = getdate(from_date)
+	return d.strftime("%B, %Y")
+
+
+def _inr(v):
+	"""Indian-grouped number, 2 decimals, no currency symbol. Blank for zero."""
+	v = flt(v)
+	if v == 0:
+		return ""
+	neg = v < 0
+	s = "{:.2f}".format(abs(v))
+	intp, dec = s.split(".")
+	if len(intp) > 3:
+		last3 = intp[-3:]
+		rest = intp[:-3]
+		import re
+
+		rest = re.sub(r"(\d)(?=(\d\d)+$)", r"\1,", rest)
+		intp = rest + "," + last3
+	out = intp + "." + dec
+	return ("-" + out) if neg else out
+
+
+@frappe.whitelist()
+def get_wages_register_html(filters=None):
+	"""Render the employee-wise statutory Salary / Wages Register as a
+	standalone, print-ready (landscape) HTML document."""
+	if isinstance(filters, str):
+		filters = json.loads(filters)
+	filters = filters or {}
+
+	company = filters.get("company")
+	company_currency = erpnext.get_company_currency(company) if company else None
+
+	slips = get_salary_slips(filters, company_currency)
+	if not slips:
+		frappe.throw(_("No salary slips found for the selected filters."))
+
+	# full component rows (incl. statistical) per slip, in idx order
+	slip_names = [s.name for s in slips]
+	detail_rows = frappe.get_all(
+		"Salary Detail",
+		filters={"parent": ["in", slip_names]},
+		fields=[
+			"parent",
+			"parentfield",
+			"salary_component",
+			"amount",
+			"default_amount",
+			"statistical_component",
+			"do_not_include_in_total",
+			"idx",
+		],
+		order_by="parentfield, idx asc",
+	)
+
+	details = {}  # slip -> {"earn":[rows], "ded":[rows]}
+	for r in detail_rows:
+		bucket = details.setdefault(r.parent, {"earn": [], "ded": []})
+		key = "earn" if r.parentfield == "earnings" else "ded"
+		bucket[key].append(r)
+
+	# discover ordered, dynamic column sets
+	earn_cols, ded_cols = [], []
+	has_employer = {"pf": False, "esi": False, "lwf": False}
+	for s in slips:
+		d = details.get(s.name, {"earn": [], "ded": []})
+		for r in d["earn"]:
+			kind = _employer_kind(r.salary_component)
+			if kind:
+				has_employer[kind] = True
+				continue
+			if r.statistical_component or r.do_not_include_in_total:
+				continue
+			if r.salary_component not in earn_cols:
+				earn_cols.append(r.salary_component)
+		for r in d["ded"]:
+			if r.statistical_component or r.do_not_include_in_total:
+				continue
+			if r.salary_component not in ded_cols:
+				ded_cols.append(r.salary_component)
+
+	emp_cols = []
+	if has_employer["pf"]:
+		emp_cols += ["Pension (EPS)", "EPF Difference"]
+	if has_employer["esi"]:
+		emp_cols += ["ESI (Employer)"]
+	if has_employer["lwf"]:
+		emp_cols += ["LWF (Employer)"]
+
+	lwp_types = _get_lwp_leave_types()
+
+	emp_fields = [
+		"employee_name",
+		"father_or_husband_name",
+		"designation",
+		"provident_fund_account",
+		"uan_number",
+		"esic_ip_number",
+		"date_of_joining",
+	]
+
+	rows = []
+	totals = frappe._dict(
+		rate={c: 0.0 for c in earn_cols},
+		rate_total=0.0,
+		earn={c: 0.0 for c in earn_cols},
+		gross=0.0,
+		ded={c: 0.0 for c in ded_cols},
+		ded_total=0.0,
+		emp={c: 0.0 for c in emp_cols},
+		emp_total=0.0,
+		net=0.0,
+	)
+
+	for i, s in enumerate(slips, start=1):
+		d = details.get(s.name, {"earn": [], "ded": []})
+		emp = frappe.db.get_value("Employee", s.employee, emp_fields, as_dict=True) or frappe._dict()
+
+		rate = {c: 0.0 for c in earn_cols}
+		earn = {c: 0.0 for c in earn_cols}
+		empl = {c: 0.0 for c in emp_cols}
+		employer_pf_amt = 0.0
+
+		for r in d["earn"]:
+			kind = _employer_kind(r.salary_component)
+			if kind == "pf":
+				employer_pf_amt += flt(r.amount)
+				continue
+			if kind == "esi":
+				if "ESI (Employer)" in empl:
+					empl["ESI (Employer)"] += flt(r.amount)
+				continue
+			if kind == "lwf":
+				if "LWF (Employer)" in empl:
+					empl["LWF (Employer)"] += flt(r.amount)
+				continue
+			if r.statistical_component or r.do_not_include_in_total:
+				continue
+			if r.salary_component in rate:
+				rate[r.salary_component] += flt(r.default_amount)
+				earn[r.salary_component] += flt(r.amount)
+
+		if employer_pf_amt and "Pension (EPS)" in empl:
+			pension = round(employer_pf_amt * _EPS_FRACTION)
+			empl["Pension (EPS)"] += pension
+			empl["EPF Difference"] += employer_pf_amt - pension
+
+		ded = {c: 0.0 for c in ded_cols}
+		for r in d["ded"]:
+			if r.statistical_component or r.do_not_include_in_total:
+				continue
+			if r.salary_component in ded:
+				ded[r.salary_component] += flt(r.amount)
+
+		rate_total = sum(rate.values())
+		emp_total = sum(empl.values())
+		ded_total = flt(s.total_deduction) + flt(s.total_loan_repayment)
+		gross = flt(s.gross_pay)
+		net = flt(s.net_pay)
+
+		row = frappe._dict(
+			sno=i,
+			salary_slip=s.name,
+			employee=s.employee,
+			employee_name=emp.employee_name or s.employee_name,
+			father_or_husband_name=emp.father_or_husband_name or "",
+			designation=emp.designation or s.designation or "",
+			pf_no=emp.provident_fund_account or "",
+			esic_no=emp.esic_ip_number or "",
+			uan=emp.uan_number or "",
+			doj=formatdate(emp.date_of_joining) if emp.date_of_joining else "",
+			wd=flt(s.total_working_days),
+			el=_get_el_days(s.employee, s.start_date, s.end_date, lwp_types),
+			lwp=flt(s.leave_without_pay),
+			pd=flt(s.payment_days),
+			rate=rate,
+			rate_total=rate_total,
+			earn=earn,
+			gross=gross,
+			ded=ded,
+			ded_total=ded_total,
+			emp=empl,
+			emp_total=emp_total,
+			net=net,
+		)
+		rows.append(row)
+
+		for c in earn_cols:
+			totals.rate[c] += rate[c]
+			totals.earn[c] += earn[c]
+		for c in ded_cols:
+			totals.ded[c] += ded[c]
+		for c in emp_cols:
+			totals.emp[c] += empl[c]
+		totals.rate_total += rate_total
+		totals.gross += gross
+		totals.ded_total += ded_total
+		totals.emp_total += emp_total
+		totals.net += net
+
+	# drop all-zero component columns (e.g. a TDS row that is 0 for everyone)
+	earn_cols = [c for c in earn_cols if totals.rate[c] or totals.earn[c]]
+	ded_cols = [c for c in ded_cols if totals.ded[c]]
+	emp_cols = [c for c in emp_cols if totals.emp[c]]
+
+	context = {
+		"company": _get_company_header(company),
+		"period_label": _period_label(filters.get("from_date")),
+		"from_date": formatdate(filters.get("from_date")),
+		"to_date": formatdate(filters.get("to_date")),
+		"earn_cols": earn_cols,
+		"ded_cols": ded_cols,
+		"emp_cols": emp_cols,
+		"rows": rows,
+		"totals": totals,
+		"currency": company_currency,
+		"printed_on": formatdate(frappe.utils.nowdate()),
+		"inr": _inr,
+	}
+
+	template = _read_template("wages_register.html")
+	return frappe.render_template(template, context)
+
+
+def _read_template(name):
+	path = os.path.join(os.path.dirname(__file__), name)
+	with open(path, encoding="utf-8") as f:
+		return f.read()
