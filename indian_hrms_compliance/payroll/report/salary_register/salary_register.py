@@ -678,3 +678,215 @@ def _read_template(name):
 	path = os.path.join(os.path.dirname(__file__), name)
 	with open(path, encoding="utf-8") as f:
 		return f.read()
+
+
+# ---------------------------------------------------------------------------
+# Consolidated "Grand Total of Salary / Wages" summary  (company + period)
+# ---------------------------------------------------------------------------
+
+
+def _is_vpf(component_name):
+	n = (component_name or "").lower()
+	return "voluntary" in n or n == "vpf" or "vpf" in n
+
+
+def _is_pf_employee(component_name):
+	n = (component_name or "").lower()
+	return (
+		("provident fund" in n or n == "pf" or "epf" in n)
+		and "employer" not in n
+		and "voluntary" not in n
+		and "loan" not in n
+	)
+
+
+def _is_esi_employee(component_name):
+	n = (component_name or "").lower()
+	return ("state insurance" in n or "esi" in n) and "employer" not in n
+
+
+@frappe.whitelist()
+def get_payroll_summary_html(filters=None):
+	"""Render the company-wise, period-wise consolidated payroll grand-total
+	summary (earnings, deductions, employer contributions, PF challan heads,
+	ESIC challan) as a print-ready HTML document.
+
+	All figures are derived from the ACTUAL Salary Slip component amounts so
+	the sheet is internally consistent (Employer Contributions == the PF/ESIC
+	detail boxes) and matches the money actually deducted/contributed. PF/ESI
+	statutory RATES (EPS, EDLI, admin, ESI %) are read from HR Settings via
+	the ECR/ESI generators; only the wage bases come from the slips (which
+	auto-respects a ₹15,000 PF cap when the structure caps it)."""
+	if isinstance(filters, str):
+		filters = json.loads(filters)
+	filters = filters or {}
+
+	company = filters.get("company")
+	company_currency = erpnext.get_company_currency(company) if company else None
+
+	slips_meta = get_salary_slips(filters, company_currency)
+	if not slips_meta:
+		frappe.throw(_("No salary slips found for the selected filters."))
+	slip_docs = [frappe.get_doc("Salary Slip", s.name) for s in slips_meta]
+
+	from indian_hrms_compliance.hr.doctype.statutory_component_mapping.statutory_component_mapping import (
+		get_mapping_for_company,
+	)
+	from indian_hrms_compliance.overrides import esi_generator as esig
+	from indian_hrms_compliance.overrides import pf_ecr_generator as pfg
+
+	mapping = get_mapping_for_company(company)
+	pf_emp_comp = mapping.pf_employee_component if mapping else None
+	esi_emp_comp = mapping.esi_employee_component if mapping else None
+
+	# --- pass over slips: earnings/deductions totals + actual statutory amts
+	earn_tot, ded_tot = {}, {}
+	gross = ded_total = net = 0.0
+	lwf_employer_total = 0.0
+	per_pf = []  # (pf_employee, vpf, employer_pf) per PF member
+	per_esi = []  # (esi_employee, employer_esi) per ESI member
+
+	for d in slip_docs:
+		slip_pf_emp = slip_vpf = slip_er_pf = 0.0
+		slip_esi_emp = slip_er_esi = slip_lwf_er = 0.0
+
+		for r in d.earnings:
+			kind = _employer_kind(r.salary_component)
+			if kind == "pf":
+				slip_er_pf += flt(r.amount)
+				continue
+			if kind == "esi":
+				slip_er_esi += flt(r.amount)
+				continue
+			if kind == "lwf":
+				slip_lwf_er += flt(r.amount)
+				continue
+			if r.statistical_component or r.do_not_include_in_total:
+				continue
+			earn_tot[r.salary_component] = earn_tot.get(r.salary_component, 0.0) + flt(r.amount)
+
+		for r in d.deductions:
+			kind = _employer_kind(r.salary_component)
+			if kind == "pf":
+				slip_er_pf += flt(r.amount)
+				continue
+			if kind == "esi":
+				slip_er_esi += flt(r.amount)
+				continue
+			if kind == "lwf":
+				slip_lwf_er += flt(r.amount)
+				continue
+			if r.statistical_component or r.do_not_include_in_total:
+				continue
+			name = r.salary_component
+			ded_tot[name] = ded_tot.get(name, 0.0) + flt(r.amount)
+			if _is_vpf(name):
+				slip_vpf += flt(r.amount)
+			elif (pf_emp_comp and name == pf_emp_comp) or (not pf_emp_comp and _is_pf_employee(name)):
+				slip_pf_emp += flt(r.amount)
+			elif (esi_emp_comp and name == esi_emp_comp) or (not esi_emp_comp and _is_esi_employee(name)):
+				slip_esi_emp += flt(r.amount)
+
+		gross += flt(d.gross_pay)
+		ded_total += flt(d.total_deduction) + flt(d.get("total_loan_repayment"))
+		net += flt(d.net_pay)
+		lwf_employer_total += slip_lwf_er
+		if slip_pf_emp or slip_er_pf:
+			per_pf.append((slip_pf_emp, slip_vpf, slip_er_pf))
+		if slip_esi_emp or slip_er_esi:
+			per_esi.append((slip_esi_emp, slip_er_esi))
+
+	total_earning = sum(earn_tot.values())
+
+	# --- PF challan heads (actual amounts + HR-Settings statutory rates) ----
+	pf = None
+	if per_pf:
+		emp_rate = flt(pfg._hr_setting("pf_employee_rate_pct")) / 100.0 or 0.12
+		er_rate = flt(pfg._hr_setting("pf_employer_rate_pct")) / 100.0 or 0.12
+		eps_rate = flt(pfg._hr_setting("pf_eps_rate_pct")) / 100.0
+		edli_rate = flt(pfg._hr_setting("pf_edli_rate_pct")) / 100.0
+		edli_cap = flt(pfg._hr_setting("pf_edli_per_member_cap") or 75)
+		admin_rate = flt(pfg._hr_setting("pf_admin_charges_pct")) / 100.0
+		admin_min = flt(pfg._hr_setting("pf_admin_charges_min"))
+		ceiling = flt(pfg._hr_setting("pf_wage_ceiling"))
+		epf_ac01 = pension_ac10 = diff_ac01 = 0.0
+		wages_01 = wages_10 = edli_ac21 = 0.0
+		for pe, vp, erpf in per_pf:
+			# imply employer share = employee share (standard 12%) when the
+			# structure does not model an explicit employer-PF component.
+			employer_pf = erpf if erpf else pe
+			epf_wages = (employer_pf / er_rate) if (employer_pf and er_rate) else (
+				(pe / emp_rate) if emp_rate else 0.0
+			)
+			eps_wages = min(epf_wages, ceiling) if ceiling else epf_wages
+			pension = round(eps_wages * eps_rate)
+			epf_ac01 += pe + vp
+			pension_ac10 += pension
+			diff_ac01 += employer_pf - pension
+			wages_01 += epf_wages
+			wages_10 += eps_wages
+			edli_ac21 += min(round(eps_wages * edli_rate), edli_cap)
+		admin_ac02 = max(round(wages_10 * admin_rate), admin_min)
+		edli_admin_ac22 = 0.0  # A/c-22 abolished (rate 0) — kept for form parity
+		pf = {
+			"count": len(per_pf),
+			"wages_01": wages_01,
+			"wages_10": wages_10,
+			"wages_21": wages_10,
+			"epf_ac01": epf_ac01,
+			"pension_ac10": pension_ac10,
+			"diff_ac01": diff_ac01,
+			"admin_ac02": admin_ac02,
+			"edli_ac21": edli_ac21,
+			"edli_admin_ac22": edli_admin_ac22,
+			"total": epf_ac01 + pension_ac10 + diff_ac01 + admin_ac02 + edli_ac21 + edli_admin_ac22,
+		}
+
+	# --- ESIC challan (actual amounts + HR-Settings rates) ------------------
+	esi = None
+	if per_esi:
+		emp_esi_rate = flt(esig._hr_setting("esi_employee_rate_pct")) / 100.0
+		er_esi_rate = flt(esig._hr_setting("esi_employer_rate_pct")) / 100.0
+		employee = employer = wages = 0.0
+		for ee, eer in per_esi:
+			employer_esi = eer if eer else (ee / emp_esi_rate * er_esi_rate if (ee and emp_esi_rate) else 0.0)
+			wage = (ee / emp_esi_rate) if (ee and emp_esi_rate) else (
+				(eer / er_esi_rate) if (eer and er_esi_rate) else 0.0
+			)
+			employee += ee
+			employer += employer_esi
+			wages += wage
+		esi = {
+			"count": len(per_esi),
+			"wages": wages,
+			"employee": employee,
+			"employer": employer,
+			"total": employee + employer,
+		}
+
+	# --- Employer Contributions box — sourced from the SAME PF/ESI figures --
+	employer = {
+		"Pension": pf["pension_ac10"] if pf else 0.0,
+		"Difference": pf["diff_ac01"] if pf else 0.0,
+		"ESIC": esi["employer"] if esi else 0.0,
+		"LWFER": lwf_employer_total,
+	}
+
+	context = {
+		"company": _get_company_header(company),
+		"period_label": _period_label(filters.get("from_date")),
+		"earn_tot": earn_tot,
+		"total_earning": total_earning,
+		"ded_tot": ded_tot,
+		"ded_total": ded_total,
+		"employer": employer,
+		"employer_total": sum(employer.values()),
+		"net": net,
+		"total_employee": len(slip_docs),
+		"pf": pf,
+		"esi": esi,
+		"printed_on": formatdate(frappe.utils.nowdate()),
+		"inr": _inr,
+	}
+	template = _read_template("payroll_summary.html")
+	return frappe.render_template(template, context)

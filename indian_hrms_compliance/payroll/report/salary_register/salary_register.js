@@ -82,17 +82,18 @@ frappe.query_reports["Salary Register"] = {
 	],
 
 	onload: function (report) {
-		report.page.add_inner_button(__("Wages Register (PDF)"), function () {
+		const open_pdf = (method, busy) => {
 			const filters = report.get_values();
 			if (!filters.company) {
 				frappe.msgprint(__("Please select a Company."));
 				return;
 			}
-			frappe.dom.freeze(__("Building Wages Register…"));
+			frappe.dom.freeze(busy);
 			frappe
 				.call({
 					method:
-						"indian_hrms_compliance.payroll.report.salary_register.salary_register.get_wages_register_html",
+						"indian_hrms_compliance.payroll.report.salary_register.salary_register." +
+						method,
 					args: { filters: filters },
 				})
 				.then((r) => {
@@ -104,6 +105,13 @@ frappe.query_reports["Salary Register"] = {
 					}
 				})
 				.catch(() => frappe.dom.unfreeze());
+		};
+
+		report.page.add_inner_button(__("Wages Register (PDF)"), function () {
+			open_pdf("get_wages_register_html", __("Building Wages Register…"));
+		});
+		report.page.add_inner_button(__("Grand Total Summary (PDF)"), function () {
+			open_pdf("get_payroll_summary_html", __("Building Payroll Summary…"));
 		});
 	},
 };
