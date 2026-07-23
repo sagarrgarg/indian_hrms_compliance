@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Grand Total of Salary / Wages &mdash; {{ company.name }} &mdash; {{ period_label }}</title>
+<style>
+	@page { size: A4 portrait; margin: 12mm 12mm; }
+	* { box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+	body { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; color: #111; margin: 0; font-size: 12px; }
+	.toolbar { position: fixed; top: 8px; right: 8px; z-index: 99; }
+	.toolbar button { font-size: 12px; padding: 6px 12px; border: 1px solid #333; background: #1f2937;
+		color: #fff; border-radius: 5px; cursor: pointer; }
+	@media print { .toolbar { display: none; } }
+
+	.co { font-size: 17px; font-weight: 700; }
+	.addr { font-size: 10px; color: #444; }
+	.gt { font-size: 12.5px; margin-top: 4px; }
+	.gt b { font-weight: 700; }
+	hr.rule { border: 0; border-top: 1.5px solid #333; margin: 6px 0 10px; }
+
+	.cols { display: flex; gap: 16px; }
+	.col { flex: 1; }
+
+	.box { margin-bottom: 14px; }
+	.pill { display: inline-block; border: 1.2px solid #333; border-radius: 12px;
+		padding: 2px 12px; font-weight: 700; font-size: 12px; margin-bottom: 6px; }
+	table.kv { width: 100%; border-collapse: collapse; }
+	table.kv td { padding: 2px 2px; font-size: 11.5px; }
+	table.kv td.v { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+	table.kv tr.tot td { font-weight: 700; border-top: 1px solid #333; padding-top: 4px; }
+	.muted { color: #888; }
+	.foot { margin-top: 10px; font-size: 9.5px; color: #666; text-align: right; }
+</style>
+</head>
+<body>
+{%- macro row(label, val, cls="") -%}
+<tr class="{{ cls }}"><td>{{ label }}</td><td class="v">{{ inr(val) if inr(val) else "0" }}</td></tr>
+{%- endmacro -%}
+
+<div class="toolbar"><button onclick="window.print()">Print / Save PDF</button></div>
+
+<div class="co">{{ company.company_name or company.name }}</div>
+{% if company.address %}<div class="addr">{{ company.address }}</div>{% endif %}
+<div class="gt">Grand Total of Salary / Wages for the month of &nbsp; <b>{{ period_label }}</b></div>
+<hr class="rule">
+
+<div class="box">
+	<span class="pill">Total Earning</span>
+	<table class="kv">
+		{% for comp, amt in earn_tot.items() %}{{ row(comp, amt) }}{% endfor %}
+		{{ row("Total Earning", total_earning, "tot") }}
+	</table>
+</div>
+
+<div class="cols">
+	<div class="col">
+		<div class="box">
+			<span class="pill">Total Deduction</span>
+			<table class="kv">
+				{% for comp, amt in ded_tot.items() %}{{ row(comp, amt) }}{% endfor %}
+				{{ row("Total Deduction", ded_total, "tot") }}
+			</table>
+		</div>
+	</div>
+	<div class="col">
+		<div class="box">
+			<span class="pill">Employer Contributions</span>
+			<table class="kv">
+				{{ row("Pension", employer.Pension) }}
+				{{ row("Difference", employer.Difference) }}
+				{{ row("E.S.I.C.", employer.ESIC) }}
+				{{ row("LWFER", employer.LWFER) }}
+				{{ row("Total", employer_total, "tot") }}
+			</table>
+		</div>
+	</div>
+</div>
+
+<table class="kv" style="max-width:320px;">
+	<tr class="tot"><td>Net Payment</td><td class="v">{{ inr(net) }}</td></tr>
+	<tr><td>Total Employee</td><td class="v">{{ total_employee }}</td></tr>
+</table>
+
+<hr class="rule">
+
+<div class="cols">
+	<div class="col">
+		<div class="box">
+			<span class="pill">P.F. Details</span>
+			{% if pf %}
+			<table class="kv">
+				{{ row("Total Employee A/c - 01", pf.count) }}
+				{{ row("Total Employee A/c - 10", pf.count) }}
+				{{ row("Total Employee A/c - 21", pf.count) }}
+				{{ row("Salary / Wages A/c - 01", pf.wages_01) }}
+				{{ row("Salary / Wages A/c - 10", pf.wages_10) }}
+				{{ row("Salary / Wages A/c - 21", pf.wages_21) }}
+				{{ row("E.P.F. A/c - 01", pf.epf_ac01) }}
+				{{ row("Pension A/c - 10", pf.pension_ac10) }}
+				{{ row("Difference A/c - 01", pf.diff_ac01) }}
+				{{ row("Administration A/c - 02", pf.admin_ac02) }}
+				{{ row("E.D.L.I. A/c - 21", pf.edli_ac21) }}
+				{{ row("Admn. EDLI A/c - 22", pf.edli_admin_ac22) }}
+				{{ row("Total Amount", pf.total, "tot") }}
+			</table>
+			{% else %}<div class="muted">No PF members for this period.</div>{% endif %}
+		</div>
+	</div>
+	<div class="col">
+		<div class="box">
+			<span class="pill">ESIC Details</span>
+			{% if esi %}
+			<table class="kv">
+				{{ row("Total Employee", esi.count) }}
+				{{ row("ESIC Wages", esi.wages) }}
+				{{ row("ESIC Employee Share", esi.employee) }}
+				{{ row("ESIC Employer Share", esi.employer) }}
+				{{ row("Total Amount", esi.total, "tot") }}
+			</table>
+			{% else %}<div class="muted">No ESIC members for this period.</div>{% endif %}
+		</div>
+	</div>
+</div>
+
+<div class="foot">Printed on {{ printed_on }}</div>
+</body>
+</html>
