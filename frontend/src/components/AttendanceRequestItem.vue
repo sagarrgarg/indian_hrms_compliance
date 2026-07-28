@@ -46,10 +46,19 @@ const props = defineProps({
 
 const status = computed(() => {
 	if (props.workflowStateField) return props.doc[props.workflowStateField]
-	return props.doc.docstatus ? "Submitted" : "Draft"
+	// Prefer the real approval status; fall back to docstatus for legacy rows
+	// that pre-date the status field.
+	if (props.doc.status) return props.doc.status
+	return props.doc.docstatus ? "Approved" : "Open"
 })
 
 const colorMap = {
+	Open: "orange",
+	Approved: "green",
+	Rejected: "red",
+	"Needs Clarification": "blue",
+	Cancelled: "gray",
+	// legacy fallbacks
 	Draft: "gray",
 	Submitted: "blue",
 }

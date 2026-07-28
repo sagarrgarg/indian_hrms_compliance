@@ -19,3 +19,9 @@ export const approveRequest = createResource({
 export const rejectRequest = createResource({
 	url: "indian_hrms_compliance.api.reject_request",
 })
+
+// Attendance Request only — bounce the request back to the employee for
+// clarification instead of an outright approve/reject.
+export const requestClarification = createResource({
+	url: "indian_hrms_compliance.api.request_attendance_clarification",
+})
