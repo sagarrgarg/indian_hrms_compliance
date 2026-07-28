@@ -32,6 +32,14 @@ class AttendanceRequest(Document):
 				frappe.throw(_("Half day date should be in between from date and to date"))
 
 	def validate_no_attendance_to_create(self):
+		# When a manager APPROVES the request, this guard must not block the
+		# submission just because the target state already exists (e.g. the day's
+		# attendance is already in the requested status, or it's a holiday / the
+		# employee is on leave). Approval is an acknowledgement; create_attendance_
+		# records() safely skips days with nothing to do. The guard still applies
+		# at creation time so pointless drafts are discouraged up front.
+		if self.flags.get("ignore_no_attendance_to_create"):
+			return
 		attendance_warnings = self.get_attendance_warnings()
 		attendance_request_days = date_diff(self.to_date, self.from_date) + 1
 		if len(attendance_warnings) == attendance_request_days and not any(

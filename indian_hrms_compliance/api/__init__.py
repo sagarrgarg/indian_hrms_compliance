@@ -3732,6 +3732,11 @@ def approve_request(doctype: str, name: str, comment: str | None = None) -> dict
 			frappe.throw(_("This Attendance Request is not pending approval."))
 		if frappe.get_meta(doctype).has_field("status"):
 			doc.status = "Approved"
+		# Approval must not be blocked just because there's nothing to create
+		# (attendance already in the requested status / holiday / on leave). The
+		# manager is endorsing the request; create_attendance_records() skips
+		# days with nothing to do.
+		doc.flags.ignore_no_attendance_to_create = True
 		# Submission = approval → creates the Attendance records.
 		doc.submit()
 	elif doctype == "Employee Advance":
