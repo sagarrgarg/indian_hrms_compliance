@@ -574,6 +574,12 @@ def get_attendance_requests(
 		"creation",
 	]
 
+	# Surface the approval status + approver remark so the PWA can show the
+	# employee whether their request is Open / Approved / Rejected / Needs
+	# Clarification (and why).
+	if frappe.get_meta("Attendance Request").has_field("status"):
+		fields += ["status", "rejection_reason", "attachment"]
+
 	if workflow_state_field := get_workflow_state_field("Attendance Request"):
 		fields.append(workflow_state_field)
 
@@ -606,7 +612,12 @@ def get_filters(
 		if workflow := get_workflow(doctype):
 			allowed_states = get_allowed_states_for_workflow(workflow, approver_id)
 			filters[workflow.workflow_state_field] = ("in", allowed_states)
-		elif doctype != "Attendance Request":
+		elif doctype == "Attendance Request":
+			# Only genuinely-pending requests belong in an approver list — exclude
+			# Rejected (terminal) and Needs Clarification (back with the employee).
+			if frappe.get_meta("Attendance Request").has_field("status"):
+				filters.status = "Open"
+		else:
 			approver_field_map = {
 				"Shift Request": "approver",
 				"Leave Application": "leave_approver",
@@ -2792,9 +2803,15 @@ def _pending_attendance_approvals(user: str) -> list[dict]:
 	reports = _resignation_reports_to_user(user)
 	if not reports:
 		return []
+	filters = {"docstatus": 0, "employee": ("in", list(reports))}
+	# Only genuinely-pending requests belong in the approver queue — a Rejected
+	# (terminal) or Needs Clarification (back with the employee) draft is not
+	# awaiting this manager.
+	if frappe.get_meta("Attendance Request").has_field("status"):
+		filters["status"] = "Open"
 	rows = frappe.get_all(
 		"Attendance Request",
-		filters={"docstatus": 0, "employee": ("in", list(reports))},
+		filters=filters,
 		fields=[
 			"name",
 			"employee",
@@ -3710,7 +3727,14 @@ def approve_request(doctype: str, name: str, comment: str | None = None) -> dict
 		doc.save(ignore_permissions=True)
 		if doc.docstatus == 0:
 			doc.submit()
-	elif doctype in ("Employee Advance", "Attendance Request"):
+	elif doctype == "Attendance Request":
+		if doc.docstatus != 0:
+			frappe.throw(_("This Attendance Request is not pending approval."))
+		if frappe.get_meta(doctype).has_field("status"):
+			doc.status = "Approved"
+		# Submission = approval → creates the Attendance records.
+		doc.submit()
+	elif doctype == "Employee Advance":
 		# No approval status — approval = submission of the request.
 		if doc.docstatus == 0:
 			doc.submit()
@@ -3838,7 +3862,21 @@ def reject_request(doctype: str, name: str, comment: str | None = None) -> dict:
 		doc.save(ignore_permissions=True)
 		if doc.docstatus == 0:
 			doc.submit()
-	elif doctype in ("Employee Advance", "Attendance Request"):
+	elif doctype == "Attendance Request":
+		# Persist the rejection (do NOT delete) so the employee sees it, with the
+		# reason. Terminal state — they raise a fresh request if needed.
+		if doc.docstatus != 0:
+			frappe.throw(
+				_("Only a pending Attendance Request can be rejected. Cancel the approved request instead.")
+			)
+		if frappe.get_meta(doctype).has_field("status"):
+			doc.status = "Rejected"
+			doc.rejection_reason = strip_html(comment).strip()
+			doc.save(ignore_permissions=True)
+		else:
+			# Field not present (older site mid-migrate) — fall back to old behaviour.
+			doc.delete(ignore_permissions=True)
+	elif doctype == "Employee Advance":
 		# No reject status — cancel the draft request.
 		if doc.docstatus == 0:
 			doc.delete(ignore_permissions=True)
@@ -3895,3 +3933,63 @@ def reject_request(doctype: str, name: str, comment: str | None = None) -> dict:
 		_refresh_requester(doctype, req_user)
 
 	return {"name": name, "doctype": doctype, "rejected": True}
+
+
+@frappe.whitelist()
+def request_attendance_clarification(name: str, comment: str | None = None) -> dict:
+	"""Send an Attendance Request back to the employee for clarification instead
+	of approving or rejecting. Requires a comment; approver-authorized."""
+	if not comment or not strip_html(comment).strip():
+		frappe.throw(_("A comment is required when asking for clarification."))
+
+	doc = frappe.get_doc("Attendance Request", name)
+	_validate_approver(doc)
+
+	if not frappe.get_meta("Attendance Request").has_field("status"):
+		frappe.throw(_("The clarification workflow is not available on this site yet."))
+	if doc.docstatus != 0:
+		frappe.throw(_("Only a pending request can be sent back for clarification."))
+
+	doc.status = "Needs Clarification"
+	doc.rejection_reason = strip_html(comment).strip()
+	doc.save(ignore_permissions=True)
+	_add_comment_if_any(doc, comment)
+	frappe.db.commit()
+
+	_pwa_refetch(list(_INBOX_CACHE_KEYS), user=frappe.session.user)
+	req_user = frappe.db.get_value("Employee", doc.employee, "user_id")
+	_refresh_requester("Attendance Request", req_user)
+	return {"name": name, "doctype": "Attendance Request", "status": "Needs Clarification"}
+
+
+@frappe.whitelist()
+def resubmit_attendance_request(name: str) -> dict:
+	"""Employee re-submits a request that was sent back for clarification.
+	Moves it Needs Clarification → Open so it re-enters the manager's queue."""
+	doc = frappe.get_doc("Attendance Request", name)
+
+	if not frappe.get_meta("Attendance Request").has_field("status"):
+		frappe.throw(_("The clarification workflow is not available on this site yet."))
+
+	# Only the requesting employee (or an HR user) may resubmit.
+	emp_user = frappe.db.get_value("Employee", doc.employee, "user_id")
+	if frappe.session.user != emp_user and not _is_hr_user(frappe.session.user):
+		frappe.throw(_("You are not allowed to resubmit this request."), frappe.PermissionError)
+
+	if doc.docstatus != 0:
+		frappe.throw(_("This request can no longer be resubmitted."))
+	if doc.status != "Needs Clarification":
+		frappe.throw(_("Only a request awaiting clarification can be resubmitted."))
+
+	doc.status = "Open"
+	doc.rejection_reason = None
+	doc.save(ignore_permissions=True)
+	frappe.db.commit()
+
+	# Live-refresh the employee's own list AND the approving manager's inbox.
+	_refresh_requester("Attendance Request", emp_user)
+	reports_to = frappe.db.get_value("Employee", doc.employee, "reports_to")
+	manager_user = frappe.db.get_value("Employee", reports_to, "user_id") if reports_to else None
+	if manager_user:
+		_pwa_refetch(list(_INBOX_CACHE_KEYS), user=manager_user)
+	return {"name": name, "status": "Open"}

@@ -564,6 +564,40 @@ def get_custom_fields():
 				"non_negative": 1,
 			},
 		],
+		"Attendance Request": [
+			{
+				"fieldname": "status",
+				"fieldtype": "Select",
+				"label": _("Status"),
+				# Open (pending) → Approved (submitted) / Rejected (terminal) /
+				# Needs Clarification (bounced back to employee). Cancelled = a
+				# once-approved request that was later cancelled.
+				"options": "Open\nApproved\nRejected\nNeeds Clarification\nCancelled",
+				"default": "Open",
+				"insert_after": "employee_name",
+				"read_only": 1,
+				"no_copy": 1,
+				"in_list_view": 1,
+				"in_standard_filter": 1,
+				"allow_on_submit": 1,
+			},
+			{
+				"fieldname": "attachment",
+				"fieldtype": "Attach",
+				"label": _("Supporting Document"),
+				"insert_after": "explanation",
+			},
+			{
+				"fieldname": "rejection_reason",
+				"fieldtype": "Small Text",
+				"label": _("Approver Remark"),
+				"insert_after": "attachment",
+				"read_only": 1,
+				"no_copy": 1,
+				"allow_on_submit": 1,
+				"depends_on": "eval:['Rejected','Needs Clarification'].includes(doc.status)",
+			},
+		],
 		"Project": [
 			{
 				"fieldname": "total_expense_claim",

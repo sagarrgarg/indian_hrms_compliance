@@ -98,6 +98,14 @@ class AttendanceRequest(Document):
 			)
 		)
 
+		# A Rejected or Cancelled request is dead — it must NOT block the
+		# employee from filing a corrected one for the same dates. (Legacy rows
+		# with a NULL status pre-date the field and are still considered active.)
+		if self.meta.has_field("status"):
+			query = query.where(
+				Request.status.isnull() | Request.status.notin(["Rejected", "Cancelled"])
+			)
+
 		if self.shift:
 			query = query.where(Request.shift == self.shift)
 
@@ -114,8 +122,22 @@ class AttendanceRequest(Document):
 
 		frappe.throw(msg, title=_("Overlapping Attendance Request"), exc=OverlappingAttendanceRequestError)
 
+	def before_submit(self):
+		# A rejected request must never be approved into attendance records.
+		if self.meta.has_field("status") and self.status == "Rejected":
+			frappe.throw(
+				_(
+					"This Attendance Request was rejected and cannot be approved. "
+					"Ask the employee to raise a new request."
+				)
+			)
+
 	def on_submit(self):
 		self.create_attendance_records()
+		# Submission = approval. Stamp it so the Desk-direct path (not just the
+		# PWA approve action) reflects the correct status.
+		if self.meta.has_field("status") and self.status != "Approved":
+			self.db_set("status", "Approved", update_modified=False)
 
 	def on_cancel(self):
 		attendance_list = frappe.get_all(
@@ -125,6 +147,8 @@ class AttendanceRequest(Document):
 			for attendance in attendance_list:
 				attendance_obj = frappe.get_doc("Attendance", attendance["name"])
 				attendance_obj.cancel()
+		if self.meta.has_field("status"):
+			self.db_set("status", "Cancelled", update_modified=False)
 
 	def create_attendance_records(self):
 		request_days = date_diff(self.to_date, self.from_date) + 1

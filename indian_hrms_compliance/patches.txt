@@ -98,3 +98,4 @@ indian_hrms_compliance.patches.v15_0.seed_salary_mode_default #2026-06-30
 indian_hrms_compliance.patches.v15_0.migrate_checkin_settings_to_shift_type #2026-06-30
 indian_hrms_compliance.patches.v15_0.show_employer_contributions_on_slip #2026-07-11
 indian_hrms_compliance.patches.v15_0.exclude_gratuity_from_ctc #2026-07-12
+indian_hrms_compliance.patches.v15_0.backfill_attendance_request_status #2026-07-28
