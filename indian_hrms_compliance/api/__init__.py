@@ -3870,9 +3870,11 @@ def reject_request(doctype: str, name: str, comment: str | None = None) -> dict:
 				_("Only a pending Attendance Request can be rejected. Cancel the approved request instead.")
 			)
 		if frappe.get_meta(doctype).has_field("status"):
-			doc.status = "Rejected"
-			doc.rejection_reason = strip_html(comment).strip()
-			doc.save(ignore_permissions=True)
+			# db_set (not save) so a rejection is NEVER blocked by the request's
+			# own validate() — e.g. the requested days later became On Leave, the
+			# shift changed, or the employee went inactive. Killing a request must
+			# not depend on whether it could still be enacted.
+			doc.db_set({"status": "Rejected", "rejection_reason": strip_html(comment).strip()})
 		else:
 			# Field not present (older site mid-migrate) — fall back to old behaviour.
 			doc.delete(ignore_permissions=True)
@@ -3950,9 +3952,9 @@ def request_attendance_clarification(name: str, comment: str | None = None) -> d
 	if doc.docstatus != 0:
 		frappe.throw(_("Only a pending request can be sent back for clarification."))
 
-	doc.status = "Needs Clarification"
-	doc.rejection_reason = strip_html(comment).strip()
-	doc.save(ignore_permissions=True)
+	# db_set (not save) so sending back for clarification is never blocked by the
+	# request's own validate() (see reject_request for the rationale).
+	doc.db_set({"status": "Needs Clarification", "rejection_reason": strip_html(comment).strip()})
 	_add_comment_if_any(doc, comment)
 	frappe.db.commit()
 
