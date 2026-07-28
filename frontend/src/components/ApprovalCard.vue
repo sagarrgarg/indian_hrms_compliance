@@ -48,6 +48,19 @@
 				{{ __("Approve") }}
 			</Button>
 		</div>
+
+		<Button
+			v-if="item.doctype === 'Attendance Request'"
+			class="w-full !text-gray-600"
+			variant="ghost"
+			:loading="busy"
+			@click="onClarify"
+		>
+			<template #prefix>
+				<FeatherIcon name="help-circle" class="w-4" />
+			</template>
+			{{ __("Ask for Clarification") }}
+		</Button>
 	</div>
 </template>
 
@@ -57,7 +70,7 @@ import { IonBadge, alertController } from "@ionic/vue"
 import { toast, FeatherIcon, Button } from "frappe-ui"
 
 import EmployeeAvatar from "@/components/EmployeeAvatar.vue"
-import { approveRequest, rejectRequest } from "@/data/approvals"
+import { approveRequest, rejectRequest, requestClarification } from "@/data/approvals"
 
 const __ = inject("$translate")
 const dayjs = inject("$dayjs")
@@ -145,6 +158,31 @@ async function onReject() {
 			onError(err) {
 				busy.value = false
 				showToast(err?.messages?.[0] || __("Rejection failed!"), false)
+			},
+		}
+	)
+}
+
+async function onClarify() {
+	const comment = await promptComment({ required: true })
+	if (comment === undefined) return // cancelled
+	if (!comment) {
+		showToast(__("A comment is required when asking for clarification."), false)
+		return
+	}
+	busy.value = true
+	// request_attendance_clarification(name, comment) — no doctype arg.
+	requestClarification.submit(
+		{ name: props.item.name, comment },
+		{
+			onSuccess() {
+				busy.value = false
+				showToast(__("Sent back for clarification."))
+				emit("actioned")
+			},
+			onError(err) {
+				busy.value = false
+				showToast(err?.messages?.[0] || __("Could not send for clarification."), false)
 			},
 		}
 	)

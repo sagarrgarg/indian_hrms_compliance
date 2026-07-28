@@ -120,6 +120,16 @@ export const ATTENDANCE_REQUEST_FIELDS = [
 		fieldtype: "Data",
 	},
 	{
+		fieldname: "status",
+		label: "Status",
+		fieldtype: "Data",
+	},
+	{
+		fieldname: "rejection_reason",
+		label: "Approver Remark",
+		fieldtype: "Small Text",
+	},
+	{
 		fieldname: "attendance_dates",
 		label: "Attendance Dates",
 		fieldtype: "Data",

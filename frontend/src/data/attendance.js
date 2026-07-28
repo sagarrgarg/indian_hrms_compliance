@@ -93,6 +93,12 @@ export const teamShiftRequests = createResource({
 		return transformShiftRequests(data)
 	},
 })
+// Employee re-submits a request that was sent back for clarification
+// (Needs Clarification → Open).
+export const resubmitAttendanceRequest = createResource({
+	url: "indian_hrms_compliance.api.resubmit_attendance_request",
+})
+
 export const teamAttendanceRequests = createResource({
 	url: "indian_hrms_compliance.api.get_attendance_requests",
 	params: {

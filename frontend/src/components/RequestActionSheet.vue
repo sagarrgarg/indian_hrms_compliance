@@ -80,6 +80,27 @@
 			view="actionSheet"
 		/>
 
+		<!-- Employee resubmits a request that was sent back for clarification -->
+		<div
+			v-else-if="canResubmit"
+			class="flex w-full flex-col gap-2 sticky bottom-0 border-t z-[100] p-4"
+		>
+			<div v-if="document?.doc?.rejection_reason" class="text-sm text-gray-600 w-full">
+				{{ __("Approver asked:") }} {{ document?.doc?.rejection_reason }}
+			</div>
+			<Button
+				@click="onResubmit"
+				class="w-full py-5"
+				variant="solid"
+				:loading="resubmitting"
+			>
+				<template #prefix>
+					<FeatherIcon name="rotate-cw" class="w-4" />
+				</template>
+				{{ __("Resubmit") }}
+			</Button>
+		</div>
+
 		<div
 			v-else-if="['Open', 'Draft'].includes(document?.doc?.[approvalField]) && hasPermission('approval')"
 			class="flex w-full flex-row items-center justify-between gap-3 sticky bottom-0 border-t z-[100] p-4"
@@ -172,6 +193,7 @@ import WorkflowActionSheet from "@/components/WorkflowActionSheet.vue"
 
 import { getCompanyCurrency } from "@/data/currencies"
 import { settings } from "@/data/settings"
+import { resubmitAttendanceRequest } from "@/data/attendance"
 import { formatCurrency } from "@/utils/formatters"
 
 import useWorkflow from "@/composables/workflow"
@@ -197,6 +219,7 @@ const router = useRouter()
 let showPreviewModal = ref(false)
 let selectedFile = ref({})
 let workflow = ref(null)
+let resubmitting = ref(false)
 
 function showFilePreview(fileObj) {
 	selectedFile.value = fileObj
@@ -282,6 +305,45 @@ const approvalField = computed(() => {
 		? "approval_status"
 		: "status"
 })
+
+// Only the requesting employee sees "Resubmit", and only while the request is
+// pending clarification.
+const canResubmit = computed(() => {
+	const doc = document?.doc
+	if (!doc || doc.doctype !== "Attendance Request") return false
+	if (doc.status !== "Needs Clarification" || doc.docstatus !== 0) return false
+	return doc.employee === sessionEmployee?.data?.name
+})
+
+const onResubmit = () => {
+	resubmitting.value = true
+	resubmitAttendanceRequest.submit(
+		{ name: props.modelValue.name },
+		{
+			onSuccess() {
+				resubmitting.value = false
+				modalController.dismiss()
+				toast({
+					title: __("Success"),
+					text: __("Resubmitted successfully!"),
+					icon: "check-circle",
+					position: "bottom-center",
+					iconClasses: "text-green-500",
+				})
+			},
+			onError(err) {
+				resubmitting.value = false
+				toast({
+					title: __("Error"),
+					text: err?.messages?.[0] || __("Resubmit failed!"),
+					icon: "alert-circle",
+					position: "bottom-center",
+					iconClasses: "text-red-500",
+				})
+			},
+		}
+	)
+}
 
 const getSuccessMessage = ({ status = "", docstatus = 0 }) => {
 	if (status) {
