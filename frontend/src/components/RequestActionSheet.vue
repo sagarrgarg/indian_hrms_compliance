@@ -130,11 +130,19 @@
 			</Button>
 		</div>
 
+		<!--
+			Attendance Request is deliberately NOT listed here. Submitting one IS
+			approving it (it creates the Attendance records), and hasPermission
+			('approval') is only implemented for Leave Application — so for an
+			Attendance Request this branch used to be reached by the *requesting
+			employee*, handing them a Submit button that self-approved their own
+			request and bypassed the approval flow entirely. Attendance Requests
+			are actioned from the Approvals inbox (or the Desk form).
+		-->
 		<div
 			v-else-if="
 				document?.doc?.docstatus === 0 &&
-				(document?.doc?.doctype === 'Attendance Request' ||
-					['Approved', 'Rejected'].includes(document?.doc?.[approvalField])) &&
+				['Approved', 'Rejected'].includes(document?.doc?.[approvalField]) &&
 				hasPermission('submit')
 			"
 			class="flex w-full flex-row items-center justify-between gap-3 sticky bottom-0 border-t z-[100] p-4"
