@@ -312,8 +312,20 @@ doc_events = {
 	},
 	# Back-dated attendance requests beyond the HR-Settings months threshold can
 	# only be submitted by an HRMS Master Manager (the configured approval role).
+	# after_insert notifies the reporting manager a new request awaits action —
+	# Attendance Request has no approver field so it lacks the Leave/Expense/Shift
+	# mixin's notify_approver.
 	"Attendance Request": {
+		"after_insert": "indian_hrms_compliance.api.notify_approver_of_new_request",
 		"before_submit": "indian_hrms_compliance.overrides.attendance_backdated.guard_attendance_request",
+	},
+	# Employee Advance & Resignation Request likewise lack the approver-notify
+	# mixin — tell the reporting manager when a fresh one is raised.
+	"Employee Advance": {
+		"after_insert": "indian_hrms_compliance.api.notify_approver_of_new_request",
+	},
+	"Resignation Request": {
+		"after_insert": "indian_hrms_compliance.api.notify_approver_of_new_request",
 	},
 	# Marked Attendance (scheduler overnight + HR mid-day) flips an employee
 	# between Present / Absent / On Leave on the past-date roll-call.

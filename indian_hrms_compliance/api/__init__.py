@@ -3728,6 +3728,126 @@ _APPROVAL_DOCTYPES = (
 	"Employee Grievance",
 )
 
+# Inbox doctypes whose own controllers already raise a PWA Notification to the
+# requester on an approve/reject decision (Leave/Expense/Shift via the mixin,
+# Profile Change via its bespoke helper). Skip these in the generic notifier
+# below so the requester isn't told twice.
+_SELF_NOTIFIES_ON_DECISION = frozenset(
+	{
+		"Leave Application",
+		"Expense Claim",
+		"Shift Request",
+		"Employee Profile Change Request",
+	}
+)
+
+# (doctype, approved?) -> past-tense phrase used in the requester's notification.
+# Falls back to a plain "approved"/"rejected" for anything not listed.
+_DECISION_PHRASE = {
+	("Goal", False): "sent back for changes",
+	("Employee Onboarding Application", True): "verified",
+	("Employee Grievance", True): "acknowledged and is now under investigation",
+	("Employee Grievance", False): "reviewed and marked invalid",
+}
+
+
+def _requester_user(doctype: str, doc) -> str | None:
+	"""Resolve the requesting person's User for an inbox doc. Grievance keys off
+	`raised_by` (an Employee link); everything else off `employee`."""
+	emp = doc.get("raised_by") if doctype == "Employee Grievance" else doc.get("employee")
+	if not emp:
+		return None
+	return frappe.db.get_value("Employee", emp, "user_id")
+
+
+def _notify_requester_decision(
+	doctype: str,
+	name: str,
+	requester_user: str | None,
+	approved: bool,
+	comment: str | None = None,
+	state: str | None = None,
+) -> None:
+	"""Raise a PWA Notification telling the requester their inbox item was
+	approved/rejected. No-op for doctypes that already self-notify, when the
+	actor IS the requester, or when no User can be resolved (e.g. a pre-hire
+	onboarding applicant who has no login yet). `state` is the resulting
+	workflow_state, used to word multi-stage transitions accurately."""
+	if doctype in _SELF_NOTIFIES_ON_DECISION:
+		return
+	from_user = frappe.session.user
+	if not requester_user or requester_user == from_user:
+		return
+
+	from frappe import bold
+
+	if doctype == "Resignation Request" and approved:
+		# "Approve" here can be the intermediate manager Acknowledge (hands off to
+		# HR) rather than the final approval — don't tell the employee it's
+		# approved until it actually is.
+		phrase = "approved" if state == "Approved" else "acknowledged and forwarded to HR"
+	else:
+		phrase = _DECISION_PHRASE.get((doctype, bool(approved)), "approved" if approved else "rejected")
+	from_name = frappe.db.get_value("User", from_user, "full_name", cache=True) or from_user
+	message = f"Your {bold(doctype)} {name} has been {bold(phrase)} by {bold(from_name)}"
+	reason = strip_html(comment).strip() if comment else ""
+	if reason:
+		message += f": {reason}"
+
+	try:
+		frappe.get_doc(
+			{
+				"doctype": "PWA Notification",
+				"from_user": from_user,
+				"to_user": requester_user,
+				"message": message,
+				"reference_document_type": doctype,
+				"reference_document_name": name,
+			}
+		).insert(ignore_permissions=True)
+	except Exception:
+		# The decision itself is the source of truth — never let a failed
+		# notification roll back an approve/reject.
+		frappe.log_error(f"PWA decision notification failed: {doctype} {name}")
+
+
+def notify_approver_of_new_request(doc, method: str | None = None) -> None:
+	"""doc_events after_insert hook: tell the employee's reporting manager that a
+	new request awaits action. Covers the doctypes (Attendance Request, Employee
+	Advance, Resignation Request) that lack the Leave/Expense/Shift approver
+	notification. Best-effort — never blocks the insert."""
+	try:
+		emp = doc.get("employee")
+		if not emp:
+			return
+		reports_to = frappe.db.get_value("Employee", emp, "reports_to")
+		manager_user = (
+			frappe.db.get_value("Employee", reports_to, "user_id") if reports_to else None
+		)
+		from_user = frappe.session.user
+		if not manager_user or manager_user == from_user:
+			return
+
+		from frappe import bold
+
+		emp_name = doc.get("employee_name") or emp
+		message = f"{bold(emp_name)} raised a new {bold(doc.doctype)} for your approval: {doc.name}"
+		frappe.get_doc(
+			{
+				"doctype": "PWA Notification",
+				"from_user": from_user,
+				"to_user": manager_user,
+				"message": message,
+				"reference_document_type": doc.doctype,
+				"reference_document_name": doc.name,
+			}
+		).insert(ignore_permissions=True)
+	except Exception:
+		frappe.log_error(
+			f"PWA new-request notification failed: "
+			f"{getattr(doc, 'doctype', '?')} {getattr(doc, 'name', '?')}"
+		)
+
 
 @frappe.whitelist()
 def approve_request(doctype: str, name: str, comment: str | None = None) -> dict:
@@ -3739,6 +3859,8 @@ def approve_request(doctype: str, name: str, comment: str | None = None) -> dict
 
 	doc = frappe.get_doc(doctype, name)
 	_validate_approver(doc)
+	# Capture the requester's User up front — some branches delete the doc.
+	requester_user = _requester_user(doctype, doc)
 
 	if doctype == "Leave Application":
 		doc.status = "Approved"
@@ -3858,6 +3980,11 @@ def approve_request(doctype: str, name: str, comment: str | None = None) -> dict
 		doc.save(ignore_permissions=True)
 
 	_add_comment_if_any(doc, comment)
+	# Notify the requester their item was approved (skips the doctypes whose own
+	# controllers already do — Leave/Expense/Shift/Profile Change).
+	_notify_requester_decision(
+		doctype, name, requester_user, approved=True, comment=comment, state=doc.get("workflow_state")
+	)
 	frappe.db.commit()
 
 	# Live-refresh: the approver's inbox (so the row drops off) AND, where the
@@ -3888,6 +4015,8 @@ def reject_request(doctype: str, name: str, comment: str | None = None) -> dict:
 
 	doc = frappe.get_doc(doctype, name)
 	_validate_approver(doc)
+	# Capture the requester's User up front — some branches delete the doc.
+	requester_user = _requester_user(doctype, doc)
 
 	if doctype == "Leave Application":
 		doc.status = "Rejected"
@@ -3965,6 +4094,9 @@ def reject_request(doctype: str, name: str, comment: str | None = None) -> dict:
 	if frappe.db.exists(doctype, name):
 		doc = frappe.get_doc(doctype, name)
 		_add_comment_if_any(doc, comment)
+	# Notify the requester their item was rejected (requester_user was captured
+	# before any branch could delete the doc). Skips the self-notifying doctypes.
+	_notify_requester_decision(doctype, name, requester_user, approved=False, comment=comment)
 	frappe.db.commit()
 
 	# Live-refresh: rejecter's inbox + requester's screens. For deleted docs
@@ -3996,14 +4128,42 @@ def request_attendance_clarification(name: str, comment: str | None = None) -> d
 
 	# db_set (not save) so sending back for clarification is never blocked by the
 	# request's own validate() (see reject_request for the rationale).
-	doc.db_set({"status": "Needs Clarification", "rejection_reason": strip_html(comment).strip()})
+	reason = strip_html(comment).strip()
+	doc.db_set({"status": "Needs Clarification", "rejection_reason": reason})
 	_add_comment_if_any(doc, comment)
+
+	# Notify the employee: unlike Leave/Expense (whose save-time hooks fire
+	# notify_approval_status), an Attendance Request is moved via db_set, so we
+	# raise the PWA Notification here explicitly.
+	req_user = frappe.db.get_value("Employee", doc.employee, "user_id")
+	_notify_attendance_clarification(doc, req_user, reason)
 	frappe.db.commit()
 
 	_pwa_refetch(list(_INBOX_CACHE_KEYS), user=frappe.session.user)
-	req_user = frappe.db.get_value("Employee", doc.employee, "user_id")
 	_refresh_requester("Attendance Request", req_user)
 	return {"name": name, "doctype": "Attendance Request", "status": "Needs Clarification"}
+
+
+def _notify_attendance_clarification(doc, req_user: str | None, reason: str) -> None:
+	"""Raise a PWA Notification telling the employee their Attendance Request was
+	sent back for clarification, with the approver's question."""
+	from_user = frappe.session.user
+	if not req_user or req_user == from_user:
+		return
+
+	from frappe import bold
+
+	from_name = frappe.db.get_value("User", from_user, "full_name", cache=True) or from_user
+	notification = frappe.new_doc("PWA Notification")
+	notification.from_user = from_user
+	notification.to_user = req_user
+	notification.message = (
+		f"{bold(from_name)} asked for clarification on your {bold('Attendance Request')} "
+		f"{doc.name}: {reason}"
+	)
+	notification.reference_document_type = "Attendance Request"
+	notification.reference_document_name = doc.name
+	notification.insert(ignore_permissions=True)
 
 
 @frappe.whitelist()
@@ -4028,12 +4188,35 @@ def resubmit_attendance_request(name: str) -> dict:
 	doc.status = "Open"
 	doc.rejection_reason = None
 	doc.save(ignore_permissions=True)
+
+	# Notify the manager it's back in their queue (before commit so it's atomic).
+	reports_to = frappe.db.get_value("Employee", doc.employee, "reports_to")
+	manager_user = frappe.db.get_value("Employee", reports_to, "user_id") if reports_to else None
+	if manager_user and manager_user != frappe.session.user:
+		from frappe import bold
+
+		emp_name = doc.get("employee_name") or doc.employee
+		try:
+			frappe.get_doc(
+				{
+					"doctype": "PWA Notification",
+					"from_user": frappe.session.user,
+					"to_user": manager_user,
+					"message": (
+						f"{bold(emp_name)} responded to your clarification and re-submitted "
+						f"{bold('Attendance Request')} {doc.name}"
+					),
+					"reference_document_type": "Attendance Request",
+					"reference_document_name": doc.name,
+				}
+			).insert(ignore_permissions=True)
+		except Exception:
+			frappe.log_error(f"PWA resubmit notification failed: {doc.name}")
+
 	frappe.db.commit()
 
 	# Live-refresh the employee's own list AND the approving manager's inbox.
 	_refresh_requester("Attendance Request", emp_user)
-	reports_to = frappe.db.get_value("Employee", doc.employee, "reports_to")
-	manager_user = frappe.db.get_value("Employee", reports_to, "user_id") if reports_to else None
 	if manager_user:
 		_pwa_refetch(list(_INBOX_CACHE_KEYS), user=manager_user)
 	return {"name": name, "status": "Open"}
