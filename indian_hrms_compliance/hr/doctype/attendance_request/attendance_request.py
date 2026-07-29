@@ -188,35 +188,6 @@ class AttendanceRequest(Document):
 			self._skipped_days = []
 		self._skipped_days.append({"date": attendance_date, "reason": reason})
 
-	def get_conflicting_shift_attendance(self, attendance_date) -> dict | None:
-		"""Existing attendance on the same date for a DIFFERENT but time-overlapping
-		shift.
-
-		Attendance.validate_overlapping_shift_attendance hard-throws on insert, so
-		without this pre-check one clashing day aborts an entire multi-day request
-		(rolling back the days that already succeeded)."""
-		if not self.shift:
-			return None
-
-		from indian_hrms_compliance.hr.doctype.shift_assignment.shift_assignment import (
-			has_overlapping_timings,
-		)
-
-		rows = frappe.get_all(
-			"Attendance",
-			filters={
-				"employee": self.employee,
-				"attendance_date": attendance_date,
-				"docstatus": ("<", 2),
-				"shift": ("!=", self.shift),
-			},
-			fields=["name", "shift"],
-		)
-		for d in rows:
-			if d.shift and has_overlapping_timings(self.shift, d.shift):
-				return d
-		return None
-
 	def create_attendance_records(self):
 		request_days = date_diff(self.to_date, self.from_date) + 1
 		self._skipped_days = []
@@ -307,21 +278,6 @@ class AttendanceRequest(Document):
 			)
 			return False
 
-		# Attendance already exists for an overlapping shift — inserting would
-		# hard-throw and abort the whole request, so skip this day instead.
-		conflict = self.get_conflicting_shift_attendance(attendance_date)
-		if conflict:
-			self._note_skip(
-				attendance_date,
-				_("Already marked on overlapping shift {0} ({1})").format(conflict.shift, conflict.name),
-			)
-			frappe.msgprint(
-				_("Attendance not submitted for {0} as it is already marked on overlapping shift {1}.").format(
-					frappe.bold(format_date(attendance_date)), frappe.bold(conflict.shift)
-				)
-			)
-			return False
-
 		return True
 
 	def has_leave_record(self, attendance_date: str) -> str | None:
@@ -336,17 +292,37 @@ class AttendanceRequest(Document):
 			},
 		)
 
-	def get_attendance_doc(self, attendance_date: str) -> str | None:
-		attendance = frappe.db.exists(
+	def get_attendance_doc(self, attendance_date: str):
+		"""The existing Attendance for this employee + date, if any.
+
+		Prefers an exact shift match, but falls back to ANY non-cancelled
+		attendance for that date. Matching on shift alone was wrong: when the
+		request carries no shift (or a different one from the record that
+		already exists), nothing was found, so a *second* attendance was
+		attempted for the same day — which the Attendance controller always
+		rejects (duplicate / overlapping shift). The day was then silently
+		skipped and the approval changed nothing.
+
+		The existing record's own shift is deliberately left untouched, per the
+		Shift field's note ("Shift will not be overwritten in existing
+		attendance records"); only its status is regularised.
+		"""
+		rows = frappe.get_all(
 			"Attendance",
-			{
+			filters={
 				"employee": self.employee,
 				"attendance_date": attendance_date,
 				"docstatus": ("!=", 2),
-				"shift": self.shift,
 			},
+			fields=["name", "shift"],
+			order_by="docstatus desc, creation desc",
 		)
-		return frappe.get_doc("Attendance", attendance) if attendance else None
+		if not rows:
+			return None
+
+		exact = [r for r in rows if (r.shift or None) == (self.shift or None)]
+		chosen = (exact or rows)[0]
+		return frappe.get_doc("Attendance", chosen.name)
 
 	def get_attendance_status(self, attendance_date: str) -> str:
 		if self.half_day and date_diff(getdate(self.half_day_date), getdate(attendance_date)) == 0:
@@ -386,15 +362,6 @@ class AttendanceRequest(Document):
 				attendance_warnings.append({"date": attendance_date, "reason": "Holiday", "action": "Skip"})
 			elif self.has_leave_record(attendance_date):
 				attendance_warnings.append({"date": attendance_date, "reason": "On Leave", "action": "Skip"})
-			elif conflict := self.get_conflicting_shift_attendance(attendance_date):
-				attendance_warnings.append(
-					{
-						"date": attendance_date,
-						"reason": f"Already marked on overlapping shift {conflict.shift}",
-						"record": conflict.name,
-						"action": "Skip",
-					}
-				)
 			elif self.status_unchanged(attendance_date):
 				attendance_warnings.append(
 					{"date": attendance_date, "reason": "Attendance status unchanged", "action": "Skip"}
