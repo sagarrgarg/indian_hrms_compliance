@@ -121,7 +121,7 @@
    "read_only": 1
   },
   {
-   "description": "Note: Shift will not be overwritten in existing attendance records",
+   "description": "Auto-set from the employee's active Shift Assignment; change only if attendance should be marked against a different shift. Note: Shift will not be overwritten in existing attendance records",
    "fieldname": "shift",
    "fieldtype": "Link",
    "label": "Shift",
@@ -137,7 +137,7 @@
  ],
  "is_submittable": 1,
  "links": [],
- "modified": "2026-04-07 11:05:03.480492",
+ "modified": "2026-07-29 00:00:00.000000",
  "modified_by": "Administrator",
  "module": "HR",
  "name": "Attendance Request",

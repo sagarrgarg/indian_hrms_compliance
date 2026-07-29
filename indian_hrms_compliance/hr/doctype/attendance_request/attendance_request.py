@@ -62,19 +62,20 @@ class AttendanceRequest(Document):
 			)
 
 	def validate_shifts(self):
-		# Shift should be mentioned if employee has a shift assignment
-		shifts = self.get_active_shifts()
-		if shifts and not self.shift:
-			if len(shifts) == 1:
+		# Auto-resolve the shift; never ask the employee for it. The self-service
+		# request form has no shift field, so throwing "please mention the shift"
+		# made it impossible for anyone with more than one active Shift Assignment
+		# to file a request at all. Default to the most recent assignment's shift —
+		# HR can change it on the Desk form if the attendance belongs elsewhere.
+		if not self.shift:
+			shifts = self.get_active_shifts()
+			if shifts:
 				self.shift = shifts[0]
-			else:
-				frappe.throw(
-					_(
-						"There are multiple shifts assigned to the employee for the same period. Please mention the shift"
-					)
-				)
 
 	def get_active_shifts(self):
+		"""Shift types assigned for the whole request period, most recent
+		assignment first. Order is deterministic (the previous list(set(...))
+		returned an arbitrary order, so the auto-picked shift could vary)."""
 		shifts = frappe.get_all(
 			"Shift Assignment",
 			filters={
@@ -85,9 +86,14 @@ class AttendanceRequest(Document):
 				"end_date": (">=", self.to_date),
 			},
 			pluck="shift_type",
+			order_by="start_date desc, creation desc",
 		)
 
-		return list(set(shifts))
+		seen = []
+		for s in shifts:
+			if s and s not in seen:
+				seen.append(s)
+		return seen
 
 	def validate_request_overlap(self):
 		if not self.name:
