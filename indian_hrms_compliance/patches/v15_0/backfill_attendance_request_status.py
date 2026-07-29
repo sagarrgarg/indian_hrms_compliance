@@ -37,8 +37,14 @@ def execute():
 		# Field still absent (should never happen) — bail rather than crash.
 		return
 
-	# Idempotent: only touch rows that were never stamped. docstatus →
-	# 1 = Approved (submitted), 2 = Cancelled, 0 = Open (still pending).
+	# docstatus → 1 = Approved (submitted), 2 = Cancelled, 0 = Open (pending).
+	#
+	# NOTE: the guard must also catch 'Open', not just NULL/''. The status field
+	# carries default "Open", so adding the column back-fills every existing row
+	# with 'Open' — a NULL-only guard silently matches nothing and leaves
+	# submitted requests reading "Open". Decided drafts (Rejected / Needs
+	# Clarification) are docstatus 0 with a non-blank status and are never
+	# touched. Idempotent.
 	frappe.db.sql(
 		"""
 		UPDATE `tabAttendance Request`
@@ -47,6 +53,8 @@ def execute():
 			WHEN 2 THEN 'Cancelled'
 			ELSE 'Open'
 		END
-		WHERE status IS NULL OR status = ''
+		WHERE
+			(docstatus IN (1, 2) AND (status IS NULL OR status IN ('', 'Open')))
+			OR (docstatus = 0 AND (status IS NULL OR status = ''))
 		"""
 	)

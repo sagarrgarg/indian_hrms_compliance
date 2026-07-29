@@ -146,6 +146,24 @@ class AttendanceRequest(Document):
 		# PWA approve action) reflects the correct status.
 		if self.meta.has_field("status") and self.status != "Approved":
 			self.db_set("status", "Approved", update_modified=False)
+		self.log_skipped_days()
+
+	def log_skipped_days(self):
+		"""Leave an audit note listing days that were NOT marked, so the approver
+		can see exactly what the approval did and did not do."""
+		skipped = getattr(self, "_skipped_days", None)
+		if not skipped:
+			return
+		lines = "<br>".join(
+			f"{format_date(s['date'])} &mdash; {s['reason']}" for s in skipped
+		)
+		try:
+			self.add_comment(
+				"Comment",
+				_("Approved. These days were skipped:<br>{0}").format(lines),
+			)
+		except Exception:
+			frappe.log_error(title="Attendance Request skip note failed", message=frappe.get_traceback())
 
 	def on_cancel(self):
 		attendance_list = frappe.get_all(
@@ -158,12 +176,64 @@ class AttendanceRequest(Document):
 		if self.meta.has_field("status"):
 			self.db_set("status", "Cancelled", update_modified=False)
 
+	def _note_skip(self, attendance_date, reason):
+		"""Record a day that could not be marked, so approval can report it."""
+		if not hasattr(self, "_skipped_days") or self._skipped_days is None:
+			self._skipped_days = []
+		self._skipped_days.append({"date": attendance_date, "reason": reason})
+
+	def get_conflicting_shift_attendance(self, attendance_date) -> dict | None:
+		"""Existing attendance on the same date for a DIFFERENT but time-overlapping
+		shift.
+
+		Attendance.validate_overlapping_shift_attendance hard-throws on insert, so
+		without this pre-check one clashing day aborts an entire multi-day request
+		(rolling back the days that already succeeded)."""
+		if not self.shift:
+			return None
+
+		from indian_hrms_compliance.hr.doctype.shift_assignment.shift_assignment import (
+			has_overlapping_timings,
+		)
+
+		rows = frappe.get_all(
+			"Attendance",
+			filters={
+				"employee": self.employee,
+				"attendance_date": attendance_date,
+				"docstatus": ("<", 2),
+				"shift": ("!=", self.shift),
+			},
+			fields=["name", "shift"],
+		)
+		for d in rows:
+			if d.shift and has_overlapping_timings(self.shift, d.shift):
+				return d
+		return None
+
 	def create_attendance_records(self):
 		request_days = date_diff(self.to_date, self.from_date) + 1
+		self._skipped_days = []
 		for day in range(request_days):
 			attendance_date = add_days(self.from_date, day)
-			if self.should_mark_attendance(attendance_date):
+			if not self.should_mark_attendance(attendance_date):
+				continue
+			# Belt-and-braces: a single unmarkable day must never abort the whole
+			# request. Each day gets its own savepoint so a failure rolls back only
+			# that day, leaving the rest of the approval intact.
+			savepoint = f"attendance_request_day_{day}"
+			try:
+				frappe.db.savepoint(savepoint)
 				self.create_or_update_attendance(attendance_date)
+			except frappe.ValidationError as e:
+				frappe.db.rollback(save_point=savepoint)
+				self._note_skip(attendance_date, str(e))
+				# Drop the message Frappe queued for this now-handled error so it
+				# doesn't surface as a scary red toast.
+				try:
+					frappe.clear_last_message()
+				except Exception:
+					pass
 
 	def create_or_update_attendance(self, date: str):
 		doc = self.get_attendance_doc(date)
@@ -211,6 +281,7 @@ class AttendanceRequest(Document):
 	def should_mark_attendance(self, attendance_date: str) -> bool:
 		# Check if attendance_date is a holiday
 		if not self.include_holidays and is_holiday(self.employee, attendance_date):
+			self._note_skip(attendance_date, _("Holiday"))
 			frappe.msgprint(
 				_("Attendance not submitted for {0} as it is a Holiday.").format(
 					frappe.bold(format_date(attendance_date))
@@ -218,11 +289,29 @@ class AttendanceRequest(Document):
 			)
 			return False
 
-		# Check if employee is on leave
+		# Check if employee is on leave. An APPROVED (submitted) Leave Application
+		# wins over an attendance request for that day — the day is skipped until
+		# that leave is cancelled, at which point a re-approval will mark it.
 		if self.has_leave_record(attendance_date):
+			self._note_skip(attendance_date, _("On approved leave"))
 			frappe.msgprint(
 				_("Attendance not submitted for {0} as {1} is on leave.").format(
 					frappe.bold(format_date(attendance_date)), frappe.bold(self.employee)
+				)
+			)
+			return False
+
+		# Attendance already exists for an overlapping shift — inserting would
+		# hard-throw and abort the whole request, so skip this day instead.
+		conflict = self.get_conflicting_shift_attendance(attendance_date)
+		if conflict:
+			self._note_skip(
+				attendance_date,
+				_("Already marked on overlapping shift {0} ({1})").format(conflict.shift, conflict.name),
+			)
+			frappe.msgprint(
+				_("Attendance not submitted for {0} as it is already marked on overlapping shift {1}.").format(
+					frappe.bold(format_date(attendance_date)), frappe.bold(conflict.shift)
 				)
 			)
 			return False
@@ -291,6 +380,15 @@ class AttendanceRequest(Document):
 				attendance_warnings.append({"date": attendance_date, "reason": "Holiday", "action": "Skip"})
 			elif self.has_leave_record(attendance_date):
 				attendance_warnings.append({"date": attendance_date, "reason": "On Leave", "action": "Skip"})
+			elif conflict := self.get_conflicting_shift_attendance(attendance_date):
+				attendance_warnings.append(
+					{
+						"date": attendance_date,
+						"reason": f"Already marked on overlapping shift {conflict.shift}",
+						"record": conflict.name,
+						"action": "Skip",
+					}
+				)
 			elif self.status_unchanged(attendance_date):
 				attendance_warnings.append(
 					{"date": attendance_date, "reason": "Attendance status unchanged", "action": "Skip"}

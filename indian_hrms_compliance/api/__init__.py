@@ -2800,15 +2800,24 @@ def _pending_shift_approvals(user: str) -> list[dict]:
 def _pending_attendance_approvals(user: str) -> list[dict]:
 	"""Attendance Requests (no approver field) awaiting submission, scoped to
 	this manager's direct reports."""
-	reports = _resignation_reports_to_user(user)
-	if not reports:
-		return []
-	filters = {"docstatus": 0, "employee": ("in", list(reports))}
+	filters: dict = {"docstatus": 0}
 	# Only genuinely-pending requests belong in the approver queue — a Rejected
 	# (terminal) or Needs Clarification (back with the employee) draft is not
 	# awaiting this manager.
 	if frappe.get_meta("Attendance Request").has_field("status"):
 		filters["status"] = "Open"
+
+	# HR sees every pending request in their companies (they own this process);
+	# a plain reporting manager sees only their direct reports.
+	if _is_hr_user(user):
+		scope = _hr_company_scope(user)
+		if scope is not None:
+			filters["company"] = ("in", scope)
+	else:
+		reports = _resignation_reports_to_user(user)
+		if not reports:
+			return []
+		filters["employee"] = ("in", list(reports))
 	rows = frappe.get_all(
 		"Attendance Request",
 		filters=filters,
@@ -2837,6 +2846,8 @@ def _pending_attendance_approvals(user: str) -> list[dict]:
 				"employee": r.employee,
 				"employee_name": r.employee_name,
 				"date": str(getdate(r.creation)) if r.creation else None,
+				# full timestamp so same-day requests still sort newest-first
+				"_ts": str(r.creation) if r.creation else None,
 				"action_type": "status",
 			}
 		)
@@ -3168,7 +3179,10 @@ def get_pending_approvals() -> list[dict]:
 				title=f"Pending approvals provider failed: {provider.__name__}",
 				message=frappe.get_traceback(),
 			)
-	items.sort(key=lambda i: (i.get("date") or ""), reverse=True)
+	# Newest first. Prefer the full timestamp where a provider supplies one so
+	# same-day items don't tie arbitrarily ("_ts" starts with the date, so it
+	# compares correctly against date-only values).
+	items.sort(key=lambda i: (i.get("_ts") or i.get("date") or ""), reverse=True)
 	return items
 
 
@@ -3212,6 +3226,20 @@ def _assert_reports_to_approver(doc, label: str):
 		frappe.throw(_("You are not the approver for this {0}.").format(label), frappe.PermissionError)
 
 
+def _assert_attendance_approver(doc):
+	"""Attendance Requests may be actioned by the employee's reporting manager
+	OR by HR. HR handled these before there was any approval flow (they were the
+	ones submitting/deleting requests), so they must keep that authority —
+	especially on Desk, where HR, not the manager, does the work."""
+	if _is_hr_user(frappe.session.user):
+		return
+	if doc.employee not in _resignation_reports_to_user(frappe.session.user):
+		frappe.throw(
+			_("Only the employee's reporting manager or HR can action this attendance request."),
+			frappe.PermissionError,
+		)
+
+
 def _assert_task_approver(doc):
 	if doc.goal_type != "Task Instance" or doc.approver_user != frappe.session.user:
 		frappe.throw(_("You are not the approver for this task."), frappe.PermissionError)
@@ -3238,7 +3266,7 @@ def _validate_approver(doc) -> None:
 	elif dt == "Employee Advance":
 		_assert_reports_to_approver(doc, "advance")
 	elif dt == "Attendance Request":
-		_assert_reports_to_approver(doc, "attendance request")
+		_assert_attendance_approver(doc)
 	elif dt == "Resignation Request":
 		# Two valid approvers depending on the workflow state:
 		#  * Pending Manager Acknowledgement → the employee's reporting manager
@@ -3737,8 +3765,17 @@ def approve_request(doctype: str, name: str, comment: str | None = None) -> dict
 		# manager is endorsing the request; create_attendance_records() skips
 		# days with nothing to do.
 		doc.flags.ignore_no_attendance_to_create = True
-		# Submission = approval → creates the Attendance records.
-		doc.submit()
+		# The controller emits Desk-style info msgprints while creating/updating
+		# attendance ("Updated status from Absent to Present …", "Attendance not
+		# submitted … Holiday"). In the PWA those surface as scary error toasts.
+		# Mute them for the API path — real exceptions (frappe.throw) still raise.
+		_muted = frappe.flags.mute_messages
+		frappe.flags.mute_messages = True
+		try:
+			# Submission = approval → creates the Attendance records.
+			doc.submit()
+		finally:
+			frappe.flags.mute_messages = _muted
 	elif doctype == "Employee Advance":
 		# No approval status — approval = submission of the request.
 		if doc.docstatus == 0:
