@@ -95,7 +95,18 @@
 											]"
 										>{{ t.status }}</span>
 									</div>
-									<span class="text-xs text-gray-500">{{ t.kra }} · {{ t.frequency }}</span>
+									<span class="text-xs text-gray-500">
+											{{ t.kra }} · {{ t.use_cadence_schedule ? __("Scheduled") : t.frequency }}
+											<span
+												v-if="t.risk_tier && t.risk_tier !== 'Routine'"
+												:class="[
+													'ml-1 px-1.5 py-0.5 rounded-full text-[10px]',
+													t.risk_tier === 'Critical'
+														? 'bg-red-50 text-red-600'
+														: 'bg-amber-50 text-amber-700',
+												]"
+											>{{ t.risk_tier }}</span>
+										</span>
 								</div>
 								<button class="p-1.5 text-gray-400 hover:text-indigo-600" @click="editTask(t.name)">
 									<FeatherIcon name="edit-2" class="h-4 w-4" />
@@ -116,9 +127,20 @@
 						<FormControl type="select" :label="__('Category')" :options="categoryOptions" v-model="kraForm.kra_category" />
 						<FormControl type="select" :label="__('Status')" :options="kraStatusOptions" v-model="kraForm.status" />
 						<FormControl type="select" :label="__('Owner Designation')" :options="designationOptions" v-model="kraForm.owner_designation" />
+						<div class="flex flex-col gap-1">
+							<FormControl
+								type="select"
+								:label="__('DRI (Accountable Owner)')"
+								:options="employeeOptions"
+								v-model="kraForm.dri"
+							/>
+							<span class="text-xs text-gray-500">
+								{{ __("The one person answerable for this KRA. Required while the KRA is Active.") }}
+							</span>
+						</div>
 						<FormControl type="textarea" :label="__('Short Description')" v-model="kraForm.description" />
 						<div class="flex gap-2 pt-2">
-							<Button variant="solid" class="flex-1 py-4" :loading="saveKra.loading" :disabled="!kraForm.title" @click="submitKra">
+							<Button variant="solid" class="flex-1 py-4" :loading="saveKra.loading" :disabled="!kraCanSave" @click="submitKra">
 								{{ __("Save") }}
 							</Button>
 							<Button variant="subtle" class="flex-1 py-4" @click="cancel">{{ __("Cancel") }}</Button>
@@ -134,6 +156,15 @@
 						<FormControl type="select" :label="__('KRA')" :options="kraOptions" v-model="taskForm.kra" />
 						<FormControl type="select" :label="__('Frequency')" :options="frequencyOptions" v-model="taskForm.frequency" />
 						<FormControl type="select" :label="__('Completion Type')" :options="completionTypeOptions" v-model="taskForm.completion_type" />
+						<div class="flex flex-col gap-1">
+							<FormControl
+								type="select"
+								:label="__('Risk Tier')"
+								:options="riskTierOptions"
+								v-model="taskForm.risk_tier"
+							/>
+							<span class="text-xs text-gray-500">{{ tierHelp }}</span>
+						</div>
 						<FormControl type="select" :label="__('Status')" :options="taskStatusOptions" v-model="taskForm.status" />
 						<FormControl
 							v-if="taskForm.status === 'Active'"
@@ -175,7 +206,7 @@
 </template>
 
 <script setup>
-import { computed, inject, reactive, ref } from "vue"
+import { computed, inject, nextTick, reactive, ref, watch } from "vue"
 import { useRouter } from "vue-router"
 import { IonPage, IonHeader, IonContent } from "@ionic/vue"
 import { Button, FormControl, FeatherIcon, toast } from "frappe-ui"
@@ -223,6 +254,22 @@ const taskStatusOptions = computed(() => toOpts(["Draft", "Active", "Paused", "R
 const frequencyOptions = computed(() => toOpts(options.value.frequencies))
 const completionTypeOptions = computed(() => toOpts(options.value.completion_types))
 const designationOptions = computed(() => toOpts(options.value.designations, __("— none —")))
+const riskTierOptions = computed(() => toOpts(options.value.risk_tiers || ["Routine", "Standard", "Critical"]))
+const employeeOptions = computed(() => [
+	{ label: __("— none —"), value: "" },
+	...(options.value.employees || []).map((e) => ({
+		label: `${e.employee_name} (${e.name})`,
+		value: e.name,
+	})),
+])
+const tierHelp = computed(
+	() =>
+		({
+			Routine: __("One tap to complete. No evidence, no approval."),
+			Standard: __("Captures evidence — a file, a number, a note."),
+			Critical: __("Evidence plus approval by someone other than the doer."),
+		})[taskForm.risk_tier] || "",
+)
 const departmentOptions = computed(() => toOpts(options.value.departments, __("— none —")))
 const kraOptions = computed(() => [
 	{ label: __("Select a KRA"), value: "" },
@@ -230,18 +277,54 @@ const kraOptions = computed(() => [
 ])
 
 const blankKra = () => ({
-	name: "", title: "", kra_category: "", status: "Active", owner_designation: "", description: "",
+	name: "", title: "", kra_category: "", status: "Active", owner_designation: "", dri: "",
+	description: "",
 })
 const blankTask = () => ({
 	name: "", task_name: "", kra: "", frequency: "Daily", completion_type: "Checkbox",
-	status: "Draft", effective_from: "", applicable_to_all_active: 0,
+	risk_tier: "Routine", status: "Draft", effective_from: "", applicable_to_all_active: 0,
 	assigned_to_designation: "", assigned_to_department: "", description: "",
+	// The tier is a label over these real controls. We MUST round-trip and send
+	// them: if we don't, the server keeps the stored values and its upward
+	// reconciliation snaps the tier straight back — so lowering a tier in the PWA
+	// would silently do nothing. Presets applied by watch(taskForm.risk_tier).
+	requires_approval: 0, requires_attachment: 0, approver_resolution: "Reports To",
 })
+
+// Same tier → controls mapping the Desk form uses (hrms_task.js TIER_PRESETS),
+// so authoring a task is one decision. The server still enforces the Critical
+// invariant independently; these presets are convenience.
+const TIER_PRESETS = {
+	Routine: { requires_attachment: 0, requires_approval: 0 },
+	Standard: { requires_attachment: 1, requires_approval: 0 },
+	Critical: { requires_attachment: 1, requires_approval: 1, approver_resolution: "Reports To" },
+}
 const kraForm = reactive(blankKra())
 const taskForm = reactive(blankTask())
 
+// Picking a tier presets its controls. Guarded by `applyingTierPreset` so the
+// initial load from editTask() (which sets risk_tier to the stored value) does
+// not clobber the task's real, possibly-customised controls.
+let applyingTierPreset = false
+watch(
+	() => taskForm.risk_tier,
+	(tier) => {
+		if (applyingTierPreset) return
+		const preset = TIER_PRESETS[tier]
+		if (preset) Object.assign(taskForm, preset)
+	},
+)
+
 const taskCanSave = computed(
 	() => !!taskForm.task_name && !!taskForm.kra && !(taskForm.status === "Active" && !taskForm.effective_from)
+)
+// A NEW Active KRA must name a DRI — gate here so the user sees why the button
+// is disabled instead of hitting a server-side validation error. Existing KRAs
+// that predate the field only warn server-side (kra.py _validate_dri), so we
+// must NOT block re-saving them, or a legacy Active KRA with a blank DRI could
+// never be edited at all.
+const kraCanSave = computed(
+	() => !!kraForm.title && !(!kraForm.name && kraForm.status === "Active" && !kraForm.dri)
 )
 
 function newRecord() {
@@ -262,7 +345,8 @@ async function editKra(name) {
 	const doc = await getKra.fetch({ name })
 	Object.assign(kraForm, blankKra(), {
 		name: doc.name, title: doc.title, kra_category: doc.kra_category || "",
-		status: doc.status, owner_designation: doc.owner_designation || "", description: doc.description || "",
+		status: doc.status, owner_designation: doc.owner_designation || "",
+		dri: doc.dri || "", description: doc.description || "",
 	})
 	tab.value = "kra"
 	editing.value = true
@@ -270,13 +354,22 @@ async function editKra(name) {
 
 async function editTask(name) {
 	const doc = await getHrmsTask.fetch({ name })
+	// Suppress the tier-preset watch while we load: setting risk_tier here would
+	// otherwise overwrite the task's real, stored controls with the tier default.
+	applyingTierPreset = true
 	Object.assign(taskForm, blankTask(), {
 		name: doc.name, task_name: doc.task_name, kra: doc.kra, frequency: doc.frequency,
-		completion_type: doc.completion_type, status: doc.status, effective_from: doc.effective_from || "",
+		completion_type: doc.completion_type, risk_tier: doc.risk_tier || "Routine",
+		status: doc.status, effective_from: doc.effective_from || "",
 		applicable_to_all_active: doc.applicable_to_all_active ? 1 : 0,
 		assigned_to_designation: doc.assigned_to_designation || "",
 		assigned_to_department: doc.assigned_to_department || "", description: doc.description || "",
+		requires_approval: doc.requires_approval ? 1 : 0,
+		requires_attachment: doc.requires_attachment ? 1 : 0,
+		approver_resolution: doc.approver_resolution || "Reports To",
 	})
+	await nextTick()
+	applyingTierPreset = false
 	tab.value = "task"
 	editing.value = true
 }

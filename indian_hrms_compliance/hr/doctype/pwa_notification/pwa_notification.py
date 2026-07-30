@@ -48,5 +48,8 @@ class PWANotification(Document):
 			return f"{base_url}/expense-claims/{self.reference_document_name}"
 		elif self.reference_document_type == "Attendance Request":
 			return f"{base_url}/attendance-requests/{self.reference_document_name}"
+		elif self.reference_document_type == "Goal":
+			# Task Instances are Goals under the hood; the PWA routes them at /tasks.
+			return f"{base_url}/tasks/{self.reference_document_name}"
 
 		return base_url

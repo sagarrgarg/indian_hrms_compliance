@@ -29,6 +29,87 @@ class Goal(NestedSet):
 		self.validate_from_to_dates(self.start_date, self.end_date)
 		self.validate_progress()
 		self.set_status()
+		self._guard_task_instance_governance()
+
+	def _guard_task_instance_governance(self):
+		"""Enforce the approval invariant at the DOCUMENT layer, not just the API.
+
+		The whitelisted governance endpoints (complete/approve/reject/reopen) are
+		careful — but Goal also exposes its own `update_status` / `update_progress`
+		whitelists and the generic `client.set_value`, and the Employee role has a
+		blanket write perm. Without this, a doer could mark their own Critical task
+		'Completed' straight through those, never touching an approver, and could
+		hand-write `approved_by` (Frappe does NOT enforce `read_only` server-side).
+
+		Trusted paths set `flags.ihc_governed_write` before saving; everything else
+		is treated as a raw client write and may not:
+		  * create or change any approval/submission stamp, or
+		  * push an approval-gated instance to 'Completed' without a real sign-off.
+
+		Reminder back-fills use `db.set_value`, which bypasses validate entirely,
+		so they are unaffected.
+		"""
+		if self.goal_type != "Task Instance" or self.flags.get("ihc_governed_write"):
+			return
+
+		before = self.get_doc_before_save()
+
+		# 1. Approval/submission stamps are system-owned — never client-editable.
+		stamp_fields = (
+			"submitted_at",
+			"submitted_by",
+			"approved_by",
+			"approved_at",
+			"approval_notes",
+		)
+		for f in stamp_fields:
+			if not self.meta.has_field(f):
+				continue
+			old = (before.get(f) if before else None) or None
+			if (self.get(f) or None) != old:
+				frappe.throw(
+					_(
+						"Approval details on a task are written by the approval workflow, "
+						"not editable directly."
+					),
+					frappe.PermissionError,
+					title=_("Not Allowed"),
+				)
+
+		# 2. Routing identity is frozen once the instance exists. Otherwise a doer
+		#    could clear `task_template` (making the Completed check below think the
+		#    task needs no approval) or swap it for a Routine one, or re-point
+		#    `approver_user` / `approver_role` at a friendly colleague. The only
+		#    legitimate writers of these are the scheduler at INSERT (before is
+		#    None → exempt) and leave-cover delegation via `db.set_value` (bypasses
+		#    validate entirely → exempt).
+		if before:
+			for f in ("task_template", "approver_user", "approver_role"):
+				if not self.meta.has_field(f):
+					continue
+				if (self.get(f) or None) != (before.get(f) or None):
+					frappe.throw(
+						_("A task's template and approver routing cannot be changed directly."),
+						frappe.PermissionError,
+						title=_("Not Allowed"),
+					)
+
+		# 3. An approval-gated instance may not reach Completed without a sign-off.
+		#    `task_template` is now proven unchanged (frozen above), so reading
+		#    requires_approval from it is trustworthy.
+		if self.status == "Completed" and not self.get("approved_by"):
+			requires_approval = self.task_template and frappe.db.get_value(
+				"HRMS Task", self.task_template, "requires_approval"
+			)
+			if requires_approval:
+				frappe.throw(
+					_(
+						"This task requires approval and cannot be marked complete directly — "
+						"submit it for approval instead."
+					),
+					frappe.PermissionError,
+					title=_("Approval Required"),
+				)
 
 	def on_update(self):
 		NestedSet.on_update(self)

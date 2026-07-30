@@ -51,14 +51,27 @@ def get_org_graph(company: str | None = None) -> dict:
 	tasks = frappe.get_all(
 		"HRMS Task",
 		filters={"status": "Active"} | ({"company": company} if company else {}),
-		fields=["name", "task_name", "kra", "task_kind", "assigned_to_designation", "applicable_to_all_active"],
+		fields=[
+			"name", "task_name", "kra", "task_kind", "risk_tier",
+			"assigned_to_designation", "applicable_to_all_active",
+		],
 	)
 
 	def tasks_for(emp):
 		out = []
 		for t in tasks:
 			if t.applicable_to_all_active or (t.assigned_to_designation and t.assigned_to_designation == emp.designation):
-				out.append({"name": t.name, "label": t.task_name, "kra": t.kra, "kind": t.task_kind})
+				out.append(
+					{
+						"name": t.name,
+						"label": t.task_name,
+						"kra": t.kra,
+						"kind": t.task_kind,
+						# Risk tier drives the Z-axis colour — Critical work should be
+						# visible at a glance across the whole org.
+						"risk_tier": t.risk_tier or "Routine",
+					}
+				)
 		return out
 
 	# Compute level (depth) by walking reports_to within the set.
@@ -87,7 +100,7 @@ def get_org_graph(company: str | None = None) -> dict:
 				"open_tasks": open_tasks.get(e.name, 0),
 				"overdue_tasks": overdue_tasks.get(e.name, 0),
 				"kras": sorted({t["kra"] for t in z_items if t["kra"]}),
-				"sops": z_items,  # KRA/SOP/KPI items on the Z axis
+				"sops": z_items,  # Task / KPI items on the Z axis (key kept for API compat)
 			}
 		)
 
