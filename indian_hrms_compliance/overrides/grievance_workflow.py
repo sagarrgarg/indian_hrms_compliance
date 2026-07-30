@@ -47,8 +47,13 @@ def compute_sla_due_date(doc, method=None):
 	if doc.workflow_state and doc.workflow_state in WORKFLOW_TO_STATUS:
 		doc.status = WORKFLOW_TO_STATUS[doc.workflow_state]
 
+	# Grievance Type defaults live on Custom Fields — guard the reads so a
+	# not-yet-synced site (mid-migrate / drift) doesn't crash a grievance save
+	# on a missing column.
+	gt_meta = frappe.get_meta("Grievance Type")
+
 	# Severity fallback chain: doc.severity → Grievance Type default → "Medium"
-	if not doc.severity and doc.grievance_type:
+	if not doc.severity and doc.grievance_type and gt_meta.has_field("default_severity"):
 		doc.severity = (
 			frappe.db.get_value("Grievance Type", doc.grievance_type, "default_severity")
 			or "Medium"
@@ -59,7 +64,7 @@ def compute_sla_due_date(doc, method=None):
 
 	# SLA days chain: Grievance Type default → HR Settings severity default → 14
 	sla_days = None
-	if doc.grievance_type:
+	if doc.grievance_type and gt_meta.has_field("default_sla_days"):
 		sla_days = frappe.db.get_value("Grievance Type", doc.grievance_type, "default_sla_days")
 	if not sla_days:
 		sla_days = _severity_sla_days(doc.severity or "Medium")

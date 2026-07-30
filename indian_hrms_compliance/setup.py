@@ -63,6 +63,37 @@ def sync_custom_fields():
 	remove_deprecated_custom_fields()
 
 
+def seed_grievance_types():
+	"""Self-heal the Grievance Type master.
+
+	Runs on after_migrate. Seeds the standard types ONLY when the table is
+	empty — a fresh or drifted site whose grievance form would otherwise show
+	an empty type dropdown. A site that has curated its own type list (even one
+	custom type) is left untouched, so this never resurrects a deliberately
+	deleted type. Idempotent."""
+	if not frappe.db.table_exists("Grievance Type"):
+		return
+	if frappe.db.count("Grievance Type"):
+		return
+
+	from indian_hrms_compliance.patches.v15_0.enhance_employee_grievance import (
+		GRIEVANCE_TYPE_SEEDS,
+	)
+
+	has_defaults = frappe.get_meta("Grievance Type").has_field("default_severity")
+	for spec in GRIEVANCE_TYPE_SEEDS:
+		values = {
+			"doctype": "Grievance Type",
+			"name": spec["name"],
+			"description": spec["description"],
+		}
+		if has_defaults:
+			values["default_severity"] = spec["default_severity"]
+			values["default_sla_days"] = spec["default_sla_days"]
+		frappe.get_doc(values).insert(ignore_permissions=True)
+	print(f"  Seeded {len(GRIEVANCE_TYPE_SEEDS)} Grievance Types (was empty)")
+
+
 def remove_deprecated_custom_fields():
 	"""Delete custom fields that were removed from the app (idempotent).
 
@@ -874,6 +905,101 @@ def get_custom_fields():
 				"fieldtype": "Check",
 				"label": _("HR"),
 				"insert_after": "buying",
+			},
+		],
+		# Phase 5 Grievance enhancement. These were originally shipped via the
+		# one-shot patch v15_0/enhance_employee_grievance; kept here so they
+		# self-heal on every migrate (a site that lost them — the classic prod /
+		# Frappe Cloud drift — gets them back instead of the grievance form
+		# crashing on a missing `default_severity` / `severity` column).
+		"Employee Grievance": [
+			{
+				"fieldname": "company",
+				"fieldtype": "Link",
+				"options": "Company",
+				"label": _("Company"),
+				"insert_after": "raised_by",
+				"reqd": 1,
+				"in_list_view": 1,
+				"in_standard_filter": 1,
+				"fetch_from": "raised_by.company",
+				"description": _("Every Grievance lives in exactly one Company."),
+			},
+			{
+				"fieldname": "severity",
+				"fieldtype": "Select",
+				"label": _("Severity"),
+				"options": "Low\nMedium\nHigh\nCritical",
+				"default": "Medium",
+				"insert_after": "status",
+				"in_list_view": 1,
+				"in_standard_filter": 1,
+				"description": _("Drives SLA defaults + escalation cadence from HR Settings."),
+			},
+			{
+				"fieldname": "workflow_state",
+				"fieldtype": "Link",
+				"options": "Workflow State",
+				"label": _("Workflow State"),
+				"insert_after": "severity",
+				"no_copy": 1,
+				"read_only": 1,
+				"in_list_view": 1,
+				"in_standard_filter": 1,
+			},
+			{
+				"fieldname": "sla_due_date",
+				"fieldtype": "Date",
+				"label": _("SLA Due Date"),
+				"insert_after": "workflow_state",
+				"read_only": 1,
+				"description": _(
+					"Auto-set from date + severity SLA days. Past this date, SLA scheduler escalates."
+				),
+			},
+			{
+				"fieldname": "last_reminder_sent_on",
+				"fieldtype": "Date",
+				"label": _("Last Reminder Sent On"),
+				"insert_after": "sla_due_date",
+				"read_only": 1,
+				"no_copy": 1,
+				"hidden": 1,
+			},
+			{
+				"fieldname": "linked_disciplinary_action",
+				"fieldtype": "Link",
+				"options": "Disciplinary Action",
+				"label": _("Linked Disciplinary Action"),
+				"insert_after": "resolution_detail",
+				"read_only": 1,
+				"description": _(
+					"Auto-linked when this grievance leads to a Disciplinary Action."
+				),
+			},
+		],
+		"Grievance Type": [
+			{
+				"fieldname": "default_severity",
+				"fieldtype": "Select",
+				"label": _("Default Severity"),
+				"options": "Low\nMedium\nHigh\nCritical",
+				"default": "Medium",
+				"insert_after": "description",
+				"description": _(
+					"Applied to new Grievances of this type when severity isn't set explicitly."
+				),
+			},
+			{
+				"fieldname": "default_sla_days",
+				"fieldtype": "Int",
+				"label": _("Default SLA (days)"),
+				"insert_after": "default_severity",
+				"non_negative": 1,
+				"description": _(
+					"Days from raised_date by which a grievance of this type must be resolved. "
+					"Overrides HR Settings severity defaults."
+				),
 			},
 		],
 	}

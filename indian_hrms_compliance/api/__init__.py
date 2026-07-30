@@ -1936,9 +1936,15 @@ def get_my_grievances() -> list[dict]:
 def get_grievance_form_options() -> dict:
 	"""Select options for the ESS grievance create form: grievance types
 	(with their default severity so the form can pre-fill) + severities."""
+	# default_severity is a Custom Field — guard the read so a site that hasn't
+	# synced it yet (mid-migrate / drift) still returns the type list instead of
+	# throwing "Unknown column" and leaving the whole form's dropdown empty.
+	fields = ["name"]
+	if frappe.get_meta("Grievance Type").has_field("default_severity"):
+		fields.append("default_severity")
 	grievance_types = frappe.get_all(
 		"Grievance Type",
-		fields=["name", "default_severity"],
+		fields=fields,
 		order_by="name asc",
 	)
 	return {
@@ -1966,7 +1972,9 @@ def file_grievance(
 		"Employee", employee, ["company", "employee_name"], as_dict=True
 	) or frappe._dict()
 
-	if not severity and grievance_type:
+	if not severity and grievance_type and frappe.get_meta("Grievance Type").has_field(
+		"default_severity"
+	):
 		severity = (
 			frappe.db.get_value("Grievance Type", grievance_type, "default_severity")
 			or "Medium"
