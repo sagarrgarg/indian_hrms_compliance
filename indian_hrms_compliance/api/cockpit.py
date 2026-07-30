@@ -318,3 +318,84 @@ def _build_trends(ctx):
 		"joiners": {"label": "New Joiners (6 mo)", "labels": labels, "points": points},
 		"on_leave": {"label": "On Leave (7 days)", "labels": ll, "points": lp},
 	}
+
+
+# --------------------------------------------------------------------------- #
+# Step 2 — Org Integrity Findings summary (governance drift the nightly sweep
+# has recorded). HR-only, company-scoped like the rest of the cockpit.
+# --------------------------------------------------------------------------- #
+_SEVERITY_RANK = {"High": 0, "Medium": 1, "Low": 2}
+
+
+@frappe.whitelist()
+def get_org_integrity_summary(status: str = "Open", limit: int = 50) -> dict:
+	"""Governance findings from the nightly Org Integrity Check.
+
+	Returns unbounded counts (by severity + by check) plus the top findings
+	ranked High→Low then most-recently-seen. Scoped to the HR user's company.
+	"""
+	frappe.only_for(COCKPIT_ROLES)
+	if not frappe.db.table_exists("Org Integrity Finding"):
+		return {"available": False, "total": 0, "by_severity": {}, "by_check": {}, "findings": []}
+
+	status = status if status in ("Open", "Resolved") else "Open"
+	company = _scope_company()
+	filters = {"status": status}
+	if company:
+		filters["company"] = company
+
+	total = _count("Org Integrity Finding", filters)
+
+	by_severity = {
+		r.severity: r.c
+		for r in frappe.get_all(
+			"Org Integrity Finding",
+			filters=filters,
+			fields=["severity", "count(name) as c"],
+			group_by="severity",
+		)
+		if r.severity
+	}
+	by_check = {
+		r.check_type: r.c
+		for r in frappe.get_all(
+			"Org Integrity Finding",
+			filters=filters,
+			fields=["check_type", "count(name) as c"],
+			group_by="check_type",
+		)
+		if r.check_type
+	}
+
+	rows = frappe.get_all(
+		"Org Integrity Finding",
+		filters=filters,
+		fields=[
+			"name",
+			"check_type",
+			"severity",
+			"company",
+			"subject_label",
+			"detail",
+			"reference_doctype",
+			"reference_name",
+			"escalated_to",
+			"first_detected",
+			"last_seen",
+		],
+		order_by="last_seen desc",
+		limit=max(1, int(limit or 50)),
+	)
+	# Rows arrive most-recent-first from the DB; a STABLE sort by severity then
+	# keeps that recency order within each band → High-newest … Low-oldest.
+	rows.sort(key=lambda r: _SEVERITY_RANK.get(r.severity, 9))
+
+	return {
+		"available": True,
+		"status": status,
+		"company": company,
+		"total": total,
+		"by_severity": by_severity,
+		"by_check": by_check,
+		"findings": rows,
+	}
