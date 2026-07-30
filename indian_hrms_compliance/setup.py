@@ -63,6 +63,22 @@ def sync_custom_fields():
 	remove_deprecated_custom_fields()
 
 
+def backfill_reports_to_from_heads():
+	"""after_migrate: fill empty reports_to from the department tree.
+
+	Runs here, NOT as a patch: the department_head Custom Field is created by
+	sync_custom_fields (also after_migrate), so a patch — which runs BEFORE
+	after_migrate — would find no field and become a permanent no-op. Blank-only
+	and idempotent, so running every migrate just converges as HR sets heads."""
+	try:
+		from indian_hrms_compliance.overrides.org_tree import backfill_reports_to
+
+		backfill_reports_to()
+	except Exception:
+		frappe.db.rollback()
+		frappe.log_error("reports_to backfill failed")
+
+
 def reconcile_hrms_task_risk_tiers():
 	"""after_migrate: fill blank HRMS Task risk tiers (idempotent, blank-only).
 
@@ -316,9 +332,48 @@ def get_custom_fields():
 		],
 		"Department": [
 			{
+				"fieldname": "org_head_section",
+				"fieldtype": "Section Break",
+				"label": _("Headship"),
+				"insert_after": "disabled",
+			},
+			{
+				"fieldname": "department_head",
+				"fieldtype": "Link",
+				"label": _("Department Head"),
+				"options": "Employee",
+				"insert_after": "org_head_section",
+				"description": _(
+					"The one person who heads this department. Seeds the reporting tree — "
+					"members with no manager derive their reports_to from here — and is the "
+					"default target for 'assign to head' and escalations."
+				),
+			},
+			{
+				"fieldname": "acting_head",
+				"fieldtype": "Link",
+				"label": _("Acting Head"),
+				"options": "Employee",
+				"insert_after": "department_head",
+				"description": _("Effective-dated cover while the head is on leave or the seat is interim-vacant."),
+			},
+			{
+				"fieldname": "acting_until",
+				"fieldtype": "Date",
+				"label": _("Acting Until"),
+				"depends_on": "acting_head",
+				"insert_after": "acting_head",
+				"description": _("Last date the Acting Head covers. After this it reverts to the Department Head."),
+			},
+			{
+				"fieldname": "org_head_col_break",
+				"fieldtype": "Column Break",
+				"insert_after": "acting_until",
+			},
+			{
 				"fieldname": "section_break_4",
 				"fieldtype": "Section Break",
-				"insert_after": "disabled",
+				"insert_after": "org_head_col_break",
 			},
 			{
 				"fieldname": "payroll_cost_center",
@@ -404,8 +459,32 @@ def get_custom_fields():
 				"options": "Designation Skill",
 				"insert_after": "required_skills_section",
 			},
+			{
+				"fieldname": "department",
+				"fieldtype": "Link",
+				"label": _("Department"),
+				"options": "Department",
+				"insert_after": "skills",
+				"description": _(
+					"Scope this title to a department (optional). When set, the designation is "
+					"only selectable for employees of that department, and its people's head is "
+					"unambiguously that department's head. Leave empty for cross-department "
+					"titles like 'Driver' or 'Office Assistant'."
+				),
+			},
 		],
 		"Employee": [
+			{
+				"fieldname": "default_task_delegate",
+				"fieldtype": "Link",
+				"label": _("Default Task Delegate"),
+				"options": "Employee",
+				"insert_after": "reports_to",
+				"description": _(
+					"Where open task instances go for leave cover (a peer / deputy). Falls back "
+					"to the reporting manager when empty."
+				),
+			},
 			{
 				"fieldname": "leave_policy",
 				"fieldtype": "Link",

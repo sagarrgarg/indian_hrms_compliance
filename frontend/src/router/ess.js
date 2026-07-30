@@ -32,6 +32,11 @@ const routes = [
 		component: () => import("@/views/exit/Dashboard.vue"),
 	},
 	{
+		name: "MyDepartment",
+		path: "/my-department",
+		component: () => import("@/views/MyDepartment.vue"),
+	},
+	{
 		name: "ResignationForm",
 		path: "/exit/resign",
 		component: () => import("@/views/exit/ResignationForm.vue"),

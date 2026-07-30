@@ -134,6 +134,7 @@ after_migrate = [
 	"indian_hrms_compliance.setup.seed_grievance_types",
 	"indian_hrms_compliance.setup.reconcile_attendance_request_status",
 	"indian_hrms_compliance.setup.reconcile_hrms_task_risk_tiers",
+	"indian_hrms_compliance.setup.backfill_reports_to_from_heads",
 	"indian_hrms_compliance.setup.apply_property_setters",
 	"indian_hrms_compliance.regional.india.tax_defaults.seed_all",
 	"indian_hrms_compliance.setup.update_select_perm_after_install",
@@ -266,6 +267,10 @@ doc_events = {
 		],
 	},
 	"Loan": {"validate": "indian_hrms_compliance.hr.utils.validate_loan_repay_from_salary"},
+	"Department": {
+		"validate": "indian_hrms_compliance.overrides.org_tree.validate_department_head",
+		"on_update": "indian_hrms_compliance.overrides.org_tree.propagate_department_head",
+	},
 	"Employee": {
 		"validate": [
 			"indian_hrms_compliance.overrides.employee_master.validate_onboarding_process",
@@ -278,6 +283,8 @@ doc_events = {
 			"indian_hrms_compliance.overrides.employee_master.apply_biometric_id_rules",
 			"indian_hrms_compliance.overrides.employee_master.apply_address_copy_rules",
 			"indian_hrms_compliance.overrides.labour_code_uan.validate_uan_aadhaar_linking",
+			"indian_hrms_compliance.overrides.org_tree.validate_scoped_designation",
+			"indian_hrms_compliance.overrides.org_tree.derive_reports_to",
 		],
 		"on_update": [
 			"indian_hrms_compliance.overrides.employee_master.update_approver_role",

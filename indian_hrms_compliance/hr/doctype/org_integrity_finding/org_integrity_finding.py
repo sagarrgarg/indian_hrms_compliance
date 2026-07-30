@@ -38,6 +38,7 @@ CHECK_SEVERITY = {
 	"Stranded Approval": "High",
 	"Critical Unroutable": "High",
 	"Critical Overdue": "High",
+	"Vacant Department Head": "Medium",
 }
 
 _SYSTEM_USERS = ("Administrator", "Guest")
@@ -423,8 +424,51 @@ def _check_critical_overdue() -> list[dict]:
 # check that legitimately finds nothing this run is still known to have COVERED
 # its type — which is what lets auto-resolve safely close its cleared findings
 # without ever touching the findings of a check that failed or was skipped.
+def _check_vacant_department_head() -> list[dict] | None:
+	"""A department whose head cannot be resolved — no head, or a head/acting who
+	has left — so 'assign to head', escalations and the reporting tree have no
+	anchor. Only meaningful once the head field exists.
+	"""
+	if not frappe.get_meta("Department").has_field("department_head"):
+		return None
+	from indian_hrms_compliance.overrides.org_tree import department_head_of
+
+	out = []
+	for d in frappe.get_all(
+		"Department",
+		filters={"disabled": 0, "is_group": 0},
+		fields=["name", "department_name", "company", "department_head"],
+	):
+		if department_head_of(d.name):
+			continue  # a live head (or acting) resolves — fine
+		# Only flag departments that actually have people to head; an empty
+		# placeholder department needing no head is not a governance problem.
+		if not frappe.db.count("Employee", {"department": d.name, "status": "Active"}):
+			continue
+		stale = d.department_head  # set but not resolvable (departed) vs never set
+		out.append(
+			{
+				"check_type": "Vacant Department Head",
+				"company": d.company,
+				"reference_doctype": "Department",
+				"reference_name": d.name,
+				"subject_label": d.department_name or d.name,
+				"detail": _(
+					"Department '{0}' has active staff but no resolvable head ({1}). "
+					"Assign a Department Head so its reporting lines and escalations have an anchor."
+				).format(
+					d.department_name or d.name,
+					_("the named head is no longer active") if stale else _("none named"),
+				),
+				"escalate_to": None,
+			}
+		)
+	return out
+
+
 _CHECKS = (
 	(_check_dri_inactive, "DRI Inactive"),
+	(_check_vacant_department_head, "Vacant Department Head"),
 	(_check_dri_missing, "DRI Missing"),
 	(_check_task_owner_inactive, "Task Owner Inactive"),
 	(_check_stranded_approvals, "Stranded Approval"),
