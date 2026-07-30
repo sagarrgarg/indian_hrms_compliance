@@ -90,7 +90,23 @@ function setFormReadOnly() {
 function validateDates(from_date, to_date) {
 	if (!(from_date && to_date)) return
 
-	const error_message = from_date > to_date ? __("To Date cannot be before From Date") : ""
+	const from = from_date.slice(0, 10)
+	const to = to_date.slice(0, 10)
+
+	// Local calendar "today" (backend re-checks authoritatively in the site TZ).
+	const now = new Date()
+	const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(
+		now.getDate()
+	).padStart(2, "0")}`
+
+	let error_message = ""
+	if (from > to) {
+		error_message = __("To Date cannot be before From Date")
+	} else if (from <= today && today <= to) {
+		// Attendance for the current day isn't settled yet — allow past or future,
+		// never today.
+		error_message = __("You cannot raise an Attendance Request for today.")
+	}
 
 	const from_date_field = formFields.data.find((field) => field.fieldname === "from_date")
 	from_date_field.error_message = error_message

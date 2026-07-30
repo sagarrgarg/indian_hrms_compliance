@@ -21,10 +21,29 @@ class AttendanceRequest(Document):
 	def validate(self):
 		validate_active_employee(self.employee)
 		validate_dates(self, self.from_date, self.to_date, False)
+		self.validate_not_today()
 		self.validate_shifts()
 		self.validate_half_day()
 		self.validate_request_overlap()
 		self.validate_no_attendance_to_create()
+
+	def validate_not_today(self):
+		# Attendance for the current day isn't settled yet (shift may still be
+		# running, punches still arriving), so a request covering today makes no
+		# sense — regularise past days, or plan future ones. Enforced only while
+		# the request is still a draft (docstatus 0) so that approving a request
+		# whose date later coincides with "today" is never blocked.
+		if self.docstatus != 0:
+			return
+		today = getdate()
+		if getdate(self.from_date) <= today <= getdate(self.to_date):
+			frappe.throw(
+				_(
+					"You cannot raise an Attendance Request for today ({0}). "
+					"Attendance can be regularised for past dates or planned for future dates, "
+					"but not for the current day."
+				).format(format_date(today))
+			)
 
 	def validate_half_day(self):
 		if self.half_day:
