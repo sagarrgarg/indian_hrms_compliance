@@ -72,6 +72,11 @@
   "task_compliance_critical_threshold_pct",
   "appraisal_section",
   "appraisal_auto_populate_kra_performance",
+  "org_integrity_section",
+  "enable_org_integrity_check",
+  "org_integrity_stranded_sla_days",
+  "org_integrity_overdue_sla_days",
+  "org_integrity_escalation_role",
   "policies_tab",
   "policy_acknowledgement_section",
   "default_policy_ack_due_days",
@@ -1423,13 +1428,53 @@
    "fieldtype": "Check",
    "default": "1",
    "description": "Monthly scheduler \u2014 compare worker count vs thresholds; notify HR Manager on gaps."
+  },
+  {
+   "fieldname": "org_integrity_section",
+   "fieldtype": "Section Break",
+   "label": "Org Integrity Check (nightly)",
+   "description": "A daily sweep that flags governance drift Step 1 can only warn about on save \u2014 an Active KRA/task whose accountable owner (DRI) has left, an approval stuck with no one able to act, or a Critical task that is unroutable or badly overdue \u2014 and escalates each to the DRI's/employee's reporting manager, or HR."
+  },
+  {
+   "default": "1",
+   "fieldname": "enable_org_integrity_check",
+   "fieldtype": "Check",
+   "label": "Enable Nightly Org Integrity Check",
+   "description": "When enabled, the daily scheduler records governance findings and escalates them once to the responsible person."
+  },
+  {
+   "default": "3",
+   "fieldname": "org_integrity_stranded_sla_days",
+   "fieldtype": "Int",
+   "non_negative": 1,
+   "depends_on": "enable_org_integrity_check",
+   "label": "Stranded Approval SLA (days)",
+   "description": "A submitted task instance that no one can approve is flagged once it has sat this many days. Default: 3."
+  },
+  {
+   "default": "7",
+   "fieldname": "org_integrity_overdue_sla_days",
+   "fieldtype": "Int",
+   "non_negative": 1,
+   "depends_on": "enable_org_integrity_check",
+   "label": "Critical Overdue SLA (days)",
+   "description": "A Critical task instance overdue by more than this many days is escalated to the employee's reporting manager. Default: 7."
+  },
+  {
+   "default": "HR Manager",
+   "fieldname": "org_integrity_escalation_role",
+   "fieldtype": "Link",
+   "options": "Role",
+   "depends_on": "enable_org_integrity_check",
+   "label": "Org Integrity Escalation Role",
+   "description": "Findings with no specific manager (or with no manager on record) escalate to holders of this role, scoped to the finding's Company. Default: HR Manager."
   }
  ],
  "icon": "fa fa-cog",
  "idx": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-07-13 12:00:00.000000",
+ "modified": "2026-07-30 13:00:00.000000",
  "modified_by": "Administrator",
  "module": "HR",
  "name": "HR Settings",

@@ -420,6 +420,7 @@ scheduler_events = {
 		"indian_hrms_compliance.hr.doctype.hrms_task.hrms_task.send_upcoming_task_reminders",
 		"indian_hrms_compliance.hr.doctype.hrms_task.hrms_task.send_overdue_task_reminders",
 		"indian_hrms_compliance.hr.doctype.hrms_task.hrms_task.archive_old_completed_task_instances",
+		"indian_hrms_compliance.hr.doctype.org_integrity_finding.org_integrity_finding.run_org_integrity_check",
 		"indian_hrms_compliance.overrides.grievance_workflow.send_overdue_grievance_reminders",
 		"indian_hrms_compliance.hr.doctype.posh_complaint.posh_complaint.send_posh_overdue_reminders",
 		"indian_hrms_compliance.overrides.pf_ecr_generator.send_pf_ecr_due_reminders",
