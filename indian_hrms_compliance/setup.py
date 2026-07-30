@@ -63,6 +63,38 @@ def sync_custom_fields():
 	remove_deprecated_custom_fields()
 
 
+def reconcile_attendance_request_status():
+	"""Self-heal Attendance Request `status` from docstatus on every migrate.
+
+	The one-shot patches (backfill_attendance_request_status +
+	fix_attendance_request_status_from_docstatus) only run when the Patch Log
+	says they haven't — a restored dump or skipped migrate leaves submitted
+	rows reading 'Open' (or blank, which the Desk list then shows as 'Draft').
+	Running the same idempotent reconciliation on after_migrate makes every
+	site converge regardless of patch-log state.
+
+	Never overwrites a *decided* draft — Rejected / Needs Clarification are
+	docstatus 0 with a non-blank status and are left untouched."""
+	if not frappe.db.table_exists("Attendance Request"):
+		return
+	if not frappe.get_meta("Attendance Request").has_field("status"):
+		return
+
+	frappe.db.sql(
+		"""
+		UPDATE `tabAttendance Request`
+		SET status = CASE docstatus
+			WHEN 1 THEN 'Approved'
+			WHEN 2 THEN 'Cancelled'
+			ELSE 'Open'
+		END
+		WHERE
+			(docstatus IN (1, 2) AND (status IS NULL OR status IN ('', 'Open')))
+			OR (docstatus = 0 AND (status IS NULL OR status = ''))
+		"""
+	)
+
+
 def seed_grievance_types():
 	"""Self-heal the Grievance Type master.
 
