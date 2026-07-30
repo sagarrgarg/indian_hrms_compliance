@@ -194,6 +194,16 @@
 								{{ __("Statutory / money-movement work is locked at Critical and can never be lowered.") }}
 							</span>
 						</div>
+						<div class="flex flex-col gap-1">
+							<FormControl
+								type="checkbox"
+								:label="__('Assign to Head (one Accountable instance)')"
+								v-model="taskForm.assign_to_head"
+							/>
+							<span class="text-xs text-gray-500">
+								{{ __("One instance for the head of the assigned Department (or the KRA's DRI); they distribute it to their reports.") }}
+							</span>
+						</div>
 						<FormControl type="select" :label="__('Status')" :options="taskStatusOptions" v-model="taskForm.status" />
 						<FormControl
 							v-if="taskForm.status === 'Active'"
@@ -315,7 +325,7 @@ const blankKra = () => ({
 })
 const blankTask = () => ({
 	name: "", task_name: "", kra: "", playbook: "", frequency: "Daily", completion_type: "Checkbox",
-	risk_tier: "Routine", is_statutory: 0, status: "Draft", effective_from: "", applicable_to_all_active: 0,
+	risk_tier: "Routine", is_statutory: 0, assign_to_head: 0, status: "Draft", effective_from: "", applicable_to_all_active: 0,
 	assigned_to_designation: "", assigned_to_department: "", description: "",
 	// The tier is a label over these real controls. We MUST round-trip and send
 	// them: if we don't, the server keeps the stored values and its upward
@@ -402,7 +412,7 @@ async function editTask(name) {
 		name: doc.name, task_name: doc.task_name, kra: doc.kra, playbook: doc.playbook || "",
 		frequency: doc.frequency,
 		completion_type: doc.completion_type, risk_tier: doc.risk_tier || "Routine",
-		is_statutory: doc.is_statutory ? 1 : 0,
+		is_statutory: doc.is_statutory ? 1 : 0, assign_to_head: doc.assign_to_head ? 1 : 0,
 		status: doc.status, effective_from: doc.effective_from || "",
 		applicable_to_all_active: doc.applicable_to_all_active ? 1 : 0,
 		assigned_to_designation: doc.assigned_to_designation || "",

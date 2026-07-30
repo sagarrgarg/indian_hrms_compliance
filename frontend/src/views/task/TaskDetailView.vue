@@ -130,6 +130,54 @@
 						</ul>
 					</div>
 
+					<!-- This instance is already split across the team. -->
+					<div
+						v-if="task.has_distributed_children"
+						class="flex flex-row items-center gap-2 rounded border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900"
+					>
+						<FeatherIcon name="users" class="h-4 w-4 shrink-0" />
+						<span>{{ __("Distributed to your reports — completes when they all finish.") }}</span>
+					</div>
+
+					<!-- Head: distribute this Accountable instance to reports. -->
+					<div
+						v-else-if="canDistribute && !isLocked"
+						class="flex flex-col gap-2 bg-white rounded p-4"
+					>
+						<span class="text-sm font-semibold text-gray-800">{{ __("Distribute to your team") }}</span>
+						<span class="text-xs text-gray-500">
+							{{ __("Split this into sub-tasks for your reports, or just do it yourself below.") }}
+						</span>
+						<label
+							v-for="m in myReports"
+							:key="m.name"
+							class="flex flex-row items-center gap-2 text-sm text-gray-800"
+						>
+							<input type="checkbox" :value="m.name" v-model="selectedReports" />
+							{{ m.employee_name }}
+						</label>
+						<span v-if="!myReports.length" class="text-xs text-gray-400">
+							{{ __("You have no direct reports to distribute to.") }}
+						</span>
+						<Button
+							v-if="myReports.length"
+							variant="subtle"
+							:loading="distributing"
+							:disabled="!selectedReports.length"
+							@click="onDistribute"
+						>
+							{{ __("Distribute to {0} report(s)", [selectedReports.length]) }}
+						</Button>
+					</div>
+
+					<!-- Report: bounce a distributed sub-task back to the head. -->
+					<div v-if="task.is_distributed_child && !isLocked" class="flex justify-end">
+						<Button variant="ghost" class="text-amber-700" @click="onBounce">
+							<template #prefix><FeatherIcon name="corner-up-left" class="h-4 w-4" /></template>
+							{{ __("Bounce back to manager") }}
+						</Button>
+					</div>
+
 					<div v-if="!isLocked" class="flex flex-col gap-4">
 						<FormControl
 							v-if="task.completion_type === 'Numeric Entry'"
@@ -266,7 +314,15 @@ import { Button, FormControl, FeatherIcon, toast, createResource } from "frappe-
 import EmptyState from "@/components/EmptyState.vue"
 import { FileAttachment } from "@/composables"
 
-import { myTasks as tasks, myTaskSummary, completeTask, reopenTask } from "@/data/tasks"
+import {
+	myTasks as tasks,
+	myTaskSummary,
+	completeTask,
+	reopenTask,
+	myTeam,
+	distributeTask,
+	bounceTask,
+} from "@/data/tasks"
 import { employees } from "@/data/employees"
 
 const props = defineProps({
@@ -294,6 +350,40 @@ const employeeOptions = computed(() =>
 
 const task = computed(() => tasks.data?.find((t) => t.name === props.id))
 const requiresApproval = computed(() => !!task.value?.requires_approval)
+
+// --- Head distribution (Assign-to-Head) ---
+const distributing = ref(false)
+const selectedReports = ref([])
+const myReports = computed(() => (myTeam.data || []).filter((m) => !m.is_self))
+const canDistribute = computed(
+	() => !!task.value?.can_distribute && !task.value?.has_distributed_children,
+)
+async function onDistribute() {
+	if (!selectedReports.value.length) return
+	distributing.value = true
+	try {
+		await distributeTask.submit({ goal_name: task.value.name, employees: selectedReports.value })
+		tasks.reload()
+		selectedReports.value = []
+		toast.success(__("Distributed to your reports"))
+	} catch (e) {
+		toast.error(e?.messages?.[0] || __("Could not distribute"))
+	} finally {
+		distributing.value = false
+	}
+}
+async function onBounce() {
+	const reason = window.prompt(__("Why are you bouncing this back to your manager?"))
+	if (!reason || !reason.trim()) return
+	try {
+		await bounceTask.submit({ goal_name: task.value.name, comment: reason })
+		tasks.reload()
+		router.back()
+		toast.success(__("Bounced back to your manager"))
+	} catch (e) {
+		toast.error(e?.messages?.[0] || __("Could not bounce"))
+	}
+}
 
 // Playbook tick-through checklist — a reference the doer follows; local tick
 // state only (the task's own completion_type still captures the real evidence).
@@ -331,7 +421,11 @@ const isClosed = computed(() =>
 // Submitted and waiting on an approver: the employee must not be able to
 // re-submit or edit their evidence while it's under review.
 const isAwaiting = computed(() => !!task.value?.awaiting_approval)
-const isLocked = computed(() => isClosed.value || isAwaiting.value)
+// A distributed parent auto-completes from its children; the head can't tick it
+// directly, so lock its completion controls too.
+const isLocked = computed(
+	() => isClosed.value || isAwaiting.value || !!task.value?.has_distributed_children,
+)
 
 const statusBadge = computed(() => {
 	const t = task.value

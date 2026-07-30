@@ -24,7 +24,7 @@ TASK_FIELDS = (
 	"effective_to", "task_owner", "company", "frequency", "expected_count_per_period",
 	"weight", "completion_type", "requires_attachment", "attachment_label",
 	"requires_approval", "approver_resolution", "approver_user", "approver_role",
-	"applicable_to_all_active", "assigned_to_department", "assigned_to_designation",
+	"applicable_to_all_active", "assign_to_head", "assigned_to_department", "assigned_to_designation",
 	"assigned_to_branch", "assigned_to_grade", "assigned_to_employment_type",
 	"assigned_to_employee_group", "description",
 )

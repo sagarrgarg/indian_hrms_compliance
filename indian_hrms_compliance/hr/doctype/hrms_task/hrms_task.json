@@ -51,6 +51,7 @@
   "target_period",
   "scope_section",
   "applicable_to_all_active",
+  "assign_to_head",
   "col_break_scope",
   "assigned_to_department",
   "assigned_to_designation",
@@ -440,11 +441,18 @@
    "options": "Playbook",
    "in_standard_filter": 1,
    "description": "Optional documented 'how' \u2014 its steps render as a tick-through checklist on the task for the doer."
+  },
+  {
+   "fieldname": "assign_to_head",
+   "fieldtype": "Check",
+   "label": "Assign to Head (one Accountable instance)",
+   "in_standard_filter": 1,
+   "description": "Instead of fanning out to everyone in scope, materialise ONE instance for the head of the assigned Department (or the KRA's DRI). The head then distributes it to their reports, or does it solo."
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-07-31 11:30:00.000000",
+ "modified": "2026-07-31 13:00:00.000000",
  "modified_by": "Administrator",
  "module": "HR",
  "name": "HRMS Task",

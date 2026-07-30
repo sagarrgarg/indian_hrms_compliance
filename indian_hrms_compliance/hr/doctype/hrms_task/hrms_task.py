@@ -234,6 +234,14 @@ class HRMSTask(Document):
 		"""At least one scope rule must be set, unless 'Applicable to All Active' is ticked."""
 		if self.applicable_to_all_active:
 			return
+		if self.get("assign_to_head"):
+			# The head is resolved from the assigned Department or the KRA's DRI —
+			# one of those must exist to have someone to assign to.
+			if not (self.get("assigned_to_department") or self.get("kra")):
+				frappe.throw(
+					_("'Assign to Head' needs an assigned Department or a KRA to resolve the head from.")
+				)
+			return
 		if not any(self.get(f) for f in SCOPE_FIELDS):
 			frappe.throw(
 				_(
@@ -340,6 +348,12 @@ def resolve_assigned_employees(task):
 	if not company_active:
 		return []
 
+	# "Assign to Head": materialise ONE Accountable instance for the head, not a
+	# fan-out. The head then distributes to their reports (or does it solo).
+	if task.get("assign_to_head"):
+		holder = _assign_to_head_target(task)
+		return [holder] if holder and holder in company_active else []
+
 	if task.applicable_to_all_active:
 		return list(company_active)
 
@@ -378,6 +392,28 @@ def resolve_assigned_employees(task):
 
 	# Always intersect with the Task's Company — Tasks never cross Co boundaries.
 	return list(employees & company_active)
+
+
+def _assign_to_head_target(task) -> str | None:
+	"""The single Accountable owner for an 'Assign to Head' task: the effective
+	head of the assigned Department (acting → head → ancestor → most senior),
+	falling back to the KRA's effective DRI. Bounded to the task's company via the
+	caller's company_active intersection."""
+	from indian_hrms_compliance.overrides.org_tree import resolve_effective_head
+
+	if task.get("assigned_to_department"):
+		head = resolve_effective_head(task.assigned_to_department)
+		if head:
+			return head
+	if task.get("kra"):
+		from indian_hrms_compliance.hr.doctype.kra.kra import effective_dri
+
+		krow = frappe.db.get_value(
+			"KRA", task.kra, ["dri", "acting_dri", "acting_until"], as_dict=True
+		)
+		if krow:
+			return effective_dri(krow)
+	return None
 
 
 def compute_period_for_today(frequency, today_d=None):

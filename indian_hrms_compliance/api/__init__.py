@@ -1288,6 +1288,7 @@ TASK_INSTANCE_FIELDS = [
 	"approver_user",
 	"delegated_from",
 	"performed_by",
+	"accountable_parent",
 	# Approval cycle — lets the PWA distinguish "awaiting approval" from "sent
 	# back", and show the approver's reason instead of a bare status.
 	"submitted_at",
@@ -1301,7 +1302,7 @@ TASK_INSTANCE_FIELDS = [
 ]
 
 # Template attributes the PWA needs per instance. Fetched once per template.
-_TEMPLATE_META_FIELDS = ("requires_approval", "risk_tier", "playbook")
+_TEMPLATE_META_FIELDS = ("requires_approval", "risk_tier", "playbook", "assign_to_head")
 
 
 def _annotate_template_meta(tasks: list[dict]) -> None:
@@ -1327,6 +1328,12 @@ def _annotate_template_meta(tasks: list[dict]) -> None:
 		t["risk_tier"] = meta.get("risk_tier") or "Routine"
 		t["playbook"] = meta.get("playbook") or None
 		t["is_adhoc"] = 1 if not template else 0
+		# Distribution (Assign-to-Head): a top Accountable instance can be split
+		# to reports; a child (has accountable_parent) can be bounced back.
+		t["is_distributed_child"] = 1 if t.get("accountable_parent") else 0
+		t["can_distribute"] = (
+			1 if (meta.get("assign_to_head") and not t.get("accountable_parent")) else 0
+		)
 		# Derived UI state, so every screen agrees on what "pending" means.
 		t["awaiting_approval"] = 1 if (t.get("submitted_at") and t.get("status") == "In Progress") else 0
 		t["was_sent_back"] = (
@@ -1340,6 +1347,20 @@ def _annotate_template_meta(tasks: list[dict]) -> None:
 					frappe.db.get_value("User", approver, "full_name", cache=True) or approver
 				)
 			t["approved_by_name"] = name_cache[approver]
+
+	# One bulk query: which distributable instances have ALREADY been distributed
+	# (have children), so the PWA shows "awaiting reports" instead of "Distribute".
+	distributable = [t["name"] for t in tasks if t.get("can_distribute")]
+	if distributable and frappe.get_meta("Goal").has_field("accountable_parent"):
+		with_children = set(
+			frappe.get_all(
+				"Goal",
+				filters={"accountable_parent": ("in", distributable)},
+				pluck="accountable_parent",
+			)
+		)
+		for t in tasks:
+			t["has_distributed_children"] = 1 if t["name"] in with_children else 0
 
 
 @frappe.whitelist()
@@ -1501,7 +1522,22 @@ def complete_task_instance(
 			frappe.PermissionError,
 		)
 
-	if goal.get("delegated_from"):
+	# A distributed Accountable instance with OPEN children can't be ticked done
+	# directly — it auto-completes when every child finishes (the head does it
+	# solo only if they never distributed it).
+	if _has_open_children(goal.name):
+		frappe.throw(
+			_(
+				"This task has been distributed to your reports. It completes automatically "
+				"when they finish — you can't mark it done directly."
+			),
+			frappe.PermissionError,
+		)
+
+	# Leave-cover delegation (delegated_from, no accountable_parent) asks the cover
+	# manager WHO actually did it. A distributed child also carries delegated_from
+	# for lineage, but there the assignee IS the performer — so don't demand it.
+	if goal.get("delegated_from") and not goal.get("accountable_parent"):
 		if not performed_by:
 			frappe.throw(_("This task was delegated to you for leave cover. Please record who performed it."))
 		goal.performed_by = performed_by
@@ -1537,6 +1573,11 @@ def complete_task_instance(
 
 	goal.flags.ihc_governed_write = True
 	goal.save(ignore_permissions=True)
+
+	# If this was a distributed child and it (and its siblings) are now done, the
+	# head's Accountable parent rolls up to complete automatically.
+	if goal.get("accountable_parent") and goal.status == "Completed":
+		_maybe_complete_accountable_parent(goal.accountable_parent)
 
 	# Live-refresh the employee's screens AND, if approval is required, whoever
 	# now has to review it — a named approver, every holder of the approver role,
@@ -1815,6 +1856,232 @@ def reopen_task_instance(goal_name: str) -> dict:
 		for reviewer in _task_approver_audience(goal):
 			_pwa_refetch(list(_INBOX_CACHE_KEYS), user=reviewer)
 	return {"name": goal.name, "status": goal.status}
+
+
+# --------------------------------------------------------------------------- #
+# Head distribution (Assign-to-Head → split to reports → roll up)
+# --------------------------------------------------------------------------- #
+def _has_open_children(parent_name: str) -> bool:
+	"""Does this Accountable instance have any not-yet-Completed distributed child?"""
+	if not frappe.get_meta("Goal").has_field("accountable_parent"):
+		return False
+	return bool(
+		frappe.db.exists(
+			"Goal",
+			{
+				"accountable_parent": parent_name,
+				"status": ("in", ["Pending", "In Progress"]),
+			},
+		)
+	)
+
+
+def _maybe_complete_accountable_parent(parent_name: str) -> None:
+	"""Complete the head's parent instance once EVERY distributed child is done.
+
+	The head's own instance is proof the whole obligation was met; it finishes
+	when its children do, without the head touching it. If children remain, leave
+	it open."""
+	parent = frappe.db.get_value(
+		"Goal", parent_name, ["name", "status"], as_dict=True
+	)
+	if not parent or parent.status == "Completed":
+		return
+	children = frappe.get_all(
+		"Goal", filters={"accountable_parent": parent_name}, fields=["status"]
+	)
+	# Complete the parent once NO child is still open. Archived/Closed children
+	# (e.g. the report left and HR shelved their instance) count as resolved, not
+	# blockers — otherwise the parent would hang un-tickable forever. Require at
+	# least one genuinely Completed child so an all-archived parent isn't
+	# spuriously marked done.
+	if not children:
+		return
+	if any(c.status in ("Pending", "In Progress") for c in children):
+		return
+	if not any(c.status == "Completed" for c in children):
+		return
+	doc = frappe.get_doc("Goal", parent_name)
+	doc.status = "Completed"
+	doc.progress = 100
+	doc.flags.ihc_governed_write = True
+	doc.save(ignore_permissions=True)
+	# Nudge the head's screens.
+	head_user = frappe.db.get_value("Employee", doc.employee, "user_id")
+	if head_user:
+		_pwa_refetch(list(_REQUESTER_CACHE_KEYS_BY_DOCTYPE["Goal"]), user=head_user)
+
+
+@frappe.whitelist()
+def distribute_task(goal_name: str, employees: str | list) -> dict:
+	"""The head splits their Accountable instance into child instances for chosen
+	reports. Each child carries `accountable_parent` (rollup lineage) and
+	`delegated_from` (the head). The parent stays open and auto-completes when all
+	children finish.
+
+	Only the instance's own owner (the head) can distribute, only to their active
+	DIRECT reports, and only an instance from an 'Assign to Head' task that hasn't
+	already been distributed.
+	"""
+	if isinstance(employees, str):
+		employees = frappe.parse_json(employees)
+	employees = [e for e in (employees or []) if e]
+	if not employees:
+		frappe.throw(_("Pick at least one report to distribute to."))
+
+	from indian_hrms_compliance.hr.doctype.hrms_task.hrms_task import _safe_pwa_notification
+
+	me = get_current_employee()
+	parent = frappe.get_doc("Goal", goal_name)
+	if parent.goal_type != "Task Instance" or parent.employee != me:
+		frappe.throw(_("You can only distribute your own task."), frappe.PermissionError)
+	if not frappe.get_meta("Goal").has_field("accountable_parent"):
+		frappe.throw(_("Distribution is not available on this site yet."))
+	if parent.get("accountable_parent"):
+		frappe.throw(_("This is already a distributed sub-task and can't be split again."))
+	# Only an 'Assign to Head' instance may be distributed — otherwise an
+	# individually-assigned (or leave-cover) instance could be offloaded and have
+	# its accountability laundered away when a report ticks the child.
+	template = parent.get("task_template")
+	if not (template and frappe.db.get_value("HRMS Task", template, "assign_to_head")):
+		frappe.throw(
+			_("Only an 'Assign to Head' task can be distributed to your reports."),
+			frappe.PermissionError,
+		)
+	# Don't distribute an instance that's already done or shelved.
+	if parent.status not in ("Pending", "In Progress"):
+		frappe.throw(_("Only an open task can be distributed."))
+	if _has_open_children(parent.name):
+		frappe.throw(_("This task has already been distributed."))
+
+	# Reports must be the caller's own active direct reports IN THE SAME COMPANY
+	# (tasks never cross company boundaries, mirroring the scheduler's fan-out).
+	my_reports = set(
+		frappe.get_all(
+			"Employee",
+			filters={"reports_to": me, "status": "Active", "company": parent.company},
+			pluck="name",
+		)
+	)
+	invalid = [e for e in employees if e not in my_reports]
+	if invalid:
+		frappe.throw(
+			_("You can only distribute to your own active direct reports: {0} are not.").format(
+				", ".join(invalid)
+			)
+		)
+
+	# Children inherit the task's approval routing so an approval-gated sub-task
+	# reaches the right approver (the head, under 'Reports To') instead of
+	# stranding in HR's backstop queue.
+	from indian_hrms_compliance.hr.doctype.hrms_task.hrms_task import resolve_instance_approver
+
+	tmpl = frappe.get_doc("HRMS Task", template)
+	has_role_field = frappe.get_meta("Goal").has_field("approver_role")
+
+	created = []
+	for emp in employees:
+		e = frappe.db.get_value(
+			"Employee",
+			emp,
+			["employee_name", "company", "user_id", "reports_to"],
+			as_dict=True,
+		)
+		approver_user, approver_role = resolve_instance_approver(tmpl, e)
+		values = {
+			"doctype": "Goal",
+			"goal_name": parent.goal_name,
+			"employee": emp,
+			"employee_name": e.employee_name,
+			"company": e.company or parent.company,
+			"goal_type": "Task Instance",
+			"status": "Pending",
+			"progress": 0,
+			"kra": parent.get("kra"),
+			"task_template": template,
+			"period_label": parent.get("period_label"),
+			"start_date": parent.get("start_date"),
+			"end_date": parent.get("end_date"),
+			"due_date": parent.get("due_date"),
+			"accountable_parent": parent.name,
+			"delegated_from": me,
+			"approver_user": approver_user,
+		}
+		if approver_role and has_role_field:
+			values["approver_role"] = approver_role
+		child = frappe.get_doc(values)
+		child.flags.ihc_governed_write = True
+		child.insert(ignore_permissions=True)
+		# A distributed child has NO performer until its assignee completes it.
+		# `delegated_from` carries the head for lineage, but the head must NOT be
+		# recorded as the doer — otherwise the segregation-of-duties gate would
+		# refuse the head from approving their reports' sub-tasks.
+		if child.get("performed_by"):
+			frappe.db.set_value("Goal", child.name, "performed_by", None, update_modified=False)
+		created.append(child.name)
+		if e.user_id:
+			_safe_pwa_notification(
+				to_user=e.user_id,
+				message=_("{0} distributed a task to you: {1}").format(
+					frappe.db.get_value("Employee", me, "employee_name") or me, parent.goal_name
+				),
+				ref_type="Goal",
+				ref_name=child.name,
+			)
+			_pwa_refetch(list(_REQUESTER_CACHE_KEYS_BY_DOCTYPE["Goal"]), user=e.user_id)
+
+	# The parent is now awaiting its children — mark it In Progress so it isn't
+	# mistaken for actionable-by-the-head work.
+	if parent.status == "Pending":
+		frappe.db.set_value("Goal", parent.name, {"status": "In Progress", "progress": 1}, update_modified=False)
+	frappe.db.commit()
+	return {"parent": parent.name, "children": created}
+
+
+@frappe.whitelist()
+def bounce_task(goal_name: str, comment: str) -> dict:
+	"""Catchball-lite: a report returns a distributed sub-task to the head with a
+	reason, instead of doing it. The child goes back to the head (who can
+	re-distribute or do it), carrying the note."""
+	from indian_hrms_compliance.hr.doctype.hrms_task.hrms_task import _safe_pwa_notification
+
+	if not comment or not strip_html(comment).strip():
+		frappe.throw(_("Say why you're bouncing it back."))
+	me = get_current_employee()
+	child = frappe.get_doc("Goal", goal_name)
+	if child.goal_type != "Task Instance" or child.employee != me:
+		frappe.throw(_("You can only bounce back your own task."), frappe.PermissionError)
+	if not child.get("accountable_parent"):
+		frappe.throw(_("This task wasn't distributed to you, so there's nothing to bounce."))
+
+	parent = frappe.db.get_value(
+		"Goal", child.accountable_parent, ["employee", "employee_name"], as_dict=True
+	)
+	if not parent:
+		frappe.throw(_("The originating task no longer exists."))
+
+	reason = strip_html(comment).strip()
+	note = _("Bounced back by {0}: {1}").format(child.employee_name or me, reason)
+	# Return the sub-task to the head, keeping the lineage + the reason.
+	frappe.db.set_value(
+		"Goal",
+		child.name,
+		{"employee": parent.employee, "employee_name": parent.employee_name, "status": "Pending", "progress": 0},
+		update_modified=False,
+	)
+	if frappe.get_meta("Goal").has_field("task_notes"):
+		frappe.db.set_value("Goal", child.name, "task_notes", note, update_modified=False)
+	head_user = frappe.db.get_value("Employee", parent.employee, "user_id")
+	if head_user:
+		_safe_pwa_notification(
+			to_user=head_user,
+			message=_("A distributed task was bounced back to you: {0}").format(note),
+			ref_type="Goal",
+			ref_name=child.name,
+		)
+		_pwa_refetch(list(_REQUESTER_CACHE_KEYS_BY_DOCTYPE["Goal"]), user=head_user)
+	frappe.db.commit()
+	return {"name": child.name, "returned_to": parent.employee}
 
 
 @frappe.whitelist()
@@ -4382,6 +4649,11 @@ def approve_request(doctype: str, name: str, comment: str | None = None) -> dict
 				doc.set(field, value)
 		doc.flags.ihc_governed_write = True
 		doc.save(ignore_permissions=True)
+		# An approval-gated distributed child reaches Completed HERE (not in
+		# complete_task_instance), so the parent rollup must fire here too —
+		# otherwise the head's Accountable instance would hang forever.
+		if doc.get("accountable_parent"):
+			_maybe_complete_accountable_parent(doc.accountable_parent)
 	elif doctype == "Resignation Request":
 		from frappe.model.workflow import apply_workflow, get_transitions
 

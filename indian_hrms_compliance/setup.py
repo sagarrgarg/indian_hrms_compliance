@@ -884,6 +884,18 @@ def get_custom_fields():
 				"description": _("Who actually performed the task (captured when a delegated task is completed)."),
 			},
 			{
+				"fieldname": "accountable_parent",
+				"fieldtype": "Link",
+				"label": _("Accountable Parent"),
+				"options": "Goal",
+				"insert_after": "performed_by",
+				"read_only": 1,
+				"description": _(
+					"The head's Accountable instance this child was split from (Distribute). "
+					"The parent auto-completes when all its children are done."
+				),
+			},
+			{
 				"fieldname": "goal_type",
 				"fieldtype": "Select",
 				"label": _("Goal Type"),
