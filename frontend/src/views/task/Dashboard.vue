@@ -40,6 +40,35 @@
 					:message="__('Loading your tasks...')"
 				/>
 
+				<!-- KPI scorecard — target vs actual, live between appraisals -->
+				<div v-if="scorecard.length" class="flex flex-col gap-2">
+					<div class="text-sm font-semibold text-gray-800">{{ __("Scorecard") }}</div>
+					<div
+						v-for="c in scorecard"
+						:key="c.task_template"
+						class="bg-white rounded-lg border border-gray-100 p-3 flex flex-col gap-1"
+					>
+						<div class="flex flex-row items-center justify-between">
+							<span class="text-sm text-gray-800 truncate">{{ c.task_name }}</span>
+							<span
+								class="text-sm font-semibold"
+								:class="(c.achievement_pct||0) >= 90 ? 'text-green-600' : (c.achievement_pct||0) >= 70 ? 'text-amber-600' : 'text-red-600'"
+							>{{ Math.round(c.achievement_pct || 0) }}%</span>
+						</div>
+						<div class="flex flex-row items-center justify-between text-xs text-gray-500">
+							<span>{{ __("Actual") }} {{ c.actual_value }} / {{ __("Target") }} {{ c.target_value }} {{ c.measurement_unit || "" }}</span>
+							<span>{{ c.period_label }}</span>
+						</div>
+						<div class="h-1.5 rounded-full bg-gray-100 overflow-hidden">
+							<div
+								class="h-full rounded-full"
+								:class="(c.achievement_pct||0) >= 90 ? 'bg-green-500' : (c.achievement_pct||0) >= 70 ? 'bg-amber-500' : 'bg-red-500'"
+								:style="{ width: Math.min(100, Math.max(2, c.achievement_pct || 0)) + '%' }"
+							/>
+						</div>
+					</div>
+				</div>
+
 				<!-- Stacked sections — partitioned so a task appears in exactly one bucket -->
 				<TaskSection
 					:title="__('Overdue')"
@@ -101,7 +130,7 @@ import BaseLayout from "@/components/BaseLayout.vue"
 import EmptyState from "@/components/EmptyState.vue"
 import TaskCard from "@/components/TaskCard.vue"
 
-import { myTasksDashboard } from "@/data/tasks"
+import { myTasksDashboard, myScorecard } from "@/data/tasks"
 
 // --- Small inline components -------------------------------------------------
 
@@ -158,6 +187,7 @@ TaskSection.props = ["title", "subtitle", "tasks", "indicator", "emptyHint", "co
 // --- State -----------------------------------------------------------------
 
 const data = computed(() => myTasksDashboard.data || {})
+const scorecard = computed(() => myScorecard.data || [])
 const summary = computed(() => data.value.summary || {})
 const today = computed(() => data.value.today || [])
 const adhoc = computed(() => data.value.adhoc || [])
