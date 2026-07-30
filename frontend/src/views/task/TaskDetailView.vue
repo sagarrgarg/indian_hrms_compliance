@@ -91,6 +91,45 @@
 						</div>
 					</div>
 
+					<!-- Playbook: the documented 'how', as a tick-through checklist. A
+					     reference to follow — ticks are not the task's evidence. -->
+					<div v-if="playbook" class="flex flex-col gap-2 bg-white rounded p-4">
+						<div class="flex flex-row items-center justify-between">
+							<span class="text-sm font-semibold text-gray-800">
+								{{ __("Playbook") }}: {{ playbook.title }}
+							</span>
+							<span v-if="playbook.version" class="text-xs text-gray-400">
+								{{ __("v{0}", [playbook.version]) }}
+							</span>
+						</div>
+						<ul class="flex flex-col gap-1.5">
+							<li
+								v-for="(s, i) in playbook.steps"
+								:key="i"
+								class="flex flex-row items-start gap-2 text-sm"
+							>
+								<input
+									type="checkbox"
+									class="mt-1 shrink-0"
+									:checked="!!checked[i]"
+									@change="checked[i] = !checked[i]"
+								/>
+								<div class="flex flex-col">
+									<span :class="checked[i] ? 'text-gray-400 line-through' : 'text-gray-800'">
+										{{ s.step_text }}
+										<span
+											v-if="s.is_control_point"
+											class="ml-1 px-1.5 py-0.5 rounded-full text-[10px] bg-red-50 text-red-600"
+										>{{ __("Control") }}</span>
+									</span>
+									<span v-if="s.expected_evidence" class="text-xs text-gray-400">
+										{{ __("Evidence") }}: {{ s.expected_evidence }}
+									</span>
+								</div>
+							</li>
+						</ul>
+					</div>
+
 					<div v-if="!isLocked" class="flex flex-col gap-4">
 						<FormControl
 							v-if="task.completion_type === 'Numeric Entry'"
@@ -219,10 +258,10 @@
 </template>
 
 <script setup>
-import { inject, computed, ref } from "vue"
+import { inject, computed, ref, watch, reactive } from "vue"
 import { useRouter } from "vue-router"
 import { IonPage, IonHeader, IonContent, IonFooter, IonBadge } from "@ionic/vue"
-import { Button, FormControl, FeatherIcon, toast } from "frappe-ui"
+import { Button, FormControl, FeatherIcon, toast, createResource } from "frappe-ui"
 
 import EmptyState from "@/components/EmptyState.vue"
 import { FileAttachment } from "@/composables"
@@ -255,6 +294,37 @@ const employeeOptions = computed(() =>
 
 const task = computed(() => tasks.data?.find((t) => t.name === props.id))
 const requiresApproval = computed(() => !!task.value?.requires_approval)
+
+// Playbook tick-through checklist — a reference the doer follows; local tick
+// state only (the task's own completion_type still captures the real evidence).
+const playbook = ref(null)
+const checked = reactive({})
+const playbookResource = createResource({
+	url: "indian_hrms_compliance.hr.doctype.playbook.playbook.get_playbook_steps",
+	onSuccess(data) {
+		// Discard a stale response: if the user has already navigated to a task
+		// with a different playbook, this reply is for the wrong one.
+		if (data && data.name && data.name !== task.value?.playbook) return
+		playbook.value = data && data.steps && data.steps.length ? data : null
+	},
+})
+// Reset the local tick state whenever the task changes — keyed on the task ID,
+// not the playbook name, so navigating between two tasks that share one playbook
+// still clears A's ticks off B.
+watch(() => props.id, () => {
+	for (const k in checked) delete checked[k]
+})
+// Fetch (or clear) the checklist when the resolved playbook changes. Keyed on
+// the value so it also fires when `tasks.data` loads async after mount and the
+// task — and its playbook — first become available.
+watch(
+	() => task.value?.playbook,
+	(pb) => {
+		playbook.value = null
+		if (pb) playbookResource.fetch({ playbook: pb })
+	},
+	{ immediate: true },
+)
 const isClosed = computed(() =>
 	["Completed", "Archived", "Closed"].includes(task.value?.status)
 )

@@ -20,7 +20,7 @@ KRA_FIELDS = (
 	"company", "description", "detailed_description", "success_criteria",
 )
 TASK_FIELDS = (
-	"task_name", "kra", "task_kind", "risk_tier", "is_statutory", "color", "status", "effective_from",
+	"task_name", "kra", "playbook", "task_kind", "risk_tier", "is_statutory", "color", "status", "effective_from",
 	"effective_to", "task_owner", "company", "frequency", "expected_count_per_period",
 	"weight", "completion_type", "requires_attachment", "attachment_label",
 	"requires_approval", "approver_resolution", "approver_user", "approver_role",
@@ -194,6 +194,13 @@ def get_form_options():
 	)
 	designations = frappe.get_all("Designation", fields=["name"], order_by="name asc")
 	departments = frappe.get_all("Department", filters=dict(filters), fields=["name"], order_by="name asc")
+	# Active playbooks a task can link its tick-through checklist to.
+	playbooks = frappe.get_all(
+		"Playbook",
+		filters={**filters, "status": "Active"},
+		fields=["name", "title"],
+		order_by="title asc",
+	)
 	# Candidate DRIs — an Active KRA must name one, so the picker has to be here
 	# or the create flow dead-ends on a server-side validation error.
 	employees = frappe.get_all(
@@ -206,6 +213,7 @@ def get_form_options():
 		"company": company,
 		"kras": kras,
 		"employees": employees,
+		"playbooks": playbooks,
 		"designations": [r.name for r in designations],
 		"departments": [r.name for r in departments],
 		# Must mirror the HRMS Task.frequency Select exactly — offering a value the

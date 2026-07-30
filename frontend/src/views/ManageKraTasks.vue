@@ -171,6 +171,7 @@
 						</h3>
 						<FormControl type="text" :label="__('Task Name')" v-model="taskForm.task_name" />
 						<FormControl type="select" :label="__('KRA')" :options="kraOptions" v-model="taskForm.kra" />
+						<FormControl type="select" :label="__('Playbook (optional)')" :options="playbookOptions" v-model="taskForm.playbook" />
 						<FormControl type="select" :label="__('Frequency')" :options="frequencyOptions" v-model="taskForm.frequency" />
 						<FormControl type="select" :label="__('Completion Type')" :options="completionTypeOptions" v-model="taskForm.completion_type" />
 						<div class="flex flex-col gap-1">
@@ -303,13 +304,17 @@ const kraOptions = computed(() => [
 	{ label: __("Select a KRA"), value: "" },
 	...(options.value.kras || []).map((k) => ({ label: k.title, value: k.name })),
 ])
+const playbookOptions = computed(() => [
+	{ label: __("— none —"), value: "" },
+	...(options.value.playbooks || []).map((p) => ({ label: p.title, value: p.name })),
+])
 
 const blankKra = () => ({
 	name: "", title: "", kra_category: "", status: "Active", owner_designation: "", dri: "",
 	acting_dri: "", acting_until: "", description: "",
 })
 const blankTask = () => ({
-	name: "", task_name: "", kra: "", frequency: "Daily", completion_type: "Checkbox",
+	name: "", task_name: "", kra: "", playbook: "", frequency: "Daily", completion_type: "Checkbox",
 	risk_tier: "Routine", is_statutory: 0, status: "Draft", effective_from: "", applicable_to_all_active: 0,
 	assigned_to_designation: "", assigned_to_department: "", description: "",
 	// The tier is a label over these real controls. We MUST round-trip and send
@@ -394,7 +399,8 @@ async function editTask(name) {
 	// otherwise overwrite the task's real, stored controls with the tier default.
 	applyingTierPreset = true
 	Object.assign(taskForm, blankTask(), {
-		name: doc.name, task_name: doc.task_name, kra: doc.kra, frequency: doc.frequency,
+		name: doc.name, task_name: doc.task_name, kra: doc.kra, playbook: doc.playbook || "",
+		frequency: doc.frequency,
 		completion_type: doc.completion_type, risk_tier: doc.risk_tier || "Routine",
 		is_statutory: doc.is_statutory ? 1 : 0,
 		status: doc.status, effective_from: doc.effective_from || "",
