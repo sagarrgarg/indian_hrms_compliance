@@ -1301,7 +1301,7 @@ TASK_INSTANCE_FIELDS = [
 ]
 
 # Template attributes the PWA needs per instance. Fetched once per template.
-_TEMPLATE_META_FIELDS = ("requires_approval", "risk_tier")
+_TEMPLATE_META_FIELDS = ("requires_approval", "risk_tier", "playbook")
 
 
 def _annotate_template_meta(tasks: list[dict]) -> None:
@@ -1325,6 +1325,7 @@ def _annotate_template_meta(tasks: list[dict]) -> None:
 		meta = cache.get(template) or {}
 		t["requires_approval"] = meta.get("requires_approval") or 0
 		t["risk_tier"] = meta.get("risk_tier") or "Routine"
+		t["playbook"] = meta.get("playbook") or None
 		t["is_adhoc"] = 1 if not template else 0
 		# Derived UI state, so every screen agrees on what "pending" means.
 		t["awaiting_approval"] = 1 if (t.get("submitted_at") and t.get("status") == "In Progress") else 0

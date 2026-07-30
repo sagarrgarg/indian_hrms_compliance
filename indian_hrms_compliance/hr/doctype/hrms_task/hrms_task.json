@@ -11,6 +11,7 @@
   "identity_section",
   "task_name",
   "kra",
+  "playbook",
   "task_kind",
   "risk_tier",
   "is_statutory",
@@ -431,11 +432,19 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "description": "A statutory obligation or money-movement task (PF/ESI/TDS/GST filing, payroll release, POSH/grievance SLA, DPDP). Born Critical and locked there \u2014 its risk tier can never be dialled down, in any Governance Profile."
+  },
+  {
+   "fieldname": "playbook",
+   "fieldtype": "Link",
+   "label": "Playbook",
+   "options": "Playbook",
+   "in_standard_filter": 1,
+   "description": "Optional documented 'how' \u2014 its steps render as a tick-through checklist on the task for the doer."
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-07-31 10:00:00.000000",
+ "modified": "2026-07-31 11:30:00.000000",
  "modified_by": "Administrator",
  "module": "HR",
  "name": "HRMS Task",
