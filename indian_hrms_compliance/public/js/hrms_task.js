@@ -121,4 +121,16 @@ frappe.ui.form.on("HRMS Task", {
 			});
 		}
 	},
+
+	is_statutory(frm) {
+		// Statutory = born Critical, locked. Reflect that the instant it's ticked;
+		// the server enforces it on save regardless.
+		if (frm.doc.is_statutory) {
+			frm.set_value("risk_tier", "Critical");
+			frappe.show_alert({
+				message: __("Statutory task — risk tier locked at Critical (cannot be lowered)."),
+				indicator: "red",
+			});
+		}
+	},
 });

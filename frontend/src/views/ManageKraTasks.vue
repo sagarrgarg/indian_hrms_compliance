@@ -138,6 +138,23 @@
 								{{ __("The one person answerable for this KRA. Required while the KRA is Active.") }}
 							</span>
 						</div>
+						<div class="flex flex-col gap-1">
+							<FormControl
+								type="select"
+								:label="__('Acting DRI (optional cover)')"
+								:options="employeeOptions"
+								v-model="kraForm.acting_dri"
+							/>
+							<FormControl
+								v-if="kraForm.acting_dri"
+								type="date"
+								:label="__('Acting Until')"
+								v-model="kraForm.acting_until"
+							/>
+							<span class="text-xs text-gray-500">
+								{{ __("Effective-dated stand-in while the DRI is on leave or the seat is interim-vacant.") }}
+							</span>
+						</div>
 						<FormControl type="textarea" :label="__('Short Description')" v-model="kraForm.description" />
 						<div class="flex gap-2 pt-2">
 							<Button variant="solid" class="flex-1 py-4" :loading="saveKra.loading" :disabled="!kraCanSave" @click="submitKra">
@@ -162,8 +179,19 @@
 								:label="__('Risk Tier')"
 								:options="riskTierOptions"
 								v-model="taskForm.risk_tier"
+								:disabled="!!taskForm.is_statutory"
 							/>
 							<span class="text-xs text-gray-500">{{ tierHelp }}</span>
+						</div>
+						<div class="flex flex-col gap-1">
+							<FormControl
+								type="checkbox"
+								:label="__('Statutory (born Critical)')"
+								v-model="taskForm.is_statutory"
+							/>
+							<span class="text-xs text-gray-500">
+								{{ __("Statutory / money-movement work is locked at Critical and can never be lowered.") }}
+							</span>
 						</div>
 						<FormControl type="select" :label="__('Status')" :options="taskStatusOptions" v-model="taskForm.status" />
 						<FormControl
@@ -278,11 +306,11 @@ const kraOptions = computed(() => [
 
 const blankKra = () => ({
 	name: "", title: "", kra_category: "", status: "Active", owner_designation: "", dri: "",
-	description: "",
+	acting_dri: "", acting_until: "", description: "",
 })
 const blankTask = () => ({
 	name: "", task_name: "", kra: "", frequency: "Daily", completion_type: "Checkbox",
-	risk_tier: "Routine", status: "Draft", effective_from: "", applicable_to_all_active: 0,
+	risk_tier: "Routine", is_statutory: 0, status: "Draft", effective_from: "", applicable_to_all_active: 0,
 	assigned_to_designation: "", assigned_to_department: "", description: "",
 	// The tier is a label over these real controls. We MUST round-trip and send
 	// them: if we don't, the server keeps the stored values and its upward
@@ -312,6 +340,13 @@ watch(
 		if (applyingTierPreset) return
 		const preset = TIER_PRESETS[tier]
 		if (preset) Object.assign(taskForm, preset)
+	},
+)
+// Statutory work is born Critical and locked there — mirror the server invariant.
+watch(
+	() => taskForm.is_statutory,
+	(statutory) => {
+		if (statutory) taskForm.risk_tier = "Critical"
 	},
 )
 
@@ -346,7 +381,8 @@ async function editKra(name) {
 	Object.assign(kraForm, blankKra(), {
 		name: doc.name, title: doc.title, kra_category: doc.kra_category || "",
 		status: doc.status, owner_designation: doc.owner_designation || "",
-		dri: doc.dri || "", description: doc.description || "",
+		dri: doc.dri || "", acting_dri: doc.acting_dri || "", acting_until: doc.acting_until || "",
+		description: doc.description || "",
 	})
 	tab.value = "kra"
 	editing.value = true
@@ -360,6 +396,7 @@ async function editTask(name) {
 	Object.assign(taskForm, blankTask(), {
 		name: doc.name, task_name: doc.task_name, kra: doc.kra, frequency: doc.frequency,
 		completion_type: doc.completion_type, risk_tier: doc.risk_tier || "Routine",
+		is_statutory: doc.is_statutory ? 1 : 0,
 		status: doc.status, effective_from: doc.effective_from || "",
 		applicable_to_all_active: doc.applicable_to_all_active ? 1 : 0,
 		assigned_to_designation: doc.assigned_to_designation || "",

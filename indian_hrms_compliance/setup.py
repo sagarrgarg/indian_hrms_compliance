@@ -372,11 +372,23 @@ def get_custom_fields():
 		],
 		"Designation": [
 			{
+				"fieldname": "seniority_rank",
+				"fieldtype": "Int",
+				"label": _("Seniority Rank"),
+				"insert_after": "description",
+				"non_negative": 1,
+				"description": _(
+					"Optional ordering hint (higher = more senior): org-chart display order and "
+					"the tie-break for 'most senior active person' when a head and acting head are "
+					"both vacant. Not a designation ladder — just a single ordering number."
+				),
+			},
+			{
 				"fieldname": "appraisal_template",
 				"fieldtype": "Link",
 				"label": _("Appraisal Template"),
 				"options": "Appraisal Template",
-				"insert_after": "description",
+				"insert_after": "seniority_rank",
 				"allow_in_quick_entry": 1,
 			},
 			{

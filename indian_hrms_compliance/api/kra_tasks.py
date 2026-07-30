@@ -16,10 +16,11 @@ from indian_hrms_compliance.api.cockpit import COCKPIT_ROLES, _scope_company
 
 KRA_FIELDS = (
 	"title", "kra_category", "color", "status", "owner_designation", "dri",
+	"acting_dri", "acting_until",
 	"company", "description", "detailed_description", "success_criteria",
 )
 TASK_FIELDS = (
-	"task_name", "kra", "task_kind", "risk_tier", "color", "status", "effective_from",
+	"task_name", "kra", "task_kind", "risk_tier", "is_statutory", "color", "status", "effective_from",
 	"effective_to", "task_owner", "company", "frequency", "expected_count_per_period",
 	"weight", "completion_type", "requires_attachment", "attachment_label",
 	"requires_approval", "approver_resolution", "approver_user", "approver_role",

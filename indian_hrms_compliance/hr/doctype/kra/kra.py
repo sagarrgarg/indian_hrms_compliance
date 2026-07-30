@@ -4,12 +4,56 @@
 import frappe
 from frappe import _
 from frappe.model.document import Document
+from frappe.utils import getdate, today
+
+
+def effective_dri(kra_row) -> str | None:
+	"""Who is accountable for this KRA RIGHT NOW.
+
+	The Acting DRI, while set and within its cover window, stands in for the
+	DRI (leave / interim vacancy). Otherwise the DRI. `kra_row` may be a
+	Document or any dict-like row carrying dri / acting_dri / acting_until.
+	Shared so the KRA form and the nightly integrity check agree on one answer.
+	"""
+	get = kra_row.get if hasattr(kra_row, "get") else lambda k: getattr(kra_row, k, None)
+	acting = get("acting_dri")
+	until = get("acting_until")
+	if acting and (not until or getdate(until) >= getdate(today())):
+		return acting
+	return get("dri")
 
 
 class KRA(Document):
 	def validate(self):
 		self._validate_dri()
+		self._validate_acting_cover()
 		self._refresh_usage_counts()
+
+	def _validate_acting_cover(self):
+		"""Acting cover must be a real, current employee of this company, and an
+		'until' date without an acting person is meaningless."""
+		if self.acting_until and not self.acting_dri:
+			self.acting_until = None
+		if not self.acting_dri:
+			return
+		emp = frappe.db.get_value(
+			"Employee", self.acting_dri, ["status", "company"], as_dict=True
+		)
+		if not emp or emp.status != "Active":
+			frappe.throw(_("The Acting DRI must be an active employee."), title=_("Invalid Acting DRI"))
+		if self.company and emp.company and emp.company != self.company:
+			frappe.throw(
+				_("The Acting DRI must belong to the same company as this KRA."),
+				title=_("Company Mismatch"),
+			)
+		if self.acting_until and getdate(self.acting_until) < getdate(today()):
+			frappe.msgprint(
+				_("Acting cover has already expired ({0}) — this KRA has reverted to its DRI.").format(
+					self.acting_until
+				),
+				indicator="orange",
+				alert=True,
+			)
 
 	def _validate_dri(self):
 		"""An Active KRA must name exactly one accountable person — its DRI.
@@ -35,15 +79,19 @@ class KRA(Document):
 	def _warn_if_dri_inactive(self):
 		"""Surface a DRI who has left, rather than silently keeping a dead owner.
 
-		Step 1 only reports it (on save); the nightly Org Integrity Check in
-		Step 2 is what will escalate to the DRI's reporting manager.
+		Honours acting cover: a valid Acting DRI means the KRA is NOT orphaned, so
+		no warning. Step 1 reports on save; the nightly Org Integrity Check
+		escalates to the reporting manager.
 		"""
-		if not self.dri or self.status != "Active":
+		if self.status != "Active":
 			return
-		if frappe.db.get_value("Employee", self.dri, "status") != "Active":
+		holder = effective_dri(self)
+		if not holder:
+			return
+		if frappe.db.get_value("Employee", holder, "status") != "Active":
 			frappe.msgprint(
-				_("The DRI for this KRA is no longer an active employee — reassign it.")
-				+ f" ({self.dri})",
+				_("The accountable owner for this KRA is no longer an active employee — reassign it.")
+				+ f" ({holder})",
 				indicator="red",
 				alert=True,
 			)

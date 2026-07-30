@@ -95,7 +95,24 @@ class HRMSTask(Document):
 		Controls are never weakened to match a weaker label.
 		Standard-without-evidence only warns — "prove it" is a judgement call and
 		hard-blocking there would be the bureaucracy we are trying to avoid.
+
+		THE INVARIANT THAT NEVER DIALS DOWN: a statutory task (is_statutory) is
+		born Critical and locked there, in every Governance Profile. Attempting a
+		lower tier is silently corrected to Critical — this is the asymmetry the
+		whole product rests on (lean everywhere, rigorous where the law lives).
 		"""
+		if self.is_statutory and self.risk_tier != TIER_CRITICAL:
+			if self.risk_tier in RISK_TIERS:  # a real lower tier was chosen → say why
+				frappe.msgprint(
+					_(
+						"This is a statutory task — its risk tier is locked at Critical and "
+						"cannot be lowered."
+					),
+					indicator="orange",
+					alert=True,
+				)
+			self.risk_tier = TIER_CRITICAL
+
 		implied = derive_risk_tier(self)
 		if self.risk_tier not in RISK_TIERS:
 			self.risk_tier = implied
