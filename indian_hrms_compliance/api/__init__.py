@@ -1409,6 +1409,13 @@ def get_my_scorecard() -> list[dict]:
 	if not frappe.db.table_exists("KPI Snapshot"):
 		return []
 	employee = get_current_employee()
+	# Dial 2: the KPI scorecard is a Growth+ surface. A Startup-profile company
+	# stays lean — no scorecard ceremony.
+	from indian_hrms_compliance.api.governance import profile_at_least
+
+	company = frappe.db.get_value("Employee", employee, "company")
+	if not profile_at_least(company, "Growth"):
+		return []
 	rows = frappe.get_all(
 		"KPI Snapshot",
 		filters={"employee": employee},

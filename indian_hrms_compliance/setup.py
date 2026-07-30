@@ -63,6 +63,30 @@ def sync_custom_fields():
 	remove_deprecated_custom_fields()
 
 
+def seed_governance_profile():
+	"""after_migrate: give existing companies a Governance Profile from their size.
+
+	A Custom Field default only applies to NEW companies; existing ones read NULL
+	→ Startup, which silently empties the KPI scorecard (a Growth+ surface). Seed
+	from headcount so the change is deliberate. Blank-only + idempotent, and an
+	after_migrate hook (NOT a patch) because the field is created in after_migrate
+	— a patch would run too early and no-op forever."""
+	try:
+		if not frappe.get_meta("Company").has_field("governance_profile"):
+			return
+		from indian_hrms_compliance.api.governance import suggest_profile
+
+		for company in frappe.get_all("Company", pluck="name"):
+			if frappe.db.get_value("Company", company, "governance_profile"):
+				continue
+			frappe.db.set_value(
+				"Company", company, "governance_profile", suggest_profile(company), update_modified=False
+			)
+	except Exception:
+		frappe.db.rollback()
+		frappe.log_error("governance_profile seed failed")
+
+
 def backfill_reports_to_from_heads():
 	"""after_migrate: fill empty reports_to from the department tree.
 
@@ -218,6 +242,20 @@ def get_custom_fields():
 				"insert_after": "hr_and_payroll_tab",
 			},
 			{
+				"fieldname": "governance_profile",
+				"fieldtype": "Select",
+				"label": _("Governance Profile"),
+				"options": "Startup\nGrowth\nRegulated",
+				"default": "Startup",
+				"insert_after": "hr_settings_section",
+				"description": _(
+					"Dial 2: how much of the governance spine this company uses. Startup = lean "
+					"(tasks + tiers only). Growth = + playbooks, KPI scorecards, Standard-tier "
+					"default. Regulated = + the Control Register (auto-RCM) and evidence export. "
+					"Statutory / money-movement tasks are born Critical in EVERY profile."
+				),
+			},
+			{
 				"depends_on": "eval:!doc.__islocal",
 				"fieldname": "default_expense_claim_payable_account",
 				"fieldtype": "Link",
@@ -371,9 +409,20 @@ def get_custom_fields():
 				"insert_after": "acting_until",
 			},
 			{
+				"fieldname": "default_kras",
+				"fieldtype": "Table",
+				"label": _("Default KRAs (Growth+)"),
+				"options": "Department Default KRA",
+				"insert_after": "org_head_col_break",
+				"description": _(
+					"A new joiner in this department is suggested these KRAs' applicable tasks. "
+					"A convenience for Growth+ companies; Startup profiles can ignore it."
+				),
+			},
+			{
 				"fieldname": "section_break_4",
 				"fieldtype": "Section Break",
-				"insert_after": "org_head_col_break",
+				"insert_after": "default_kras",
 			},
 			{
 				"fieldname": "payroll_cost_center",
