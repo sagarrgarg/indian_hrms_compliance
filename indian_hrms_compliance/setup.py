@@ -63,6 +63,27 @@ def sync_custom_fields():
 	remove_deprecated_custom_fields()
 
 
+def reconcile_hrms_task_risk_tiers():
+	"""after_migrate: fill blank HRMS Task risk tiers (idempotent, blank-only).
+
+	Lives here as well as in its patch so a site that never ran the patch — a
+	restored dump, a skipped migrate — still converges. Because it only ever
+	touches BLANK tiers it can run on every migrate without overriding a tier
+	someone deliberately set."""
+	try:
+		from indian_hrms_compliance.hr.doctype.hrms_task.hrms_task import reconcile_risk_tiers
+
+		repaired = reconcile_risk_tiers()
+		if repaired:
+			print(f"  Derived risk_tier for {repaired} HRMS Task(s)")
+	except Exception:
+		# Never let a cosmetic backfill abort a migrate. Roll back BEFORE logging:
+		# on Postgres a failed statement poisons the transaction, so the Error Log
+		# insert would itself raise and defeat the point. (Matches the patch twin.)
+		frappe.db.rollback()
+		frappe.log_error("HRMS Task risk tier reconciliation failed")
+
+
 def reconcile_attendance_request_status():
 	"""Self-heal Attendance Request `status` from docstatus on every migrate.
 
@@ -851,11 +872,24 @@ def get_custom_fields():
 				"description": _("Computed on submit if Task requires approval."),
 			},
 			{
+				"fieldname": "approver_role",
+				"fieldtype": "Link",
+				"label": _("Approver Role"),
+				"options": "Role",
+				"insert_after": "approver_user",
+				"read_only": 1,
+				"depends_on": "eval:doc.goal_type=='Task Instance'",
+				"description": _(
+					"Set when the Task routes approval to a Role — ANY holder of this role "
+					"may approve, so accountability survives that person leaving."
+				),
+			},
+			{
 				"fieldname": "submitted_at",
 				"fieldtype": "Datetime",
 				"label": _("Submitted At"),
 				"read_only": 1,
-				"insert_after": "approver_user",
+				"insert_after": "approver_role",
 				"depends_on": "eval:doc.goal_type=='Task Instance'",
 			},
 			{

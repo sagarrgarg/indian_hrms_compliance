@@ -100,3 +100,4 @@ indian_hrms_compliance.patches.v15_0.show_employer_contributions_on_slip #2026-0
 indian_hrms_compliance.patches.v15_0.exclude_gratuity_from_ctc #2026-07-12
 indian_hrms_compliance.patches.v15_0.backfill_attendance_request_status #2026-07-28
 indian_hrms_compliance.patches.v15_0.fix_attendance_request_status_from_docstatus #2026-07-29
+indian_hrms_compliance.patches.v15_0.backfill_hrms_task_risk_tier #2026-07-30

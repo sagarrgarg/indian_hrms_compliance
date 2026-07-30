@@ -15,12 +15,12 @@ from frappe import _
 from indian_hrms_compliance.api.cockpit import COCKPIT_ROLES, _scope_company
 
 KRA_FIELDS = (
-	"title", "kra_category", "color", "status", "owner_designation",
+	"title", "kra_category", "color", "status", "owner_designation", "dri",
 	"company", "description", "detailed_description", "success_criteria",
 )
 TASK_FIELDS = (
-	"task_name", "kra", "task_kind", "color", "status", "effective_from",
-	"effective_to", "company", "frequency", "expected_count_per_period",
+	"task_name", "kra", "task_kind", "risk_tier", "color", "status", "effective_from",
+	"effective_to", "task_owner", "company", "frequency", "expected_count_per_period",
 	"weight", "completion_type", "requires_attachment", "attachment_label",
 	"requires_approval", "approver_resolution", "approver_user", "approver_role",
 	"applicable_to_all_active", "assigned_to_department", "assigned_to_designation",
@@ -55,7 +55,7 @@ def list_kras():
 		filters=filters,
 		fields=[
 			"name", "title", "kra_category", "status", "color", "owner_designation",
-			"company", "description", "open_task_instance_count",
+			"dri", "company", "description", "open_task_instance_count",
 		],
 		order_by="status asc, title asc",
 	)
@@ -124,13 +124,13 @@ def delete_kra(name):
 def list_hrms_tasks():
 	_guard()
 	filters, _company = _company_filter()
-	filters["is_group"] = 0
 	rows = frappe.get_all(
 		"HRMS Task",
 		filters=filters,
 		fields=[
-			"name", "task_name", "kra", "task_kind", "status", "frequency",
-			"company", "applicable_to_all_active", "effective_from", "effective_to",
+			"name", "task_name", "kra", "task_kind", "risk_tier", "status", "frequency",
+			"task_owner", "company", "applicable_to_all_active", "effective_from",
+			"effective_to", "requires_approval", "use_cadence_schedule",
 		],
 		order_by="status asc, task_name asc",
 	)
@@ -193,12 +193,24 @@ def get_form_options():
 	)
 	designations = frappe.get_all("Designation", fields=["name"], order_by="name asc")
 	departments = frappe.get_all("Department", filters=dict(filters), fields=["name"], order_by="name asc")
+	# Candidate DRIs — an Active KRA must name one, so the picker has to be here
+	# or the create flow dead-ends on a server-side validation error.
+	employees = frappe.get_all(
+		"Employee",
+		filters={**filters, "status": "Active"},
+		fields=["name", "employee_name"],
+		order_by="employee_name asc",
+	)
 	return {
 		"company": company,
 		"kras": kras,
+		"employees": employees,
 		"designations": [r.name for r in designations],
 		"departments": [r.name for r in departments],
-		"frequencies": ["One-time", "Daily", "Weekly", "Monthly", "Quarterly", "Yearly", "On-demand"],
+		# Must mirror the HRMS Task.frequency Select exactly — offering a value the
+		# doctype doesn't accept (there was a stray "One-time") makes save fail.
+		"frequencies": ["Daily", "Weekly", "Monthly", "Quarterly", "Yearly", "On-demand"],
+		"risk_tiers": ["Routine", "Standard", "Critical"],
 		"completion_types": ["Checkbox", "Document Upload", "Numeric Entry", "Form", "Approval Only"],
 		"kra_categories": [
 			"Operational", "Strategic", "Compliance", "Quality", "Financial",

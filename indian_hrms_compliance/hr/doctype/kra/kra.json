@@ -14,6 +14,7 @@
   "col_break_identity",
   "status",
   "owner_designation",
+  "dri",
   "company",
   "description_section",
   "description",
@@ -77,6 +78,15 @@
    "options": "Designation",
    "in_standard_filter": 1,
    "description": "The role accountable for this KRA. Survives personnel changes — when someone in this Designation leaves, the next person inherits accountability automatically. Active Employees holding this Designation are the people the system notifies / surfaces this KRA to."
+  },
+  {
+   "fieldname": "dri",
+   "fieldtype": "Link",
+   "label": "DRI (Accountable Owner)",
+   "options": "Employee",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "description": "The single named person answerable for this KRA — 'who's the DRI on that?'. Exactly one, never a committee. Owner Designation says which role owns it; the DRI says who holds it today."
   },
   {
    "fieldname": "company",
@@ -146,7 +156,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-05-29 20:00:00.000000",
+ "modified": "2026-07-30 10:00:00.000000",
  "modified_by": "Administrator",
  "module": "HR",
  "name": "KRA",

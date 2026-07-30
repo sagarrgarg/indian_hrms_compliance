@@ -12,6 +12,7 @@
   "task_name",
   "kra",
   "task_kind",
+  "risk_tier",
   "color",
   "col_break_identity",
   "status",
@@ -106,6 +107,15 @@
    "description": "KPI Metric is a measurable outcome; Individual Task is a standalone action."
   },
   {
+   "fieldname": "risk_tier",
+   "fieldtype": "Select",
+   "label": "Risk Tier",
+   "options": "Routine\nStandard\nCritical",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "description": "How much assurance this task needs. Routine = just tick it done. Standard = capture evidence. Critical = evidence + approval by someone other than the doer. Left blank, it is derived from the completion/approval settings below."
+  },
+  {
    "fieldname": "color",
    "fieldtype": "Color",
    "label": "Color"
@@ -141,10 +151,10 @@
   {
    "fieldname": "task_owner",
    "fieldtype": "Link",
-   "label": "Task Owner",
+   "label": "DRI (Accountable Owner)",
    "options": "User",
    "default": "__user",
-   "description": "HR steward responsible for maintaining this task."
+   "description": "The single Directly Responsible Individual answerable for this task existing and being done. Exactly one person — not a team."
   },
   {
    "fieldname": "company",
@@ -416,7 +426,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-07-20 11:00:00.000000",
+ "modified": "2026-07-30 10:00:00.000000",
  "modified_by": "Administrator",
  "module": "HR",
  "name": "HRMS Task",

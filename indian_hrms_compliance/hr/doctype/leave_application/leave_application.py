@@ -676,14 +676,21 @@ class LeaveApplication(Document, PWANotificationsMixin):
 			},
 			pluck="name",
 		)
+		manager_user = frappe.db.get_value("Employee", manager, "user_id")
 		moved = 0
 		for name in tasks:
 			if frappe.db.get_value("Goal", name, "delegated_from"):
 				continue  # already delegated
 			# Goal.employee is set-only-once; reassign at the DB level for cover.
-			frappe.db.set_value(
-				"Goal", name, {"delegated_from": self.employee, "employee": manager}, update_modified=False
-			)
+			values = {"delegated_from": self.employee, "employee": manager}
+			# The cover manager is very often ALSO the task's approver (approval
+			# resolves via "Reports To"). Handing them the work without clearing
+			# that would make them their own approver — which the approval gate
+			# refuses — stranding the task in the one inbox that cannot act on it.
+			# Clearing the route sends it to HR as the backstop instead.
+			if manager_user and frappe.db.get_value("Goal", name, "approver_user") == manager_user:
+				values["approver_user"] = None
+			frappe.db.set_value("Goal", name, values, update_modified=False)
 			moved += 1
 		if moved:
 			frappe.msgprint(

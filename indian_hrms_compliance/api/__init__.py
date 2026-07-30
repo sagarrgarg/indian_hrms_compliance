@@ -1288,22 +1288,57 @@ TASK_INSTANCE_FIELDS = [
 	"approver_user",
 	"delegated_from",
 	"performed_by",
+	# Approval cycle — lets the PWA distinguish "awaiting approval" from "sent
+	# back", and show the approver's reason instead of a bare status.
+	"submitted_at",
+	"approved_by",
+	"approved_at",
+	"approval_notes",
 	# Audit / dashboard:
 	"owner",          # the user who created the Goal — used to identify the
 	                  # assigner for ad-hoc tasks (also drives overdue alerts).
 	"creation",
 ]
 
+# Template attributes the PWA needs per instance. Fetched once per template.
+_TEMPLATE_META_FIELDS = ("requires_approval", "risk_tier")
 
-def _annotate_requires_approval(tasks: list[dict]) -> None:
-	"""Look up requires_approval from the HRMS Task template once per template."""
-	cache: dict[str, int] = {}
+
+def _annotate_template_meta(tasks: list[dict]) -> None:
+	"""Copy the parent HRMS Task's requires_approval + risk_tier onto each row.
+
+	One lookup per distinct template, not per row. Ad-hoc instances (no
+	template) are flagged and treated as Routine — a one-off task someone typed
+	in carries no ceremony by definition.
+	"""
+	cache: dict[str, dict] = {}
+	name_cache: dict[str, str] = {}
 	for t in tasks:
 		template = t.get("task_template")
 		if template and template not in cache:
-			cache[template] = frappe.db.get_value("HRMS Task", template, "requires_approval") or 0
-		t["requires_approval"] = cache.get(template, 0)
+			cache[template] = (
+				frappe.db.get_value(
+					"HRMS Task", template, _TEMPLATE_META_FIELDS, as_dict=True
+				)
+				or {}
+			)
+		meta = cache.get(template) or {}
+		t["requires_approval"] = meta.get("requires_approval") or 0
+		t["risk_tier"] = meta.get("risk_tier") or "Routine"
 		t["is_adhoc"] = 1 if not template else 0
+		# Derived UI state, so every screen agrees on what "pending" means.
+		t["awaiting_approval"] = 1 if (t.get("submitted_at") and t.get("status") == "In Progress") else 0
+		t["was_sent_back"] = (
+			1 if (t.get("approval_notes") and not t.get("submitted_at") and not t.get("approved_at")) else 0
+		)
+		# "Approved by priya@acme.com" reads like a system log; show the person.
+		# One lookup per distinct approver, not per row.
+		if approver := t.get("approved_by"):
+			if approver not in name_cache:
+				name_cache[approver] = (
+					frappe.db.get_value("User", approver, "full_name", cache=True) or approver
+				)
+			t["approved_by_name"] = name_cache[approver]
 
 
 @frappe.whitelist()
@@ -1339,7 +1374,7 @@ def get_my_task_instances(status_filter: str | None = None, period: str | None =
 		fields=TASK_INSTANCE_FIELDS,
 		order_by="due_date asc",
 	)
-	_annotate_requires_approval(tasks)
+	_annotate_template_meta(tasks)
 	return tasks
 
 
@@ -1367,7 +1402,7 @@ def get_my_tasks_dashboard() -> dict:
 	def _list(extra: dict) -> list[dict]:
 		filters = {"goal_type": "Task Instance", "employee": employee, **extra}
 		rows = frappe.get_list("Goal", filters=filters, fields=TASK_INSTANCE_FIELDS, order_by="due_date asc")
-		_annotate_requires_approval(rows)
+		_annotate_template_meta(rows)
 		return rows
 
 	today_tasks = _list(
@@ -1454,6 +1489,17 @@ def complete_task_instance(
 			frappe.PermissionError,
 		)
 
+	# Re-submitting an already-approved instance would silently wipe the
+	# approver's signature below (the approval stamps are cleared to start a
+	# fresh cycle) and push accepted work back into the queue. That is the same
+	# erasure `reopen_task_instance` refuses — it must not be reachable through
+	# the front door either. Re-opening is the approver's / HR's call.
+	if goal.get("approved_by"):
+		frappe.throw(
+			_("This task has already been approved and cannot be submitted again."),
+			frappe.PermissionError,
+		)
+
 	if goal.get("delegated_from"):
 		if not performed_by:
 			frappe.throw(_("This task was delegated to you for leave cover. Please record who performed it."))
@@ -1472,6 +1518,11 @@ def complete_task_instance(
 
 	goal.submitted_at = frappe.utils.now()
 	goal.submitted_by = frappe.session.user
+	# A re-submission starts a fresh approval cycle: drop the previous decision
+	# so a stale "sent back" note can't be mistaken for this attempt's verdict.
+	for field in ("approved_by", "approved_at", "approval_notes"):
+		if goal.meta.has_field(field):
+			goal.set(field, None)
 	# Goal.validate() derives status from progress via set_status(); set both so the
 	# intended state survives. Approval-gated tasks sit at 'In Progress' (pending
 	# the approver); others complete outright at progress=100.
@@ -1483,47 +1534,285 @@ def complete_task_instance(
 		goal.status = "Completed"
 		goal.progress = 100
 
+	goal.flags.ihc_governed_write = True
 	goal.save(ignore_permissions=True)
 
-	# Live-refresh the employee's screens AND, if approval is required, the
-	# approver's inbox (the task instance just appeared as something to review).
+	# Live-refresh the employee's screens AND, if approval is required, whoever
+	# now has to review it — a named approver, every holder of the approver role,
+	# or (when it routed to nobody) HR, who acts as the backstop.
 	_pwa_refetch(
 		list(_REQUESTER_CACHE_KEYS_BY_DOCTYPE["Goal"]), user=frappe.session.user
 	)
-	if requires_approval and goal.get("approver_user"):
-		_pwa_refetch(list(_INBOX_CACHE_KEYS), user=goal.approver_user)
+	if requires_approval:
+		for user in _task_approver_audience(goal):
+			_pwa_refetch(list(_INBOX_CACHE_KEYS), user=user)
 
 	return {"name": goal.name, "status": goal.status, "requires_approval": bool(requires_approval)}
 
 
+def _dedupe_users(users, exclude: set[str]) -> list[str]:
+	"""Order-preserving de-dupe, minus the excluded users and Guest.
+
+	Administrator is deliberately NOT excluded. `task_owner` defaults to
+	`__user`, so any task authored while logged in as Administrator resolves its
+	approver to Administrator — treating that as "nobody" would declare a large
+	share of a freshly-provisioned site's tasks stranded and dump them all into
+	HR's backstop queue while they simultaneously sit, correctly routed, in
+	Administrator's own inbox.
+	"""
+	seen: set[str] = set()
+	out = []
+	for u in users:
+		if u and u not in seen and u not in exclude and u != "Guest":
+			seen.add(u)
+			out.append(u)
+	return out
+
+
+def _enabled_users(users) -> set[str]:
+	"""Of `users`, the ones whose User account is still enabled.
+
+	A disabled account cannot act, so routing to one is the same as routing
+	nowhere — the instance must fall through to the HR backstop rather than rot
+	in a dead inbox. This is the "nothing dies with one person's account"
+	guarantee the role-routing docstring promises.
+	"""
+	names = {u for u in users if u}
+	if not names:
+		return set()
+	return set(
+		frappe.get_all("User", filters={"name": ("in", list(names)), "enabled": 1}, pluck="name")
+	)
+
+
+# One task's approver role, capped + ordered the same way on the single-row and
+# bulk paths so they never disagree about whether a many-holder role is stranded.
+_ROLE_HOLDER_CAP = 50
+
+
+def _task_routed_approvers(doc, limit: int = _ROLE_HOLDER_CAP, doers: set[str] | None = None) -> list[str]:
+	"""Non-doer users this instance is explicitly ROUTED to.
+
+	An EMPTY result means the instance is effectively unrouted and HR must step
+	in. That covers three cases, not just a blank approver:
+
+	  * no approver_user and no approver_role at all;
+	  * an approver_role nobody holds (or held only by the doer);
+	  * an approver_user who IS the doer — which is what leave-cover
+	    delegation produces, since it moves `employee` to the reporting manager
+	    while `approver_user` still points at that same manager. Without this,
+	    the instance would sit forever in the one inbox whose owner the
+	    segregation-of-duties gate forbids from approving it.
+
+	`doers` may be passed in when the caller has already resolved them, so a list
+	view doesn't re-query Employee → user_id for every row.
+	"""
+	doers = _task_doer_users(doc) if doers is None else doers
+	users = _dedupe_users([doc.get("approver_user")], doers)
+	# Fall through to the role when the named approver is unusable (the doer, or
+	# an emptied field) — the two routes are independent, so a task carrying both
+	# must not be declared stranded just because the named user dropped out.
+	if not users and doc.get("approver_role"):
+		users = _dedupe_users(
+			frappe.get_all(
+				"Has Role",
+				filters={"role": doc.approver_role, "parenttype": "User"},
+				pluck="parent",
+				order_by="parent asc",
+				limit=limit,
+			),
+			doers,
+		)
+	enabled = _enabled_users(users)
+	return [u for u in users if u in enabled]
+
+
+def _hr_backstop_users(doc, limit: int = 20) -> list[str]:
+	"""HR users who act as the approver of last resort for a stranded instance.
+
+	Uses the SAME role set as `_is_hr_user` / `_assert_task_approver`, so whoever
+	is ALLOWED to approve an unrouted task is also told one is waiting. (These
+	previously disagreed — the inbox admitted all HR roles while the live refresh
+	only pinged "HR Manager" holders, so an HR User saw nothing until a manual
+	reload.)
+	"""
+	users = _dedupe_users(
+		frappe.get_all(
+			"Has Role",
+			filters={"role": ("in", tuple(_HR_APPROVER_ROLES)), "parenttype": "User"},
+			pluck="parent",
+			limit=limit,
+		),
+		_task_doer_users(doc),
+	)
+	enabled = _enabled_users(users)
+	return [u for u in users if u in enabled]
+
+
+# Ceiling on the HR "stranded" sweep. It reads instances the user was not named
+# on, so it must never become an unbounded whole-site scan on a busy morning.
+_STRANDED_SWEEP_LIMIT = 200
+
+
+def _bulk_doer_users(rows) -> dict[str, set[str]]:
+	"""`_task_doer_users` for many rows, in ONE Employee query instead of 2 per row."""
+	emp_names = {
+		r.get(f) for r in rows for f in ("employee", "performed_by") if r.get(f)
+	}
+	emp_user: dict[str, str] = {}
+	if emp_names:
+		emp_user = {
+			e.name: e.user_id
+			for e in frappe.get_all(
+				"Employee", filters={"name": ("in", list(emp_names))}, fields=["name", "user_id"]
+			)
+			if e.user_id
+		}
+	out: dict[str, set[str]] = {}
+	for r in rows:
+		users = {r.get("submitted_by")} if r.get("submitted_by") else set()
+		for f in ("employee", "performed_by"):
+			if user_id := emp_user.get(r.get(f)):
+				users.add(user_id)
+		out[r.name] = users
+	return out
+
+
+def _bulk_role_holders(roles) -> dict[str, list[str]]:
+	"""Holders of several roles at once, keyed by role.
+
+	Each role is capped and ordered identically to the single-row
+	`_task_routed_approvers` path, so the inbox (which uses this) and the
+	live-refresh audience (which uses that) never disagree on whether a
+	many-holder role is stranded."""
+	names = {r for r in roles if r}
+	if not names:
+		return {}
+	out: dict[str, list[str]] = {}
+	for row in frappe.get_all(
+		"Has Role",
+		filters={"role": ("in", list(names)), "parenttype": "User"},
+		fields=["role", "parent"],
+		order_by="parent asc",
+	):
+		holders = out.setdefault(row.role, [])
+		if len(holders) < _ROLE_HOLDER_CAP:
+			holders.append(row.parent)
+	return out
+
+
+def _routed_from_maps(row, doers: set[str], role_holders: dict[str, list[str]], enabled: set[str]):
+	"""`_task_routed_approvers` for a pre-resolved row — no queries. Same rules."""
+	users = _dedupe_users([row.get("approver_user")], doers)
+	if not users and row.get("approver_role"):
+		users = _dedupe_users(role_holders.get(row.get("approver_role"), []), doers)
+	return [u for u in users if u in enabled]
+
+
+def _task_approver_audience(goal, limit: int = 20) -> list[str]:
+	"""Users who should see this submitted instance in their approvals inbox.
+
+	Mirrors the routes in `_pending_task_approvals`. Capped because a role (or
+	the HR backstop) can fan out widely and this only drives a UI refresh.
+	The doer is always excluded — they are never their own approver.
+	"""
+	return _task_routed_approvers(goal, limit) or _hr_backstop_users(goal, limit)
+
+
+def _broadcast_task_decision(goal) -> None:
+	"""After a task decision, refresh the inbox of everyone who could have acted
+	on it, so the row drops out of the OTHER reviewers' cached lists too.
+
+	The decision cleared/stamped the fields the audience is derived from, so the
+	audience is computed against the doc's PRE-decision routing where possible;
+	in practice `_task_approver_audience` still resolves the routed approver /
+	role / HR backstop from the surviving approver_user / approver_role, which is
+	exactly the set that had it queued."""
+	for reviewer in _task_approver_audience(goal):
+		_pwa_refetch(list(_INBOX_CACHE_KEYS), user=reviewer)
+
+
 @frappe.whitelist()
 def reopen_task_instance(goal_name: str) -> dict:
-	"""Re-open a Task Instance the employee completed by mistake — set it back to
-	Pending and clear the completion stamps/progress. Only the owning employee
-	can reopen, and only their own (non-archived) instance."""
-	employee = get_current_employee()
+	"""Re-open a Task Instance completed by mistake — set it back to Pending and
+	clear the completion stamps/progress.
+
+	Normally only the owning employee may reopen their own instance. Once an
+	approver has signed it off, that flips: re-opening would erase someone else's
+	signature (the stamps are cleared below) with no trace and no notice, and
+	would let the doer churn reopen → redo → re-route after the work was already
+	accepted. So an APPROVED instance can only be re-opened by the approver who
+	signed it or by HR — which also means those two must be able to get past the
+	owning-employee check, or the "ask them to re-open it" advice would be a lie.
+	"""
 	goal = frappe.get_doc("Goal", goal_name)
-	if goal.goal_type != "Task Instance" or goal.employee != employee:
-		frappe.throw(
-			_("You are not permitted to reopen this task."), frappe.PermissionError
-		)
+	user = frappe.session.user
+	if goal.goal_type != "Task Instance":
+		frappe.throw(_("You are not permitted to reopen this task."), frappe.PermissionError)
+
+	approved_by = goal.get("approved_by")
+	# Whoever signed it off, and HR, may undo an approval — they do not need to
+	# be the owning employee (they never are). But the doer may NEVER undo the
+	# approval of their own work, even holding an HR role: that is the same
+	# segregation of duties `_assert_task_approver` enforces with no exception,
+	# and without excluding doers here an HR-hatted employee could wipe the
+	# sign-off on their own task and force a re-run.
+	may_undo_approval = (
+		bool(approved_by)
+		and (approved_by == user or _is_hr_user(user))
+		and user not in _task_doer_users(goal)
+	)
+
+	if not may_undo_approval:
+		if goal.employee != get_current_employee():
+			frappe.throw(_("You are not permitted to reopen this task."), frappe.PermissionError)
+		if approved_by:
+			frappe.throw(
+				_(
+					"This task has already been approved by {0} and cannot be re-opened by you. "
+					"Ask them or HR to re-open it."
+				).format(approved_by),
+				frappe.PermissionError,
+			)
+
 	if goal.status == "Archived":
 		frappe.throw(_("Archived tasks cannot be reopened."))
 
+	# Did this instance actually sit in an approver's queue? Only then is there an
+	# approver inbox to refresh. A Routine task (no approval) never did, so the
+	# common "un-tick a checkbox" reopen must NOT fan a refetch out to all of HR.
+	# Captured before the stamps are cleared below.
+	was_in_approval_queue = bool(approved_by) or (
+		goal.get("submitted_at")
+		and goal.task_template
+		and frappe.db.get_value("HRMS Task", goal.task_template, "requires_approval")
+	)
+
 	goal.status = "Pending"
 	goal.progress = 0
-	for f in ("submitted_at", "submitted_by", "numeric_value"):
+	# Clear the whole completion record, approval decision included — re-opening
+	# means "this was never done", so a lingering approval stamp would be a lie.
+	for f in (
+		"submitted_at",
+		"submitted_by",
+		"numeric_value",
+		"approved_by",
+		"approved_at",
+		"approval_notes",
+	):
 		if goal.meta.has_field(f):
 			goal.set(f, None)
+	goal.flags.ihc_governed_write = True
 	goal.save(ignore_permissions=True)
 
 	_pwa_refetch(
 		list(_REQUESTER_CACHE_KEYS_BY_DOCTYPE["Goal"]), user=frappe.session.user
 	)
-	if goal.get("approver_user"):
-		# The task left the approver's pending queue when it was completed; it
-		# also leaves the queue when re-opened. Either way, refresh.
-		_pwa_refetch(list(_INBOX_CACHE_KEYS), user=goal.approver_user)
+	# The instance leaves the approver's pending queue when it is re-opened, so
+	# refresh whoever was going to review it — but only if it was ever there.
+	if was_in_approval_queue:
+		for reviewer in _task_approver_audience(goal):
+			_pwa_refetch(list(_INBOX_CACHE_KEYS), user=reviewer)
 	return {"name": goal.name, "status": goal.status}
 
 
@@ -2863,30 +3152,123 @@ def _pending_attendance_approvals(user: str) -> list[dict]:
 
 
 def _pending_task_approvals(user: str) -> list[dict]:
-	"""Task Instances (Goal goal_type='Task Instance') submitted for approval
-	where the resolved approver_user is the current user. Submitted-but-pending
-	instances sit at status 'In Progress' with a non-null submitted_at."""
-	rows = frappe.get_all(
-		"Goal",
-		filters={
-			"goal_type": "Task Instance",
-			"approver_user": user,
-			"status": "In Progress",
-			"submitted_at": ("is", "set"),
-		},
-		fields=[
-			"name",
-			"employee",
-			"employee_name",
-			"goal_name",
-			"period_label",
-			"due_date",
-			"submitted_at",
-		],
-		order_by="submitted_at desc",
-	)
+	"""Task Instances submitted for approval and awaiting THIS user's decision.
+
+	A submitted-but-undecided instance sits at status 'In Progress' with a
+	non-null submitted_at. Three routes can bring it here:
+
+	  1. ``approver_user`` is this user (the common case).
+	  2. ``approver_role`` is a role this user holds — role-routed approval, so
+		 any holder can act and nothing dies with one person's account.
+	  3. It is UNROUTED (no approver_user and no approver_role) and this user is
+		 HR. Without this, an instance whose approver could not be resolved
+		 would be invisible in every inbox and stay stuck forever.
+	"""
+	base = {
+		"goal_type": "Task Instance",
+		"status": "In Progress",
+		"submitted_at": ("is", "set"),
+	}
+	fields = [
+		"name",
+		"employee",
+		"employee_name",
+		"goal_name",
+		"period_label",
+		"due_date",
+		"submitted_at",
+		"approver_user",
+		# Needed to work out who DID the task, so we never list an instance in the
+		# inbox of someone the approval gate would then refuse.
+		"submitted_by",
+		"performed_by",
+	]
+	has_role_field = frappe.get_meta("Goal").has_field("approver_role")
+	if has_role_field:
+		fields.append("approver_role")
+
+	collected: dict[str, dict] = {}
+
+	def _collect(filters: dict) -> None:
+		for row in frappe.get_all("Goal", filters=filters, fields=fields, order_by="submitted_at desc"):
+			collected.setdefault(row.name, row)
+
+	# 1. Directly assigned.
+	_collect({**base, "approver_user": user})
+
+	# 2. Role-routed — any holder of the role may approve.
+	if has_role_field:
+		roles = [r for r in frappe.get_roles(user) if r not in ("All", "Guest")]
+		if roles:
+			_collect({**base, "approver_role": ("in", roles)})
+
+	# 3. Unrouted OR stranded — HR is the backstop so nothing rots silently.
+	#    Scoped to the HR user's companies, exactly like every other HR branch in
+	#    this file: this is the one route that reads rows the user was not named
+	#    on, so without it an HR Manager permitted only on "Acme India" would see
+	#    (and be allowed to approve) "Acme Singapore" tasks.
+	stranded: set[str] = set()
+	if _is_hr_user(user):
+		scope = _hr_company_scope(user)
+		hr_base = {**base}
+		if scope is not None:
+			hr_base["company"] = ("in", scope)
+
+		unrouted = {**hr_base, "approver_user": ("is", "not set")}
+		if has_role_field:
+			unrouted["approver_role"] = ("is", "not set")
+		_collect(unrouted)
+
+		# "Stranded" = nominally routed, but no candidate approver can actually
+		# act — they are the doer (leave-cover delegation hands the task to the
+		# very manager who was its approver), or their account is disabled, or
+		# the role has no other holder. The SoD gate would refuse all of them, so
+		# without this the instance is invisible in every usable inbox.
+		#
+		# Bounded and bulk-resolved: one query for the candidates, then one each
+		# for their employees / role holders / enabled accounts — not two lookups
+		# per row, on a screen that HR (and every System Manager) loads often.
+		#
+		# OLDEST first, unlike every other query here: if the cap ever bites, the
+		# rows worth surfacing are the ones stuck longest, not this morning's.
+		# (The finished list is re-sorted newest-first below.)
+		candidates = [
+			r
+			for r in frappe.get_all(
+				"Goal",
+				filters=hr_base,
+				fields=fields,
+				order_by="submitted_at asc",
+				limit=_STRANDED_SWEEP_LIMIT,
+			)
+			if r.name not in collected
+		]
+		if candidates:
+			doer_map = _bulk_doer_users(candidates)
+			role_holders = _bulk_role_holders(
+				{r.get("approver_role") for r in candidates if r.get("approver_role")}
+			)
+			enabled = _enabled_users(
+				{r.get("approver_user") for r in candidates}
+				| {u for holders in role_holders.values() for u in holders}
+			)
+			for r in candidates:
+				if not _routed_from_maps(r, doer_map[r.name], role_holders, enabled):
+					collected[r.name] = r
+					stranded.add(r.name)
+
+	# Never show someone their own work to approve — the gate would refuse it, so
+	# listing it is a dead-end that also inflates the pending count. Doers are
+	# resolved for the whole set at once.
+	all_doers = _bulk_doer_users(list(collected.values()))
+	rows = [(r, all_doers[r.name]) for r in collected.values() if user not in all_doers[r.name]]
+	rows.sort(key=lambda pair: str(pair[0].get("submitted_at") or ""), reverse=True)
 	out = []
-	for r in rows:
+	for r, doers in rows:
+		# Flag the backstop case so HR can see WHY it landed with them: never
+		# routed at all, or routed only to people who cannot act. Read off the
+		# sweep's result rather than re-deriving it per row.
+		unrouted = r.name in stranded or not (r.get("approver_user") or r.get("approver_role"))
 		out.append(
 			{
 				"doctype": "Goal",
@@ -2897,6 +3279,9 @@ def _pending_task_approvals(user: str) -> list[dict]:
 				"employee": r.employee,
 				"employee_name": r.employee_name,
 				"date": str(getdate(r.submitted_at)) if r.submitted_at else None,
+				# Full timestamp so several same-day submissions still sort newest-first.
+				"_ts": str(r.submitted_at) if r.submitted_at else None,
+				"unrouted": 1 if unrouted else 0,
 				"action_type": "workflow",
 			}
 		)
@@ -3248,9 +3633,64 @@ def _assert_attendance_approver(doc):
 		)
 
 
+def _task_doer_users(doc) -> set[str]:
+	"""Every user who could be considered to have DONE this task.
+
+	The submitter is the strongest signal; the assigned employee and (for
+	leave-cover) the recorded performer are included so re-routing the
+	instance can't launder a self-approval.
+	"""
+	users: set[str] = set()
+	if doc.get("submitted_by"):
+		users.add(doc.submitted_by)
+	for field in ("employee", "performed_by"):
+		emp = doc.get(field)
+		if emp:
+			user = frappe.db.get_value("Employee", emp, "user_id")
+			if user:
+				users.add(user)
+	return users
+
+
 def _assert_task_approver(doc):
-	if doc.goal_type != "Task Instance" or doc.approver_user != frappe.session.user:
+	"""Gate a task-completion decision.
+
+	Two independent checks:
+
+	  * IDENTITY — you must be the routed approver, a holder of the routed
+	    approver role, or HR. HR can always step in, which is what stops an
+	    unroutable instance from deadlocking.
+	  * SEGREGATION OF DUTIES — you may never approve work you performed.
+	    This one has NO exception, not even for HR: an approval by the doer is
+	    not an approval, and the Critical tier's entire value is this rule.
+	"""
+	if doc.goal_type != "Task Instance":
+		frappe.throw(_("This is not a task instance."), frappe.PermissionError)
+
+	user = frappe.session.user
+	role_ok = bool(doc.get("approver_role")) and doc.approver_role in frappe.get_roles(user)
+
+	# HR may step in for anything, but ONLY within their companies — otherwise the
+	# company scoping on the inbox is cosmetic: an HR user restricted to "Acme
+	# India" could still approve an "Acme Singapore" instance by passing its name
+	# (Goal names are sequential and guessable). Named approver / role holder are
+	# already self-scoping — they were put on this specific instance.
+	is_hr_in_scope = False
+	if _is_hr_user(user):
+		scope = _hr_company_scope(user)
+		is_hr_in_scope = scope is None or doc.get("company") in scope
+
+	if not (doc.get("approver_user") == user or role_ok or is_hr_in_scope):
 		frappe.throw(_("You are not the approver for this task."), frappe.PermissionError)
+
+	if user in _task_doer_users(doc):
+		frappe.throw(
+			_(
+				"You cannot approve a task you performed yourself. Someone other than the "
+				"doer must approve it — ask your manager or HR to review it."
+			),
+			frappe.PermissionError,
+		)
 
 
 def _assert_hr_role(label: str):
@@ -3797,7 +4237,15 @@ def _notify_requester_decision(
 	else:
 		phrase = _DECISION_PHRASE.get((doctype, bool(approved)), "approved" if approved else "rejected")
 	from_name = frappe.db.get_value("User", from_user, "full_name", cache=True) or from_user
-	message = f"Your {bold(doctype)} {name} has been {bold(phrase)} by {bold(from_name)}"
+
+	# "Your Goal HR-GOAL-2026-00042" is meaningless to an employee — a task
+	# instance is a "Task", and its own name is far more use than its ID.
+	label, subject = doctype, name
+	if doctype == "Goal":
+		label = "Task"
+		subject = frappe.db.get_value("Goal", name, "goal_name") or name
+
+	message = f"Your {bold(label)} {subject} has been {bold(phrase)} by {bold(from_name)}"
 	reason = strip_html(comment).strip() if comment else ""
 	if reason:
 		message += f": {reason}"
@@ -3911,9 +4359,27 @@ def approve_request(doctype: str, name: str, comment: str | None = None) -> dict
 		if doc.docstatus == 0:
 			doc.submit()
 	elif doctype == "Goal":
-		# Approve the task-instance completion.
+		# Approve the task-instance completion. Stamping WHO approved and WHEN is
+		# the whole point of an approval control — without it the record proves
+		# only that a status changed, which is not evidence anybody can audit.
+		# Only a submitted, undecided instance can be approved — this blocks
+		# double-approval and approving work nobody has done yet. Tolerates a
+		# site where submitted_at hasn't synced rather than blocking every approval.
+		awaiting = doc.status == "In Progress" and (
+			not doc.meta.has_field("submitted_at") or doc.get("submitted_at")
+		)
+		if not awaiting:
+			frappe.throw(_("This task is not awaiting approval."))
 		doc.status = "Completed"
 		doc.progress = 100
+		for field, value in (
+			("approved_by", frappe.session.user),
+			("approved_at", now_datetime()),
+			("approval_notes", strip_html(comment).strip() if comment else None),
+		):
+			if doc.meta.has_field(field):
+				doc.set(field, value)
+		doc.flags.ihc_governed_write = True
 		doc.save(ignore_permissions=True)
 	elif doctype == "Resignation Request":
 		from frappe.model.workflow import apply_workflow, get_transitions
@@ -4006,6 +4472,12 @@ def approve_request(doctype: str, name: str, comment: str | None = None) -> dict
 		# Stage shifted from Manager Ack → HR Approval — other HR users should
 		# see the row appear in their inbox too.
 		_broadcast_hr_inbox_refresh()
+	elif doctype == "Goal":
+		# One task instance can sit in several inboxes at once (role-routed, HR
+		# backstop). Now that it's decided, drop it from the OTHER reviewers'
+		# cached inboxes too — the server already refuses a second decision, so
+		# this just clears a phantom actionable row rather than fixing integrity.
+		_broadcast_task_decision(doc)
 
 	state = doc.get("workflow_state") or doc.get("status") or doc.get("approval_status")
 	return {"name": doc.name, "doctype": doctype, "state": state}
@@ -4062,10 +4534,40 @@ def reject_request(doctype: str, name: str, comment: str | None = None) -> dict:
 		if doc.docstatus == 0:
 			doc.delete(ignore_permissions=True)
 	elif doctype == "Goal":
-		# Reject the completion — bounce back to In Progress, clear submission stamp.
-		doc.status = "In Progress"
+		# Bounce the completion back to the employee to redo.
+		#
+		# Only a submitted, still-undecided instance can be sent back — the same
+		# gate approve uses. Without it a second approver (role-routed approval and
+		# the HR backstop both put one instance in several inboxes) could reject an
+		# instance the FIRST approver already accepted, silently erasing that
+		# sign-off and un-completing accepted work; and a never-submitted instance
+		# could be "rejected", planting a phantom "sent back" note on the employee.
+		awaiting = doc.status == "In Progress" and (
+			not doc.meta.has_field("submitted_at") or doc.get("submitted_at")
+		)
+		if not awaiting:
+			frappe.throw(_("This task is not awaiting approval."))
+		# progress=0 means Goal.set_status() derives 'Pending' during validate —
+		# so we set Pending explicitly rather than pretending it stays 'In
+		# Progress' (the previous code claimed that and was silently overridden).
+		# Pending is also correct semantically: it is open work again.
+		#
+		# The reason is persisted to approval_notes, not just the timeline, so the
+		# employee actually SEES why it came back (mirrors Attendance Request's
+		# rejection_reason). Submission + approval stamps are cleared so the next
+		# attempt is a clean cycle.
+		doc.status = "Pending"
 		doc.progress = 0
-		doc.submitted_at = None
+		for field, value in (
+			("submitted_at", None),
+			("submitted_by", None),
+			("approved_by", None),
+			("approved_at", None),
+			("approval_notes", strip_html(comment).strip() if comment else None),
+		):
+			if doc.meta.has_field(field):
+				doc.set(field, value)
+		doc.flags.ihc_governed_write = True
 		doc.save(ignore_permissions=True)
 	elif doctype == "Resignation Request":
 		from frappe.model.workflow import apply_workflow, get_transitions
@@ -4115,6 +4617,9 @@ def reject_request(doctype: str, name: str, comment: str | None = None) -> dict:
 	if emp_field:
 		req_user = frappe.db.get_value("Employee", emp_field, "user_id")
 		_refresh_requester(doctype, req_user)
+	if doctype == "Goal":
+		# Drop the now-decided instance from every other reviewer's cached inbox.
+		_broadcast_task_decision(doc)
 
 	return {"name": name, "doctype": doctype, "rejected": True}
 

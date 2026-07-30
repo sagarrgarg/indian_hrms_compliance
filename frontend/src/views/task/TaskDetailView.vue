@@ -24,9 +24,49 @@
 						</div>
 						<div class="flex flex-row items-center gap-2 flex-wrap">
 							<ion-badge v-if="task.kra" color="medium">{{ task.kra }}</ion-badge>
-							<ion-badge :color="task.status === 'Completed' ? 'success' : 'warning'">
-								{{ task.status }}
+							<ion-badge :color="statusBadge.color">{{ statusBadge.label }}</ion-badge>
+							<ion-badge v-if="task.risk_tier === 'Critical'" color="danger">
+								{{ __("Critical") }}
 							</ion-badge>
+						</div>
+					</div>
+
+					<!-- Sent back by the approver: show WHY, prominently, so the
+					     employee knows what to fix before resubmitting. -->
+					<div
+						v-if="task.was_sent_back && task.approval_notes"
+						class="flex flex-col gap-1 rounded border border-amber-200 bg-amber-50 p-3"
+					>
+						<div class="flex flex-row items-center gap-2 text-sm font-semibold text-amber-800">
+							<FeatherIcon name="corner-up-left" class="h-4 w-4" />
+							{{ __("Sent back for changes") }}
+						</div>
+						<div class="text-sm text-amber-900">{{ task.approval_notes }}</div>
+					</div>
+
+					<!-- Submitted and waiting on someone else — read-only. -->
+					<div
+						v-else-if="task.awaiting_approval"
+						class="flex flex-row items-center gap-2 rounded border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900"
+					>
+						<FeatherIcon name="clock" class="h-4 w-4 shrink-0" />
+						<span>{{ __("Submitted — awaiting approval.") }}</span>
+					</div>
+
+					<!-- Approved: who signed off, and when. The audit trail, shown. -->
+					<div
+						v-else-if="task.approved_by"
+						class="flex flex-col gap-1 rounded border border-green-200 bg-green-50 p-3"
+					>
+						<div class="flex flex-row items-center gap-2 text-sm font-semibold text-green-800">
+							<FeatherIcon name="check-circle" class="h-4 w-4" />
+							{{ __("Approved by {0}", [task.approved_by_name || task.approved_by]) }}
+						</div>
+						<div v-if="task.approved_at" class="text-xs text-green-700">
+							{{ dayjs(task.approved_at).format("D MMM YYYY, h:mm a") }}
+						</div>
+						<div v-if="task.approval_notes" class="text-sm text-green-900">
+							{{ task.approval_notes }}
 						</div>
 					</div>
 
@@ -51,7 +91,7 @@
 						</div>
 					</div>
 
-					<div v-if="!isClosed" class="flex flex-col gap-4">
+					<div v-if="!isLocked" class="flex flex-col gap-4">
 						<FormControl
 							v-if="task.completion_type === 'Numeric Entry'"
 							type="number"
@@ -126,7 +166,7 @@
 			</div>
 		</ion-content>
 
-		<ion-footer v-if="task && !isClosed" class="ion-no-border">
+		<ion-footer v-if="task && !isLocked" class="ion-no-border">
 			<div class="w-full sm:max-w-3xl sm:mx-auto bg-white p-4 border-t">
 				<Button
 					variant="solid"
@@ -140,7 +180,12 @@
 			</div>
 		</ion-footer>
 
-		<ion-footer v-else-if="task && task.status === 'Completed'" class="ion-no-border">
+		<!-- Re-opening an APPROVED task would erase the approver's sign-off, so the
+		     API refuses it for the doer. Don't offer a button that always fails. -->
+		<ion-footer
+			v-else-if="task && task.status === 'Completed' && !task.approved_by"
+			class="ion-no-border"
+		>
 			<div class="w-full sm:max-w-3xl sm:mx-auto bg-white p-4 border-t">
 				<Button
 					variant="subtle"
@@ -149,6 +194,24 @@
 					@click="onReopen"
 				>
 					{{ __("Mark as not completed") }}
+				</Button>
+			</div>
+		</ion-footer>
+
+		<!-- Submitted but not yet decided: let the employee pull it back to fix a
+		     mistake instead of waiting for the approver to reject it. -->
+		<ion-footer
+			v-else-if="task && task.awaiting_approval && !task.approved_by"
+			class="ion-no-border"
+		>
+			<div class="w-full sm:max-w-3xl sm:mx-auto bg-white p-4 border-t">
+				<Button
+					variant="subtle"
+					class="w-full py-5 text-base"
+					:loading="reopenTask.loading"
+					@click="onReopen"
+				>
+					{{ __("Withdraw submission") }}
 				</Button>
 			</div>
 		</ion-footer>
@@ -195,6 +258,21 @@ const requiresApproval = computed(() => !!task.value?.requires_approval)
 const isClosed = computed(() =>
 	["Completed", "Archived", "Closed"].includes(task.value?.status)
 )
+// Submitted and waiting on an approver: the employee must not be able to
+// re-submit or edit their evidence while it's under review.
+const isAwaiting = computed(() => !!task.value?.awaiting_approval)
+const isLocked = computed(() => isClosed.value || isAwaiting.value)
+
+const statusBadge = computed(() => {
+	const t = task.value
+	if (!t) return { label: "", color: "medium" }
+	if (t.status === "Completed") return { label: __("Completed"), color: "success" }
+	if (isAwaiting.value) return { label: __("Awaiting approval"), color: "primary" }
+	if (t.was_sent_back) return { label: __("Sent back"), color: "warning" }
+	if (["Archived", "Closed"].includes(t.status))
+		return { label: __(t.status), color: "medium" }
+	return { label: __(t.status), color: "warning" }
+})
 
 const isSubmitDisabled = computed(() => {
 	if (task.value?.delegated_from && !performedBy.value?.value) {

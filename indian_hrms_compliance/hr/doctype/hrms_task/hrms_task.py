@@ -29,9 +29,44 @@ FREQ_MAX_LEAD_DAYS = {
 	"On-demand": 0,
 }
 
+# Risk tiers — how much assurance a task carries. Ceremony is proportional to
+# risk: most work is Routine (one tap), and only genuinely risky work pays for
+# evidence + segregation of duties.
+TIER_ROUTINE = "Routine"
+TIER_STANDARD = "Standard"
+TIER_CRITICAL = "Critical"
+RISK_TIERS = (TIER_ROUTINE, TIER_STANDARD, TIER_CRITICAL)
+# Ordered weakest -> strongest, so a stated tier can be compared with the tier
+# the task's own settings imply.
+TIER_RANK = {TIER_ROUTINE: 0, TIER_STANDARD: 1, TIER_CRITICAL: 2}
+
+# Completion types that inherently capture evidence (an artefact of doing the
+# work), as opposed to a bare "I did it" tick.
+EVIDENCE_COMPLETION_TYPES = ("Document Upload", "Numeric Entry", "Form")
+
+
+def derive_risk_tier(source) -> str:
+	"""Infer a risk tier from a task's existing completion/approval settings.
+
+	Used to fill a BLANK tier only — never to override a tier a human chose.
+	The mapping mirrors what the settings already imply:
+	    requires_approval            -> Critical (someone else must sign off)
+	    evidence captured on doing   -> Standard
+	    otherwise                    -> Routine
+	`source` may be a Document or any dict-like row.
+	"""
+	get = source.get if hasattr(source, "get") else lambda k: getattr(source, k, None)
+	if get("requires_approval"):
+		return TIER_CRITICAL
+	if get("requires_attachment") or get("completion_type") in EVIDENCE_COMPLETION_TYPES:
+		return TIER_STANDARD
+	return TIER_ROUTINE
+
 
 class HRMSTask(Document):
 	def validate(self):
+		self._apply_risk_tier()
+		self._validate_dri()
 		self._validate_weight()
 		self._validate_dates()
 		self._validate_scope()
@@ -39,6 +74,93 @@ class HRMSTask(Document):
 		self._validate_kpi_fields()
 		self._validate_reminder_lead()
 		self._sync_cadence_schedule()
+
+	def _apply_risk_tier(self):
+		"""Keep the tier and the actual controls in agreement, resolving upward.
+
+		The tier is a LABEL; requires_approval / evidence are the real controls.
+		When they disagree we move to whichever is stricter, in both directions:
+
+		* Controls stricter than the label -> raise the LABEL. Otherwise a task
+		  that demands approval could sit there labelled "Routine" and quietly
+		  under-state its own assurance in every report and register. This also
+		  handles a Frappe detail: `new_doc` auto-selects the first option of a
+		  Select with no default, so every new task arrives claiming "Routine"
+		  whether or not the author touched the field.
+		* Label stricter than the controls -> raise the CONTROLS. Critical MUST
+		  require approval; that segregation of duties (the doer cannot approve)
+		  is the entire reason the tier exists. Enabled rather than thrown so
+		  nobody is blocked mid-edit.
+
+		Controls are never weakened to match a weaker label.
+		Standard-without-evidence only warns — "prove it" is a judgement call and
+		hard-blocking there would be the bureaucracy we are trying to avoid.
+		"""
+		implied = derive_risk_tier(self)
+		if self.risk_tier not in RISK_TIERS:
+			self.risk_tier = implied
+		elif TIER_RANK[implied] > TIER_RANK[self.risk_tier]:
+			stated = self.risk_tier
+			self.risk_tier = implied
+			frappe.msgprint(
+				_("Risk tier raised from {0} to {1} to match this task's approval/evidence settings.").format(
+					stated, implied
+				),
+				indicator="blue",
+				alert=True,
+			)
+
+		if self.risk_tier == TIER_CRITICAL:
+			if not self.requires_approval:
+				self.requires_approval = 1
+				frappe.msgprint(
+					_("Critical tier requires approval by someone other than the doer — enabled automatically."),
+					indicator="orange",
+					alert=True,
+				)
+			if not self.approver_resolution:
+				self.approver_resolution = "Reports To"
+		elif self.risk_tier == TIER_STANDARD:
+			has_evidence = (
+				self.requires_attachment or self.completion_type in EVIDENCE_COMPLETION_TYPES
+			)
+			if not has_evidence:
+				frappe.msgprint(
+					_(
+						"Standard tier is meant to capture evidence. Consider a Document Upload / "
+						"Numeric Entry completion type, or tick 'Requires Attachment'."
+					),
+					indicator="blue",
+					alert=True,
+				)
+
+		# An approval-gated task with no resolution strategy can never route.
+		if self.requires_approval and not self.approver_resolution:
+			self.approver_resolution = "Reports To"
+
+	def _validate_dri(self):
+		"""Every Active task needs exactly one accountable owner (its DRI).
+
+		Hard-enforced on NEW tasks, which costs nobody anything: `task_owner`
+		defaults to `__user` and Frappe re-applies field defaults during insert,
+		so a new task always arrives with an owner. Reaching the throw means
+		someone deliberately cleared it — an Active obligation nobody is
+		answerable for.
+
+		Existing tasks only warn, mirroring `KRA._validate_dri`. Prod is not in
+		this bench, so "no existing task has an empty owner" can be verified on
+		dev only; a legacy Active task with a blank owner must stay editable
+		rather than become unsaveable the moment this ships.
+		"""
+		if self.status != "Active" or self.task_owner:
+			return
+		msg = _(
+			"An Active task needs a DRI (Accountable Owner) — the one person answerable "
+			"for it. Set one, or move the task to Paused/Draft."
+		)
+		if self.is_new():
+			frappe.throw(msg, title=_("DRI Required"))
+		frappe.msgprint(msg, indicator="orange", alert=True)
 
 	def _validate_reminder_lead(self):
 		lead = int(self.reminder_lead_days or 0)
@@ -483,6 +605,81 @@ def _instantiate_for_date(target_d):
 	return created
 
 
+def resolve_instance_approver(task, emp):
+	"""Who approves this instance? Returns (approver_user, approver_role).
+
+	Role-based approval is carried on the instance as a ROLE so any holder can
+	act — picking one arbitrary holder at creation time would be wrong (and
+	would break the moment that person left).
+
+	Two failure modes this deliberately guards, both of which previously left a
+	task permanently stranded — submitted, 99% done, and in nobody's inbox:
+
+	  1. 'Specific Role' was never resolved at all, so approver_user stayed NULL.
+	  2. 'Reports To' for an employee with no manager resolves to nothing.
+
+	Both now fall back to the task's DRI. If even that resolves to the doer
+	themselves we return nothing rather than route a self-approval — the
+	instance then surfaces in HR's queue as unrouted (see
+	`_pending_task_approvals`), which is visible and fixable instead of silent.
+	"""
+	if not task.requires_approval:
+		return None, None
+
+	resolution = task.approver_resolution or "Reports To"
+	user = None
+	role = None
+
+	if resolution == "Specific User":
+		user = task.approver_user
+	elif resolution == "Specific Role":
+		role = task.approver_role
+	elif emp.reports_to:  # "Reports To"
+		user = frappe.db.get_value("Employee", emp.reports_to, "user_id")
+
+	if not user and not role:
+		user = task.task_owner  # last resort: the accountable owner
+
+	# Never route a task to its own doer — that is the segregation of duties
+	# the Critical tier exists to enforce.
+	if user and user == emp.user_id:
+		user = None
+
+	return user, role
+
+
+def reconcile_risk_tiers() -> int:
+	"""Fill a BLANK risk_tier by deriving it from each task's own settings.
+
+	Blank-only by design, which makes this idempotent AND safe to run on every
+	migrate: it can never overwrite a tier a human chose. (Contrast the
+	Attendance Request status trap — a field `default` back-fills every existing
+	row, so a "blank or default" guard would have silently re-tiered real data.
+	`risk_tier` therefore ships with NO default; the controller and this
+	function are the only things that fill it.)
+
+	Returns the number of rows repaired.
+	"""
+	if not frappe.db.table_exists("HRMS Task"):
+		return 0
+	if not frappe.get_meta("HRMS Task").has_field("risk_tier"):
+		return 0
+
+	rows = frappe.db.sql(
+		"""
+		SELECT name, requires_approval, requires_attachment, completion_type
+		FROM `tabHRMS Task`
+		WHERE risk_tier IS NULL OR risk_tier = ''
+		""",
+		as_dict=True,
+	)
+	for row in rows:
+		frappe.db.set_value(
+			"HRMS Task", row.name, "risk_tier", derive_risk_tier(row), update_modified=False
+		)
+	return len(rows)
+
+
 def _create_task_instance(task, employee, period_info):
 	"""Helper: create one Goal (goal_type=Task Instance) for the (task, employee, period)."""
 	emp = frappe.db.get_value(
@@ -494,31 +691,30 @@ def _create_task_instance(task, employee, period_info):
 	if not emp:
 		return
 
-	approver_user = None
-	if task.requires_approval:
-		if task.approver_resolution == "Reports To" and emp.reports_to:
-			approver_user = frappe.db.get_value("Employee", emp.reports_to, "user_id")
-		elif task.approver_resolution == "Specific User":
-			approver_user = task.approver_user
+	approver_user, approver_role = resolve_instance_approver(task, emp)
 
-	goal = frappe.get_doc(
-		{
-			"doctype": "Goal",
-			"goal_name": f"{task.task_name} — {period_info['label']}",
-			"employee": employee,
-			"employee_name": emp.employee_name,
-			"company": emp.company,
-			"kra": task.kra,
-			"start_date": period_info["start"],
-			"end_date": period_info["end"],
-			"status": "Pending",
-			"goal_type": "Task Instance",
-			"task_template": task.name,
-			"period_label": period_info["label"],
-			"due_date": period_info["due_date"],
-			"approver_user": approver_user,
-		}
-	)
+	values = {
+		"doctype": "Goal",
+		"goal_name": f"{task.task_name} — {period_info['label']}",
+		"employee": employee,
+		"employee_name": emp.employee_name,
+		"company": emp.company,
+		"kra": task.kra,
+		"start_date": period_info["start"],
+		"end_date": period_info["end"],
+		"status": "Pending",
+		"goal_type": "Task Instance",
+		"task_template": task.name,
+		"period_label": period_info["label"],
+		"due_date": period_info["due_date"],
+		"approver_user": approver_user,
+	}
+	# approver_role is a newer Custom Field — only set it where it exists so a
+	# not-yet-synced site keeps instantiating tasks instead of erroring nightly.
+	if approver_role and frappe.get_meta("Goal").has_field("approver_role"):
+		values["approver_role"] = approver_role
+
+	goal = frappe.get_doc(values)
 	goal.insert(ignore_permissions=True)
 
 	if emp.user_id:

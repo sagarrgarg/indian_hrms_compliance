@@ -133,6 +133,7 @@ after_migrate = [
 	"indian_hrms_compliance.setup.sync_custom_fields",
 	"indian_hrms_compliance.setup.seed_grievance_types",
 	"indian_hrms_compliance.setup.reconcile_attendance_request_status",
+	"indian_hrms_compliance.setup.reconcile_hrms_task_risk_tiers",
 	"indian_hrms_compliance.setup.apply_property_setters",
 	"indian_hrms_compliance.regional.india.tax_defaults.seed_all",
 	"indian_hrms_compliance.setup.update_select_perm_after_install",
@@ -182,6 +183,9 @@ permission_query_conditions = {
 
 has_permission = {
 	"POSH Complaint": "indian_hrms_compliance.overrides.posh_access.posh_complaint_has_permission",
+	# Row-level teeth for Task Instances — query conditions only scope reads, so
+	# without this an Employee could save any other employee's Task Instance.
+	"Goal": "indian_hrms_compliance.overrides.goal.has_permission",
 }
 
 extend_bootinfo = "indian_hrms_compliance.boot.extend_bootinfo"

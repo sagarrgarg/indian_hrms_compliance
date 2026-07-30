@@ -23,7 +23,7 @@
 					<div><span class="inline-block w-2 h-2 rounded-full mr-1" style="background:#10b981"></span>{{ __("On track") }}</div>
 					<div><span class="inline-block w-2 h-2 rounded-full mr-1" style="background:#f59e0b"></span>{{ __("Open tasks") }}</div>
 					<div><span class="inline-block w-2 h-2 rounded-full mr-1" style="background:#ef4444"></span>{{ __("Overdue") }}</div>
-					<div class="pt-1 text-white/50">X {{ __("breadth") }} · Y {{ __("hierarchy") }} · Z {{ __("SOP/KRA/KPI") }}</div>
+					<div class="pt-1 text-white/50">X {{ __("breadth") }} · Y {{ __("hierarchy") }} · Z {{ __("Tasks/KPIs") }}</div>
 				</div>
 
 				<!-- Node detail panel -->
@@ -42,9 +42,9 @@
 						<div class="text-xs text-gray-700">{{ selected.kras.join(", ") }}</div>
 					</div>
 					<div v-if="selected.sops?.length" class="mt-2">
-						<div class="text-[11px] uppercase text-gray-400">{{ __("SOP / Tasks") }}</div>
+						<div class="text-[11px] uppercase text-gray-400">{{ __("Tasks & KPIs") }}</div>
 						<ul class="text-xs text-gray-700 list-disc ml-4 max-h-32 overflow-auto">
-							<li v-for="s in selected.sops" :key="s.name">{{ s.label }} <span class="text-gray-400">({{ s.kind }})</span></li>
+							<li v-for="s in selected.sops" :key="s.name">{{ s.label }} <span class="text-gray-400">({{ s.kind === 'KPI Metric' ? s.kind : (s.risk_tier || s.kind) }})</span></li>
 						</ul>
 					</div>
 					<button class="mt-2 text-xs text-indigo-600" @click="selected = null">{{ __("Close") }}</button>
@@ -144,10 +144,18 @@ function build() {
 			scene.add(line)
 		}
 
-		// Z axis: SOP / KRA / KPI items
+		// Z axis: the tasks / KPIs this person carries, coloured by risk tier so
+		// Critical work is visible across the whole org at a glance.
 		;(n.sops || []).slice(0, 8).forEach((s, j) => {
 			const zp = new THREE.Vector3(p.x, p.y, (j + 1) * Z_GAP)
-			const col = s.kind === "KPI Metric" ? 0x8b5cf6 : s.kind === "SOP Container" ? 0x06b6d4 : 0x6366f1
+			const col =
+				s.risk_tier === "Critical"
+					? 0xef4444 // red — evidence + approval by someone else
+					: s.kind === "KPI Metric"
+						? 0x8b5cf6 // purple — measured outcome
+						: s.risk_tier === "Standard"
+							? 0xf59e0b // amber — evidence captured
+							: 0x6366f1 // indigo — routine
 			const box = new THREE.Mesh(sopGeo, new THREE.MeshStandardMaterial({ color: col }))
 			box.position.copy(zp)
 			box.userData = { graph: true, node: n }
