@@ -17,6 +17,8 @@
   "status",
   "owner_designation",
   "dri",
+  "acting_dri",
+  "acting_until",
   "company",
   "description_section",
   "description",
@@ -154,6 +156,20 @@
    "read_only": 1,
    "default": "0",
    "description": "Pending + In Progress Task Instances under this KRA right now."
+  },
+  {
+   "fieldname": "acting_dri",
+   "fieldtype": "Link",
+   "label": "Acting DRI",
+   "options": "Employee",
+   "description": "Effective-dated cover: while set and within 'Acting Until', this person is treated as the accountable owner (leave / interim vacancy) instead of the DRI. The integrity check honours this before flagging a departed DRI."
+  },
+  {
+   "fieldname": "acting_until",
+   "fieldtype": "Date",
+   "label": "Acting Until",
+   "depends_on": "acting_dri",
+   "description": "Last date the Acting DRI covers. After this the KRA reverts to its DRI."
   }
  ],
  "icon": "crosshair",

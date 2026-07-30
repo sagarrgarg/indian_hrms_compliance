@@ -51,7 +51,7 @@ app_include_icons = ["/assets/indian_hrms_compliance/icons/module-icons.svg"]
 
 # include js in doctype views
 doctype_js = {
-	"Employee": "public/js/erpnext/employee.js",
+	"Employee": ["public/js/erpnext/employee.js", "public/js/employee_accountability.js"],
 	"Job Offer": "public/js/erpnext/job_offer.js",
 	"Full and Final Statement": "public/js/full_and_final_phase4.js",
 	"Company": "public/js/erpnext/company.js",

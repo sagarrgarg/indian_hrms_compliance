@@ -152,10 +152,14 @@ def _check_dri_inactive() -> list[dict]:
 	# LEFT JOIN so a DRI whose Employee record was hard-deleted (a dangling link,
 	# not just an inactive one) is caught too — an INNER JOIN would silently drop
 	# it, and `_check_dri_missing` won't catch it either (the link is non-empty).
+	# Acting cover is pulled so a departed DRI who HAS valid cover is not flagged.
+	acting_cols = ""
+	if frappe.get_meta("KRA").has_field("acting_dri"):
+		acting_cols = ", k.acting_dri, k.acting_until"
 	rows = frappe.db.sql(
-		"""
+		f"""
 		SELECT k.name, k.title, k.company, k.dri,
-		       e.name AS emp, e.employee_name, e.reports_to, e.status AS emp_status
+		       e.name AS emp, e.employee_name, e.reports_to, e.status AS emp_status{acting_cols}
 		FROM `tabKRA` k
 		LEFT JOIN `tabEmployee` e ON e.name = k.dri
 		WHERE k.status = 'Active' AND k.dri IS NOT NULL AND k.dri != ''
@@ -163,8 +167,18 @@ def _check_dri_inactive() -> list[dict]:
 		""",
 		as_dict=True,
 	)
+	from indian_hrms_compliance.hr.doctype.kra.kra import effective_dri
+
 	out = []
 	for r in rows:
+		# A valid Acting DRI means the KRA is covered, not orphaned. But cover only
+		# counts if the ACTING person is themselves still active — otherwise a KRA
+		# whose DRI AND acting stand-in have both departed would be invisible to
+		# the one check meant to catch orphaned accountability. (Expired cover
+		# already falls back to the dead DRI via effective_dri, so it's flagged.)
+		holder = effective_dri(r)
+		if holder != r.dri and frappe.db.get_value("Employee", holder, "status") == "Active":
+			continue
 		state = r.emp_status if r.emp else _("deleted")
 		out.append(
 			{
