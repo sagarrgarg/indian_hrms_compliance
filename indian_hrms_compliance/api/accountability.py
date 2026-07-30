@@ -106,7 +106,7 @@ def _approver_of(employee: str) -> int:
 
 @frappe.whitelist()
 def get_accountability(employee: str | None = None) -> dict:
-	"""The full accountability lens for one employee.
+	"""The full accountability lens for one employee (whitelisted).
 
 	Defaults to the caller's own Employee. HR / a reporting manager may pass any
 	employee; a plain employee may only view their own (handover is HR-driven,
@@ -127,6 +127,16 @@ def get_accountability(employee: str | None = None) -> dict:
 				_("You can only view your own accountability."), frappe.PermissionError
 			)
 
+	return compute_accountability(employee)
+
+
+def compute_accountability(employee: str) -> dict:
+	"""The lens computation, WITHOUT the whitelist permission gate.
+
+	For system gates — the leaver No-Dues block and the mover handover prompt —
+	which must always be able to evaluate accountability regardless of who
+	triggered the lifecycle event.
+	"""
 	dri_kras = _active_dri_kras(employee)
 	headed = _headed_departments(employee)
 	playbooks = _owned_playbooks(employee)

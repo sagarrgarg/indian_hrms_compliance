@@ -358,7 +358,13 @@ doc_events = {
 			"indian_hrms_compliance.overrides.employee_separation_no_dues.close_no_dues_todos_on_cleared",
 			"indian_hrms_compliance.overrides.employee_separation_no_dues.stamp_relieving_date_on_completion",
 		],
-		"before_submit": "indian_hrms_compliance.overrides.employee_separation_no_dues.block_submit_if_no_dues_pending",
+		"before_submit": [
+			"indian_hrms_compliance.overrides.employee_separation_no_dues.block_submit_if_no_dues_pending",
+			"indian_hrms_compliance.overrides.accountability_lifecycle.block_submit_if_accountability_pending",
+		],
+	},
+	"Employee Transfer": {
+		"validate": "indian_hrms_compliance.overrides.accountability_lifecycle.warn_mover_accountability",
 	},
 	"Full and Final Statement": {
 		"validate": "indian_hrms_compliance.overrides.full_and_final_extension.compute_phase4_lines",
