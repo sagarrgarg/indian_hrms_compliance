@@ -37,3 +37,13 @@ export const myTeam = createResource({
 export const createTeamTask = createResource({
 	url: "indian_hrms_compliance.api.create_team_task",
 })
+
+// Head distribution: split an Accountable instance to reports; a report bounces
+// a sub-task back to the head with a reason.
+export const distributeTask = createResource({
+	url: "indian_hrms_compliance.api.distribute_task",
+})
+
+export const bounceTask = createResource({
+	url: "indian_hrms_compliance.api.bounce_task",
+})
