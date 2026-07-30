@@ -7,6 +7,31 @@ frappe.ui.form.on("Attendance Request", {
 	refresh(frm) {
 		frm.trigger("show_attendance_warnings");
 		frm.trigger("setup_approval_actions");
+		frm.trigger("set_status_indicator");
+	},
+
+	// Mirror the list view: the lifecycle status outranks docstatus. A rejected
+	// request sits at docstatus 0 by design, and the default form header would
+	// label it "Draft".
+	set_status_indicator(frm) {
+		if (frm.is_new()) return;
+
+		let label, color;
+		if (frm.doc.docstatus === 2) {
+			[label, color] = [__("Cancelled"), "gray"];
+		} else if (frm.doc.docstatus === 1) {
+			[label, color] = [__("Approved"), "green"];
+		} else {
+			const colors = {
+				Open: "orange",
+				Rejected: "red",
+				"Needs Clarification": "blue",
+			};
+			if (frm.doc.status && colors[frm.doc.status]) {
+				[label, color] = [__(frm.doc.status), colors[frm.doc.status]];
+			}
+		}
+		if (label) frm.page.set_indicator(label, color);
 	},
 
 	// Replace the raw "Submit" action with an explicit approval decision.
