@@ -448,7 +448,10 @@ scheduler_events = {
 		"indian_hrms_compliance.hr.utils.generate_leave_encashment",
 		"indian_hrms_compliance.hr.utils.allocate_earned_leaves",
 	],
-	"weekly": ["indian_hrms_compliance.controllers.employee_reminders.send_reminders_in_advance_weekly"],
+	"weekly": [
+		"indian_hrms_compliance.controllers.employee_reminders.send_reminders_in_advance_weekly",
+		"indian_hrms_compliance.hr.doctype.kpi_snapshot.kpi_snapshot.snapshot_kpis",
+	],
 	"monthly": [
 		"indian_hrms_compliance.controllers.employee_reminders.send_reminders_in_advance_monthly",
 		"indian_hrms_compliance.overrides.labour_code_applicability.monthly_labour_code_compliance_check",

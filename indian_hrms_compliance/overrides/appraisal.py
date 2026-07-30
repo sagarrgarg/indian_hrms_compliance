@@ -149,16 +149,7 @@ def populate_kra_performance(doc, method=None):
 
 
 def _aggregate(values, method):
-	if not values:
-		return 0.0
-	if method == "Sum":
-		return sum(values)
-	if method == "Average":
-		return sum(values) / len(values)
-	if method == "Max":
-		return max(values)
-	if method == "Min":
-		return min(values)
-	if method == "Latest":
-		return values[-1]
-	return sum(values)
+	# Shared with the weekly KPI Snapshot rollup — one implementation.
+	from indian_hrms_compliance.hr.kpi import aggregate
+
+	return aggregate(values, method)

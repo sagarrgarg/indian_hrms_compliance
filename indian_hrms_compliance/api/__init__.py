@@ -1401,6 +1401,57 @@ def get_my_task_instances(status_filter: str | None = None, period: str | None =
 
 
 @frappe.whitelist()
+def get_my_scorecard() -> list[dict]:
+	"""The current employee's KPI scorecard: the latest snapshot per measured
+	task, with a short trend (recent periods) for a sparkline. Live between
+	appraisals — driven by the weekly KPI Snapshot rollup.
+	"""
+	if not frappe.db.table_exists("KPI Snapshot"):
+		return []
+	employee = get_current_employee()
+	rows = frappe.get_all(
+		"KPI Snapshot",
+		filters={"employee": employee},
+		fields=[
+			"task_template",
+			"task_name",
+			"kra",
+			"period_label",
+			"snapshot_date",
+			"target_value",
+			"actual_value",
+			"achievement_pct",
+			"measurement_unit",
+			"rollup_method",
+		],
+		# Tie-break: a whole run shares snapshot_date=today, so add creation to
+		# keep "latest per task" and the trend order deterministic.
+		order_by="snapshot_date desc, creation desc",
+	)
+	by_task: dict[str, dict] = {}
+	for r in rows:
+		card = by_task.get(r.task_template)
+		if card is None:
+			by_task[r.task_template] = {
+				"task_template": r.task_template,
+				"task_name": r.task_name,
+				"kra": r.kra,
+				"period_label": r.period_label,
+				"target_value": r.target_value,
+				"actual_value": r.actual_value,
+				"achievement_pct": r.achievement_pct,
+				"measurement_unit": r.measurement_unit,
+				"rollup_method": r.rollup_method,
+				"trend": [],
+			}
+			card = by_task[r.task_template]
+		# Oldest→newest trend, capped, for a sparkline.
+		if len(card["trend"]) < 8:
+			card["trend"].insert(0, r.achievement_pct)
+	return list(by_task.values())
+
+
+@frappe.whitelist()
 def get_my_tasks_dashboard() -> dict:
 	"""Single-call payload for the My Tasks PWA screen — five partitioned
 	buckets so the front-end doesn't have to make round-trips per tab:

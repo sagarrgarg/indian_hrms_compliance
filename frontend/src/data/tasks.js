@@ -14,6 +14,14 @@ export const myTasks = createResource({
 
 // Single-call payload for the My Tasks PWA screen (5 partitioned buckets).
 // Returns: { summary, today, adhoc, upcoming, overdue, completed_week }.
+// KPI scorecard for the My Tasks screen — target vs actual, from the weekly
+// KPI Snapshot rollup.
+export const myScorecard = createResource({
+	url: "indian_hrms_compliance.api.get_my_scorecard",
+	auto: true,
+	cache: "indian_hrms_compliance:my_scorecard",
+})
+
 export const myTasksDashboard = createResource({
 	url: "indian_hrms_compliance.api.get_my_tasks_dashboard",
 	auto: true,
