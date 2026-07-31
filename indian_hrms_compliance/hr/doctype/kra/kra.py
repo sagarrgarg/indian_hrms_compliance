@@ -26,8 +26,25 @@ def effective_dri(kra_row) -> str | None:
 class KRA(Document):
 	def validate(self):
 		self._validate_dri()
+		self._validate_dri_company()
 		self._validate_acting_cover()
 		self._refresh_usage_counts()
+
+	def _validate_dri_company(self):
+		"""The permanent DRI must belong to this KRA's company — same rule the
+		acting DRI already enforces (closes the inconsistency where the stand-in was
+		company-locked but the actual owner wasn't). Cross-company accountability is
+		granted via a virtual record in the KRA's company. Throw on new/changed; warn
+		on pre-existing so legacy KRAs aren't bricked."""
+		if not self.dri:
+			return
+		emp = frappe.db.get_value("Employee", self.dri, ["company"], as_dict=True)
+		if not emp or not (self.company and emp.company) or emp.company == self.company:
+			return
+		msg = _("The DRI must belong to the same company as this KRA ({0}).").format(self.company)
+		if self.is_new() or self.has_value_changed("dri"):
+			frappe.throw(msg, title=_("Company Mismatch"))
+		frappe.msgprint(msg, indicator="orange", alert=True)
 
 	def _validate_acting_cover(self):
 		"""Acting cover must be a real, current employee of this company, and an

@@ -25,9 +25,12 @@ def _hr_setting(field, default=None):
 
 
 def _worker_count(company):
-	"""Active Employee count for a Company."""
+	"""Active Employee count for a Company (excluding virtual management-only
+	records — they carry no employment and must not move statutory thresholds)."""
+	from indian_hrms_compliance.overrides.employee_master import exclude_virtual
+
 	try:
-		return frappe.db.count("Employee", {"company": company, "status": "Active"})
+		return frappe.db.count("Employee", exclude_virtual({"company": company, "status": "Active"}))
 	except Exception:
 		return 0
 

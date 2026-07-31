@@ -744,10 +744,28 @@ def get_custom_fields():
 				"description": _("Only one Active Employee per User may be the Primary Employer."),
 			},
 			{
+				# A "virtual" record exists ONLY to give a group manager standing in
+				# this company (be a reports_to / department head / DRI / approver of
+				# same-company people) — it is NOT an employment: no payroll, and it is
+				# excluded from statutory headcount and subscription seat counts. At
+				# least one record per person (same user / PAN / Aadhaar) must stay
+				# real, so a human always has exactly one paid home. Enforced in
+				# overrides.employee_master.validate_virtual_employee.
+				"fieldname": "is_virtual_employee",
+				"label": _("Virtual (Management-only) Employee"),
+				"fieldtype": "Check",
+				"insert_after": "is_primary_employer",
+				"default": "0",
+				"description": _(
+					"Tick for a management-only record: no salary, excluded from statutory "
+					"headcount &amp; billing. At least one record per person must stay real."
+				),
+			},
+			{
 				"fieldname": "labour_code_uan_section_break",
 				"fieldtype": "Section Break",
 				"label": _("UAN Aadhaar Seeding (SS Code §142)"),
-				"insert_after": "is_primary_employer",
+				"insert_after": "is_virtual_employee",
 				"collapsible": 1,
 			},
 			{

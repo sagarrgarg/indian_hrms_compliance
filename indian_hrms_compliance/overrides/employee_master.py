@@ -103,6 +103,93 @@ def resolve_employee_approver(value):
 	return value
 
 
+def exclude_virtual(filters=None):
+	"""Add 'not a virtual (management-only) record' to an Employee count/query
+	filter, when the field exists. Virtual records carry no payroll and must be
+	kept out of statutory headcount and subscription seat counts."""
+	filters = dict(filters or {})
+	if frappe.get_meta("Employee").has_field("is_virtual_employee"):
+		filters["is_virtual_employee"] = 0
+	return filters
+
+
+def _identity_siblings(doc):
+	"""Other Employee records that are the SAME person as ``doc`` — sharing any of
+	user_id / PAN / Aadhaar. This is the 'one human, many employments' identity
+	group (see [[multi_employee_architecture]])."""
+	or_filters = []
+	if doc.get("user_id"):
+		or_filters.append(["user_id", "=", doc.user_id])
+	if doc.get("pan_number"):
+		or_filters.append(["pan_number", "=", doc.pan_number])
+	if doc.get("aadhaar_number"):
+		or_filters.append(["aadhaar_number", "=", doc.aadhaar_number])
+	if not or_filters:
+		return None  # no identity key at all
+	return frappe.get_all(
+		"Employee",
+		or_filters=or_filters,
+		filters={"name": ("!=", doc.name or "")},
+		fields=["name", "is_virtual_employee"],
+	)
+
+
+def validate_virtual_employee(doc, method=None):
+	"""A 'virtual' Employee is a management-only presence — it lets a group manager
+	be the reports_to / department head / DRI / approver of people in a company they
+	don't draw salary from, WITHOUT a second real employment. The invariant: among
+	all records that are the same person (shared user_id / PAN / Aadhaar), at least
+	one must stay REAL, so a human always has exactly one paid home. Hence a lone
+	record can't be virtual, and you may tick virtual on all-but-one.
+	"""
+	if not frappe.get_meta("Employee").has_field("is_virtual_employee"):
+		return
+	if not doc.get("is_virtual_employee"):
+		return
+	siblings = _identity_siblings(doc)
+	if siblings is None:
+		frappe.throw(
+			_(
+				"A virtual employee must share a User, PAN or Aadhaar with a real "
+				"employment record — set one of those first."
+			),
+			title=_("No Identity to Attach To"),
+		)
+	if not siblings:
+		frappe.throw(
+			_(
+				"This is the only record for this person, so it can't be virtual — "
+				"every person needs at least one real (paid) employment."
+			),
+			title=_("Needs a Real Employment"),
+		)
+	if not any(not s.is_virtual_employee for s in siblings):
+		frappe.throw(
+			_(
+				"At least one employment record for this person must stay real "
+				"(non-virtual). Un-tick 'Virtual' on one of the others first."
+			),
+			title=_("At Least One Real Employment"),
+		)
+
+
+def block_salary_for_virtual_employee(doc, method=None):
+	"""Salary Structure Assignment validate: a virtual (management-only) Employee
+	draws no salary, so it must not carry a salary structure. This makes the
+	'no payroll' promise real rather than a label."""
+	emp = doc.get("employee")
+	if not emp or not frappe.get_meta("Employee").has_field("is_virtual_employee"):
+		return
+	if frappe.db.get_value("Employee", emp, "is_virtual_employee"):
+		frappe.throw(
+			_(
+				"{0} is a virtual (management-only) employee and cannot be paid. "
+				"Assign the salary structure to their real employment record instead."
+			).format(frappe.bold(doc.get("employee_name") or emp)),
+			title=_("Virtual Employee — No Payroll"),
+		)
+
+
 def employee_id_series_for_company(company: str) -> str | None:
 	"""Per-company Employee ID series derived from the Company's abbreviation.
 

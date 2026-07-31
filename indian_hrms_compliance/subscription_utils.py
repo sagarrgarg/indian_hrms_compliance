@@ -60,7 +60,10 @@ def get_add_on_details(plan: str) -> dict[str, int]:
 
 
 def get_active_employees() -> int:
-	return frappe.db.count("Employee", {"status": "Active"})
+	from indian_hrms_compliance.overrides.employee_master import exclude_virtual
+
+	# Virtual (management-only) records aren't employments — don't bill for them.
+	return frappe.db.count("Employee", exclude_virtual({"status": "Active"}))
 
 
 @frappe.whitelist(allow_guest=True)

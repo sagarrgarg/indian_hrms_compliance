@@ -165,12 +165,14 @@ def _config_snapshot() -> dict:
 
 	companies = frappe.get_all("Company", fields=["name", "country"], limit_page_length=20)
 
+	from indian_hrms_compliance.overrides.employee_master import exclude_virtual
+
 	return {
 		"as_of_date": today(),
 		"companies": companies,
 		"hr_settings": {f: hr.get(f) for f in statutory_fields if hr.meta.get_field(f)},
 		"counts": {
-			"active_employees": count("Employee", {"status": "Active"}),
+			"active_employees": count("Employee", exclude_virtual({"status": "Active"})),
 			"leave_types": count("Leave Type"),
 			"leave_policies": count("Leave Policy"),
 			"leave_policy_assignments": count("Leave Policy Assignment", {"docstatus": 1}),

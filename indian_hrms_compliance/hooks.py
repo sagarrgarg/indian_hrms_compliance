@@ -280,12 +280,14 @@ doc_events = {
 			"indian_hrms_compliance.overrides.employee_master.validate_person_data_consistency",
 			"indian_hrms_compliance.overrides.employee_master.auto_set_primary_employer",
 			"indian_hrms_compliance.overrides.employee_master.validate_single_primary_employer",
+			"indian_hrms_compliance.overrides.employee_master.validate_virtual_employee",
 			"indian_hrms_compliance.overrides.employee_master.auto_set_probation_schedule",
 			"indian_hrms_compliance.overrides.employee_master.apply_biometric_id_rules",
 			"indian_hrms_compliance.overrides.employee_master.apply_address_copy_rules",
 			"indian_hrms_compliance.overrides.labour_code_uan.validate_uan_aadhaar_linking",
 			"indian_hrms_compliance.overrides.org_tree.validate_scoped_designation",
 			"indian_hrms_compliance.overrides.org_tree.derive_reports_to",
+			"indian_hrms_compliance.overrides.org_tree.validate_reports_to_company",
 		],
 		"on_update": [
 			"indian_hrms_compliance.overrides.employee_master.update_approver_role",
@@ -379,7 +381,10 @@ doc_events = {
 		"validate": "indian_hrms_compliance.overrides.salary_structure_validator.validate_salary_structure",
 	},
 	"Salary Structure Assignment": {
-		"validate": "indian_hrms_compliance.overrides.salary_structure_validator.validate_salary_structure_assignment",
+		"validate": [
+			"indian_hrms_compliance.overrides.employee_master.block_salary_for_virtual_employee",
+			"indian_hrms_compliance.overrides.salary_structure_validator.validate_salary_structure_assignment",
+		],
 	},
 	"PF ECR Filing": {
 		"on_update": "indian_hrms_compliance.overrides.compliance_calendar.auto_link_filing_on_save",
