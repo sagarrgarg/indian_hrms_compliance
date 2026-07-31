@@ -181,6 +181,32 @@ def derive_reports_to(doc, method=None):
 		doc.reports_to = mgr
 
 
+def validate_reports_to_company(doc, method=None):
+	"""The one rule: a manager must be an employee of the SAME company. Group-wide
+	oversight is granted ONLY through a virtual (management-only) record in that
+	company — never a raw cross-company reporting line (which the department-head
+	and set_reports_to paths already forbid; this closes the direct-write gap).
+
+	Enforced only when reports_to is set or changed, so pre-existing cross-company
+	lines aren't bricked — they surface the error the next time that field is touched.
+	"""
+	mgr = doc.get("reports_to")
+	if not mgr:
+		return
+	if not (doc.is_new() or doc.has_value_changed("reports_to")):
+		return
+	mgr_company = frappe.db.get_value("Employee", mgr, "company")
+	if mgr_company and doc.get("company") and mgr_company != doc.company:
+		frappe.throw(
+			_(
+				"Reports To must be an employee of the same company ({0}). To let a "
+				"group manager oversee this company, give them a virtual (management-only) "
+				"record here and report into that."
+			).format(doc.company),
+			title=_("Cross-company Manager"),
+		)
+
+
 # --------------------------------------------------------------------------- #
 # Department-scoped Designation validation (Employee validate hook)
 # --------------------------------------------------------------------------- #
