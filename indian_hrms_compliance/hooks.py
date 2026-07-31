@@ -49,7 +49,7 @@ doctype_js = {
 	"Job Offer": "public/js/erpnext/job_offer.js",
 	"Full and Final Statement": "public/js/full_and_final_phase4.js",
 	"Company": "public/js/erpnext/company.js",
-	"Department": "public/js/erpnext/department.js",
+	"Department": ["public/js/erpnext/department.js", "public/js/department_governance.js"],
 	"Timesheet": "public/js/erpnext/timesheet.js",
 	"Payment Entry": "public/js/erpnext/payment_entry.js",
 	"Journal Entry": "public/js/erpnext/journal_entry.js",
