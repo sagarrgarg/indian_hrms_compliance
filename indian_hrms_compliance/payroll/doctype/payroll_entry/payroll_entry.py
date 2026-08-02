@@ -1401,6 +1401,13 @@ def get_filtered_employees(
 		)
 	)
 
+	# Virtual (management-only) employees draw no salary — never pull them into
+	# payroll, no matter how they slipped a salary structure in historically.
+	from indian_hrms_compliance.overrides.employee_master import employee_has_virtual_field
+
+	if employee_has_virtual_field():
+		query = query.where(Employee.is_virtual_employee != 1)
+
 	query = set_fields_to_select(query, fields)
 	query = set_searchfield(query, searchfield, search_string, qb_object=Employee)
 	query = set_filter_conditions(query, filters, qb_object=Employee)

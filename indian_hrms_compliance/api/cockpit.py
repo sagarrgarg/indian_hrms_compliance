@@ -49,7 +49,10 @@ def _scope_company():
 def _company_employees(company):
 	if not company:
 		return None
-	emps = frappe.get_all("Employee", filters={"company": company}, pluck="name")
+	from indian_hrms_compliance.overrides.employee_master import exclude_virtual
+
+	# Real staff only — virtual (management-only) records must not inflate KPIs.
+	emps = frappe.get_all("Employee", filters=exclude_virtual({"company": company}), pluck="name")
 	return emps or ["__none__"]  # match nothing if the company has no employees
 
 
@@ -171,6 +174,14 @@ def _co(ctx, base=None):
 	return f
 
 
+def _emp_co(ctx, base=None):
+	"""Employee count filter — company-scoped AND excluding virtual (management-only)
+	records so headcount / joiner / exit KPIs count only real staff."""
+	from indian_hrms_compliance.overrides.employee_master import exclude_virtual
+
+	return exclude_virtual(_co(ctx, base))
+
+
 def _emp_filter(ctx):
 	"""For doctypes without a company field (e.g. Goal) — scope by employee."""
 	return {"employee": ("in", ctx["emps"])} if ctx["emps"] else {}
@@ -179,7 +190,7 @@ def _emp_filter(ctx):
 # --------------------------------------------------------------------------- KPIs
 def _build_kpis(ctx):
 	today = ctx["today"]
-	headcount = _count("Employee", _co(ctx, {"status": "Active"}))
+	headcount = _count("Employee", _emp_co(ctx, {"status": "Active"}))
 
 	on_leave = _count(
 		"Leave Application",
@@ -192,7 +203,7 @@ def _build_kpis(ctx):
 	except Exception:
 		pending_approvals = 0
 
-	joiners = _count("Employee", _co(ctx, {"date_of_joining": ("between", [ctx["start"], ctx["end"]])}))
+	joiners = _count("Employee", _emp_co(ctx, {"date_of_joining": ("between", [ctx["start"], ctx["end"]])}))
 
 	plabel = {"Daily": "Today", "Weekly": "This Week", "Monthly": "This Month"}[ctx["period"]]
 	return [
@@ -267,15 +278,15 @@ def _build_actions(ctx):
 # -------------------------------------------------------------------------- People
 def _build_people(ctx):
 	today = ctx["today"]
-	joiners = _count("Employee", _co(ctx, {"date_of_joining": ("between", [ctx["start"], ctx["end"]])}))
-	exits = _count("Employee", _co(ctx, {"relieving_date": ("between", [ctx["start"], ctx["end"]])}))
+	joiners = _count("Employee", _emp_co(ctx, {"date_of_joining": ("between", [ctx["start"], ctx["end"]])}))
+	exits = _count("Employee", _emp_co(ctx, {"relieving_date": ("between", [ctx["start"], ctx["end"]])}))
 
 	week_end = add_days(today, 7)
 	birthdays = 0
 	try:
 		rows = frappe.get_all(
 			"Employee",
-			filters=_co(ctx, {"status": "Active", "date_of_birth": ("is", "set")}),
+			filters=_emp_co(ctx, {"status": "Active", "date_of_birth": ("is", "set")}),
 			pluck="date_of_birth",
 		)
 		md_today = (today.month, today.day)
@@ -306,7 +317,7 @@ def _build_trends(ctx):
 		m_start = get_first_day(add_months(today, -i))
 		m_end = add_days(get_first_day(add_months(today, -i + 1)), -1)
 		labels.append(m_start.strftime("%b"))
-		points.append(_count("Employee", _co(ctx, {"date_of_joining": ("between", [m_start, m_end])})))
+		points.append(_count("Employee", _emp_co(ctx, {"date_of_joining": ("between", [m_start, m_end])})))
 
 	ll, lp = [], []
 	for i in range(6, -1, -1):

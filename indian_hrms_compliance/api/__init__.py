@@ -306,8 +306,12 @@ def set_active_employee(employee: str) -> dict:
 
 @frappe.whitelist()
 def get_all_employees() -> list[dict]:
+	# Directory of real staff — exclude virtual (management-only) records.
+	from indian_hrms_compliance.overrides.employee_master import exclude_virtual
+
 	return frappe.get_list(
 		"Employee",
+		filters=exclude_virtual(),
 		fields=[
 			"name",
 			"employee_name",
@@ -4126,7 +4130,9 @@ def _resolve_attendance_scope(user: str, scope: str) -> dict:
 
 def _attendance_employee_universe(scope_dict: dict, company: str | None) -> list[dict]:
 	"""Active Employees under the resolved scope (+ optional company filter)."""
-	emp_filters = {"status": "Active"}
+	from indian_hrms_compliance.overrides.employee_master import exclude_virtual
+
+	emp_filters = exclude_virtual({"status": "Active"})
 	if scope_dict["scope"] == "team":
 		emp_filters["name"] = ("in", list(scope_dict["employees"]) or [""])
 	if company:

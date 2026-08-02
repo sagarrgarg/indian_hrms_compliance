@@ -5,6 +5,13 @@ const API = "indian_hrms_compliance.api";
 
 frappe.ui.form.on("Attendance Request", {
 	refresh(frm) {
+		frm.set_query("employee", function () {
+			return {
+				query: "erpnext.controllers.queries.employee_query",
+				filters: { is_virtual_employee: 0 },
+			};
+		});
+
 		frm.trigger("show_attendance_warnings");
 		frm.trigger("setup_approval_actions");
 		frm.trigger("set_status_indicator");

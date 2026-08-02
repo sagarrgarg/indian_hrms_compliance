@@ -31,6 +31,7 @@ frappe.listview_settings["Attendance"] = {
 						get_query: () => {
 							return {
 								query: "erpnext.controllers.queries.employee_query",
+								filters: { is_virtual_employee: 0 },
 							};
 						},
 						reqd: 1,

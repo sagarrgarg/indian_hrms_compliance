@@ -6,7 +6,7 @@ frappe.ui.form.on("Salary Structure Assignment", {
 		frm.set_query("employee", function () {
 			return {
 				query: "erpnext.controllers.queries.employee_query",
-				filters: { company: frm.doc.company },
+				filters: { company: frm.doc.company, is_virtual_employee: 0 },
 			};
 		});
 		frm.set_query("salary_structure", function () {

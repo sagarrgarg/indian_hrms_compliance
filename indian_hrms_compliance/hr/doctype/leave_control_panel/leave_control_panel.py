@@ -188,6 +188,10 @@ class LeaveControlPanel(Document):
 			"employee_grade",
 		]
 		filters = [["status", "=", "Active"]]
+		# Virtual (management-only) employees get no leave — keep them out of grants.
+		from indian_hrms_compliance.overrides.employee_master import exclude_virtual_list
+
+		exclude_virtual_list(filters)
 
 		for d in filter_fields:
 			if self.get(d):

@@ -25,6 +25,10 @@ def get_employees(
 	employee_grade: str | None = None,
 ) -> dict[str, list]:
 	filters = {"status": "Active", "date_of_joining": ["<=", date]}
+	# Virtual (management-only) employees keep no attendance — exclude them.
+	from indian_hrms_compliance.overrides.employee_master import exclude_virtual
+
+	filters = exclude_virtual(filters)
 
 	for field, value in {
 		"department": department,

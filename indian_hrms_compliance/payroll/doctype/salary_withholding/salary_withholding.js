@@ -2,6 +2,15 @@
 // For license information, please see license.txt
 
 frappe.ui.form.on("Salary Withholding", {
+	setup(frm) {
+		frm.set_query("employee", function () {
+			return {
+				query: "erpnext.controllers.queries.employee_query",
+				filters: { is_virtual_employee: 0 },
+			};
+		});
+	},
+
 	employee(frm) {
 		if (!frm.doc.employee) return;
 

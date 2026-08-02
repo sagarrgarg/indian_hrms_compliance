@@ -103,14 +103,29 @@ def resolve_employee_approver(value):
 	return value
 
 
+def employee_has_virtual_field() -> bool:
+	"""Whether the self-healing is_virtual_employee Custom Field exists yet (may be
+	absent on a fresh/drifted site until after_migrate syncs it)."""
+	return frappe.get_meta("Employee").has_field("is_virtual_employee")
+
+
 def exclude_virtual(filters=None):
 	"""Add 'not a virtual (management-only) record' to an Employee count/query
-	filter, when the field exists. Virtual records carry no payroll and must be
-	kept out of statutory headcount and subscription seat counts."""
+	filter dict, when the field exists. Virtual records carry no payroll/leave/
+	attendance and must be kept out of every operational list, register and count.
+	Accepts a dict; also works appended to a list-of-conditions via exclude_virtual_list."""
 	filters = dict(filters or {})
-	if frappe.get_meta("Employee").has_field("is_virtual_employee"):
+	if employee_has_virtual_field():
 		filters["is_virtual_employee"] = 0
 	return filters
+
+
+def exclude_virtual_list(conditions):
+	"""List-of-conditions variant: append the virtual exclusion when the field
+	exists. Returns the same list for chaining."""
+	if employee_has_virtual_field():
+		conditions.append(["is_virtual_employee", "=", 0])
+	return conditions
 
 
 def _identity_siblings(doc):

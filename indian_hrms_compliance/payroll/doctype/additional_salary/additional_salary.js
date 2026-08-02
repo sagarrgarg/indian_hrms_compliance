@@ -14,6 +14,7 @@ frappe.ui.form.on("Additional Salary", {
 				filters: {
 					company: frm.doc.company,
 					status: ["!=", "Inactive"],
+					is_virtual_employee: 0,
 				},
 			};
 		});

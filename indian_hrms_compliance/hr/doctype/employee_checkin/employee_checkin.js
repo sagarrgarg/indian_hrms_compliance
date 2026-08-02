@@ -3,6 +3,13 @@
 
 frappe.ui.form.on("Employee Checkin", {
 	refresh: async (frm) => {
+		frm.set_query("employee", function () {
+			return {
+				query: "erpnext.controllers.queries.employee_query",
+				filters: { is_virtual_employee: 0 },
+			};
+		});
+
 		if (frm.doc.offshift) {
 			frm.dashboard.clear_headline();
 			frm.dashboard.set_headline(
