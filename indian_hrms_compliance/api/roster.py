@@ -16,6 +16,9 @@ ALLOWED_EMPLOYEE_FILTERS = {
 	"branch",
 	"designation",
 	"employee_name",
+	# injected server-side by get_events to hide virtual (management-only) employees;
+	# must pass the per-lane re-validation in get_holidays/get_leaves/get_shifts
+	"is_virtual_employee",
 }
 
 ALLOWED_SHIFT_FILTERS = {
@@ -52,8 +55,18 @@ def get_default_company() -> str:
 def get_events(
 	month_start: str, month_end: str, employee_filters: dict[str, str], shift_filters: dict[str, str]
 ) -> dict[str, list[dict]]:
+	# Virtual (management-only) employees have no shifts/leaves/holidays — keep them
+	# off the roster. Injecting here covers all three lanes (they share this dict).
+	from indian_hrms_compliance.overrides.employee_master import employee_has_virtual_field
+
+	if isinstance(employee_filters, str):
+		employee_filters = frappe.parse_json(employee_filters)
+	employee_filters = dict(employee_filters or {})
 	_validate_employee_filters(employee_filters)
 	_validate_shift_filters(shift_filters)
+	if employee_has_virtual_field():
+		employee_filters["is_virtual_employee"] = 0
+
 	holidays = get_holidays(month_start, month_end, employee_filters)
 	leaves = get_leaves(month_start, month_end, employee_filters)
 	shifts = get_shifts(month_start, month_end, employee_filters, shift_filters)

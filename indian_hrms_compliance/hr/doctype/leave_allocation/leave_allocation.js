@@ -17,6 +17,7 @@ frappe.ui.form.on("Leave Allocation", {
 		frm.set_query("employee", function () {
 			return {
 				query: "erpnext.controllers.queries.employee_query",
+				filters: { is_virtual_employee: 0 },
 			};
 		});
 		frm.set_query("leave_type", function () {

@@ -12,7 +12,12 @@ frappe.ui.form.on("Leave Application", {
 				},
 			};
 		});
-		frm.set_query("employee", erpnext.queries.employee);
+		frm.set_query("employee", function () {
+			return {
+				query: "erpnext.controllers.queries.employee_query",
+				filters: { is_virtual_employee: 0 },
+			};
+		});
 	},
 
 	onload: function (frm) {

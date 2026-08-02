@@ -53,6 +53,11 @@ class ShiftAssignmentTool(Document):
 			& (Employee.date_of_joining <= self.start_date)
 			& ((Employee.relieving_date >= self.start_date) | (Employee.relieving_date.isnull()))
 		)
+		# Virtual (management-only) employees work no shifts — keep them out.
+		from indian_hrms_compliance.overrides.employee_master import employee_has_virtual_field
+
+		if employee_has_virtual_field():
+			query = query.where(Employee.is_virtual_employee != 1)
 		if self.end_date:
 			query = query.where(
 				(Employee.relieving_date >= self.end_date) | (Employee.relieving_date.isnull())

@@ -5,6 +5,12 @@ frappe.ui.form.on("Leave Policy Assignment", {
 	onload: function (frm) {
 		frm.ignore_doctypes_on_cancel_all = ["Leave Ledger Entry"];
 
+		frm.set_query("employee", function () {
+			return {
+				query: "erpnext.controllers.queries.employee_query",
+				filters: { is_virtual_employee: 0 },
+			};
+		});
 		frm.set_query("leave_policy", function () {
 			return {
 				filters: {

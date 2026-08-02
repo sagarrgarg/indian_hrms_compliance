@@ -2,5 +2,13 @@
 // For license information, please see license.txt
 
 frappe.ui.form.on("Shift Assignment", {
+	setup: function (frm) {
+		frm.set_query("employee", function () {
+			return {
+				query: "erpnext.controllers.queries.employee_query",
+				filters: { is_virtual_employee: 0 },
+			};
+		});
+	},
 	refresh: function (frm) {},
 });
