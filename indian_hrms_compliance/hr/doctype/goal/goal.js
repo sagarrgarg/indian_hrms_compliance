@@ -93,6 +93,65 @@ frappe.ui.form.on("Goal", {
 				__("Status"),
 			);
 		}
+
+		// Task-instance routing: delegate an open instance to a direct report, or
+		// pull it back to yourself. Server enforces who-can-do-what; these are just
+		// the entry points, mirrored in the PWA task view.
+		const routable =
+			frm.doc.goal_type === "Task Instance" &&
+			!["Completed", "Closed", "Archived"].includes(doc_status);
+		if (routable) {
+			frm.add_custom_button(
+				__("Delegate…"),
+				() => {
+					const d = new frappe.ui.Dialog({
+						title: __("Delegate task"),
+						fields: [
+							{
+								fieldname: "employee",
+								fieldtype: "Link",
+								options: "Employee",
+								label: __("To (your direct report)"),
+								reqd: 1,
+								get_query: () => ({
+									filters: { status: "Active", company: frm.doc.company },
+								}),
+							},
+						],
+						primary_action_label: __("Delegate"),
+						primary_action(values) {
+							frappe.call({
+								method: "indian_hrms_compliance.api.reassign_task_instance",
+								args: { goal_name: frm.doc.name, to_employee: values.employee },
+								freeze: true,
+								callback: () => {
+									d.hide();
+									frappe.show_alert({ message: __("Delegated"), indicator: "green" });
+									frm.reload_doc();
+								},
+							});
+						},
+					});
+					d.show();
+				},
+				__("Assign"),
+			);
+			frm.add_custom_button(
+				__("Assign to me"),
+				() => {
+					frappe.call({
+						method: "indian_hrms_compliance.api.reassign_task_instance",
+						args: { goal_name: frm.doc.name },
+						freeze: true,
+						callback: () => {
+							frappe.show_alert({ message: __("Assigned to you"), indicator: "green" });
+							frm.reload_doc();
+						},
+					});
+				},
+				__("Assign"),
+			);
+		}
 	},
 
 	kra(frm) {
