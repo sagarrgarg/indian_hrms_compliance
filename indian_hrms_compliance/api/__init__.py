@@ -2146,6 +2146,145 @@ def bounce_task(goal_name: str, comment: str) -> dict:
 	return {"name": child.name, "returned_to": parent.employee}
 
 
+def _is_manager_of(manager_emp: str, report_emp: str) -> bool:
+	"""Is manager_emp somewhere ABOVE report_emp in the reports_to chain?"""
+	cur = frappe.db.get_value("Employee", report_emp, "reports_to")
+	seen = set()
+	for _ in range(50):
+		if not cur or cur in seen:
+			return False
+		if cur == manager_emp:
+			return True
+		seen.add(cur)
+		cur = frappe.db.get_value("Employee", cur, "reports_to")
+	return False
+
+
+def _caller_is_hr() -> bool:
+	return bool({"HR Manager", "HR User", "System Manager"} & set(frappe.get_roles()))
+
+
+@frappe.whitelist()
+def reassign_task_instance(goal_name: str, to_employee: str | None = None) -> dict:
+	"""MOVE an open task instance — delegate it to a direct report, or pull it back
+	to yourself. (Distinct from distribute_task, which SPLITS an assign-to-head
+	instance into rollup children; this reassigns the single instance.)
+
+	- **Delegate** (to_employee is someone else): only the current owner may hand
+	  it down, and only to their own active DIRECT report in the same company.
+	  Records `delegated_from` for lineage and re-resolves the approver.
+	- **Assign to me** (to_employee omitted / == caller): the delegator, a manager
+	  above the current assignee, or HR may pull it back to themselves.
+
+	Open (Pending / In Progress) instances only; never a distributed parent (it has
+	children — use distribute/bounce) or a done/locked one. Approver is always
+	re-resolved for the new doer so segregation-of-duties (approver != doer) holds.
+	"""
+	from indian_hrms_compliance.hr.doctype.hrms_task.hrms_task import (
+		_safe_pwa_notification,
+		resolve_instance_approver,
+	)
+
+	me = get_current_employee()
+	if not me:
+		frappe.throw(_("You have no active employee record."), frappe.PermissionError)
+	goal = frappe.get_doc("Goal", goal_name)
+	if goal.goal_type != "Task Instance":
+		frappe.throw(_("Only a task instance can be reassigned."))
+	if goal.status not in ("Pending", "In Progress"):
+		frappe.throw(_("Only an open task can be reassigned."))
+	if _has_open_children(goal.name):
+		frappe.throw(_("This task was distributed to your reports — manage it there, not here."))
+
+	target = to_employee or me
+	current = goal.employee
+	if target == current:
+		frappe.throw(_("This task is already assigned to that person."))
+
+	is_pull_back = target == me
+	if is_pull_back:
+		if not (goal.get("delegated_from") == me or _is_manager_of(me, current) or _caller_is_hr()):
+			frappe.throw(
+				_("You can only take back a task you delegated, or one held by someone who reports to you."),
+				frappe.PermissionError,
+			)
+	else:
+		if current != me:
+			frappe.throw(_("You can only delegate a task that's assigned to you."), frappe.PermissionError)
+		direct_reports = set(
+			frappe.get_all(
+				"Employee",
+				filters={"reports_to": me, "status": "Active", "company": goal.company},
+				pluck="name",
+			)
+		)
+		if target not in direct_reports:
+			frappe.throw(
+				_("You can only delegate to your own active direct reports."), frappe.PermissionError
+			)
+
+	tgt = frappe.db.get_value(
+		"Employee", target, ["employee_name", "user_id", "company", "status", "reports_to"], as_dict=True
+	)
+	if not tgt or tgt.status != "Active":
+		frappe.throw(_("The new assignee must be an active employee."))
+	if goal.company and tgt.company and tgt.company != goal.company:
+		frappe.throw(_("A task can't be reassigned across companies."))
+
+	# Re-resolve the approver for the NEW doer (keeps approver != doer).
+	approver_user, approver_role = None, None
+	template = goal.get("task_template")
+	if template and frappe.db.exists("HRMS Task", template):
+		approver_user, approver_role = resolve_instance_approver(frappe.get_doc("HRMS Task", template), tgt)
+
+	updates = {
+		"employee": target,
+		"employee_name": tgt.employee_name,
+		"status": "Pending",
+		"progress": 0,
+		"approver_user": approver_user,
+	}
+	meta = frappe.get_meta("Goal")
+	if meta.has_field("approver_role"):
+		updates["approver_role"] = approver_role
+	if meta.has_field("delegated_from"):
+		# Delegating records who handed it down; taking it back clears the lineage.
+		updates["delegated_from"] = None if is_pull_back else me
+	if meta.has_field("performed_by"):
+		updates["performed_by"] = None  # a reassigned instance has no performer yet
+	frappe.db.set_value("Goal", goal.name, updates, update_modified=False)
+
+	actor_name = frappe.db.get_value("Employee", me, "employee_name") or me
+	keys = list(_REQUESTER_CACHE_KEYS_BY_DOCTYPE["Goal"])
+	# Notify the new assignee (never on a self-assign — they just did it).
+	if tgt.user_id and target != me:
+		verb = _("delegated a task to you") if not is_pull_back else _("assigned a task to you")
+		_safe_pwa_notification(
+			to_user=tgt.user_id,
+			message=_("{0} {1}: {2}").format(actor_name, verb, goal.goal_name),
+			ref_type="Goal",
+			ref_name=goal.name,
+		)
+		_pwa_refetch(keys, user=tgt.user_id)
+	# Notify whoever it left, if that isn't the person acting.
+	prev_user = frappe.db.get_value("Employee", current, "user_id") if current else None
+	if prev_user and current != me:
+		_safe_pwa_notification(
+			to_user=prev_user,
+			message=_("{0} reassigned a task away from you: {1}").format(actor_name, goal.goal_name),
+			ref_type="Goal",
+			ref_name=goal.name,
+		)
+		_pwa_refetch(keys, user=prev_user)
+	frappe.db.commit()
+	return {
+		"name": goal.name,
+		"assigned_to": target,
+		"assigned_to_name": tgt.employee_name,
+		"mode": "assigned_to_self" if is_pull_back else "delegated",
+	}
+
+
 @frappe.whitelist()
 def get_my_team():
 	"""Who the current employee can assign ad-hoc tasks to: self (first), then
