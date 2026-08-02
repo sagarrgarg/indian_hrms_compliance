@@ -55,8 +55,8 @@
    "fieldtype": "Link",
    "label": "Company",
    "options": "Company",
-   "reqd": 1,
-   "in_standard_filter": 1
+   "in_standard_filter": 1,
+   "description": "Leave blank for a group-wide playbook shared across all companies; set it to scope the SOP (and its visibility) to one company."
   },
   {
    "fieldname": "status",
