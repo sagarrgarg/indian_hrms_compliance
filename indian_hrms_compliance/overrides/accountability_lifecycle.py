@@ -54,6 +54,50 @@ def block_submit_if_accountability_pending(doc, method=None):
 	)
 
 
+def block_status_change_if_accountability_pending(doc, method=None):
+	"""Employee validate: refuse to move an employee OUT of 'Active' while they
+	still hold accountability (DRI of an active KRA, department head, open task
+	instances, …). The Employee Separation flow already gates this on submit, but a
+	*direct* status flip (Desk edit / import / API) bypassed it entirely — leaving
+	KRA.dri / department_head / reports_to dangling with only a nightly warning.
+	This attaches the same invariant to the Employee itself, so it holds no matter
+	how the exit is effected.
+
+	Only fires on the Active -> non-Active transition; never on new records; fails
+	CLOSED like the sibling Separation gate (a governance block must not be skipped
+	by a transient lens error).
+	"""
+	if doc.is_new() or not doc.has_value_changed("status") or doc.get("status") == "Active":
+		return
+	# Only gate the departure FROM Active — re-saves of an already-inactive record
+	# (whose links were handled at first exit) shouldn't re-block.
+	if doc.get_doc_before_save() and doc.get_doc_before_save().get("status") != "Active":
+		return
+	from indian_hrms_compliance.api.accountability import compute_accountability
+
+	try:
+		lens = compute_accountability(doc.name)
+	except Exception:
+		frappe.log_error("Accountability leaver check failed")
+		frappe.throw(
+			_("Could not verify accountability handover for this employee — resolve and retry."),
+			title=_("Accountability Check Failed"),
+		)
+	if lens.get("is_clear"):
+		return
+	frappe.throw(
+		_(
+			"Cannot mark {0} as '{1}' — they still hold active accountability that must be "
+			"handed over first:"
+		).format(doc.get("employee_name") or doc.name, doc.get("status"))
+		+ "<br>"
+		+ "<br>".join(lens.get("blocking_reasons") or [])
+		+ "<br><br>"
+		+ _("Reassign these (DRI / headship / open instances), then change the status."),
+		title=_("Accountability Handover Required"),
+	)
+
+
 def warn_mover_accountability(doc, method=None):
 	"""Employee Transfer validate: when the move changes department or company,
 	surface what the mover is accountable for so HR hands it over deliberately.

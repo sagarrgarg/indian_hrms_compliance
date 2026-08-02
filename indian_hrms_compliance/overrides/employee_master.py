@@ -188,6 +188,36 @@ def validate_virtual_employee(doc, method=None):
 		)
 
 
+_APPROVER_COMPANY_FIELDS = (
+	("leave_approver", "Leave Approver"),
+	("expense_approver", "Expense Approver"),
+	("shift_request_approver", "Shift Request Approver"),
+)
+
+
+def validate_approver_company(doc, method=None):
+	"""Approvers must be employees of the SAME company. The picker already filters
+	this, but a REST/import/bench write bypasses the picker — mirror the rule
+	server-side so a cross-company approver can never be persisted (which would let
+	someone approve leave/expense for a company they don't belong to).
+
+	Only checks set/changed values so pre-existing rows aren't bricked. A value
+	that isn't an Employee (e.g. a legacy User-typed approver) is left alone.
+	"""
+	for field, label in _APPROVER_COMPANY_FIELDS:
+		val = doc.get(field)
+		if not val or not (doc.is_new() or doc.has_value_changed(field)):
+			continue
+		if not frappe.db.exists("Employee", val):
+			continue  # legacy User value or stale link — not our rule to enforce
+		appr_company = frappe.db.get_value("Employee", val, "company")
+		if appr_company and doc.get("company") and appr_company != doc.company:
+			frappe.throw(
+				_("{0} must be an employee of the same company ({1}).").format(_(label), doc.company),
+				title=_("Cross-company Approver"),
+			)
+
+
 def block_salary_for_virtual_employee(doc, method=None):
 	"""Salary Structure Assignment validate: a virtual (management-only) Employee
 	draws no salary, so it must not carry a salary structure. This makes the
