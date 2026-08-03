@@ -101,6 +101,8 @@ const documents = createListResource({
 		"end_date",
 		"currency",
 		"gross_pay",
+		"gross_wages",
+		"bonus_advance",
 		"net_pay",
 		"year_to_date",
 	],

@@ -219,7 +219,8 @@ frappe.ui.form.on("Salary Structure Assignment", {
 							.join("")}</table></div>`;
 						html += `</div><hr>`;
 						html += `<table style="width:100%;border-collapse:collapse;font-weight:600;">
-							${row(__("Gross Pay"), m.gross)}
+							${row(__("Gross Wages"), m.gross)}
+							${m.bonus_advance ? row(__("Statutory Bonus (Advance)"), m.bonus_advance) : ""}
 							${row(__("Total Deductions"), m.total_deduction)}
 							<tr><td style="padding:6px 8px;font-size:15px;">${__("Net Pay")}</td><td style="padding:6px 8px;text-align:right;font-size:15px;color:#1f8c4d;">${fmt(
 								m.net,

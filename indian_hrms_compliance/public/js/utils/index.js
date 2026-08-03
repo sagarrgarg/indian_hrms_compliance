@@ -345,10 +345,17 @@ $.extend(indian_hrms_compliance, {
 			);
 		}
 		out += total(
-			__("Gross (paid earnings)"),
+			__("Gross Wages"),
 			m.gross,
-			__("Everything payable to the employee before deductions."),
+			__("Statutory wages payable before deductions (excludes any advance bonus)."),
 		);
+		if (m.bonus_advance) {
+			out += delta(
+				__("Statutory Bonus (Advance)"),
+				m.bonus_advance,
+				__("Paid in take-home, but shown separately as an advance against annual bonus — not wages."),
+			);
+		}
 		if (m.total_deduction) {
 			out += delta(
 				__("Deductions"),

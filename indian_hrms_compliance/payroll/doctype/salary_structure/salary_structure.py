@@ -302,6 +302,11 @@ class SalaryStructure(Document):
 							"Salary Component", row.salary_component, "exclude_from_ctc"
 						)
 					),
+					"exclude_from_gross_wages": cint(
+						frappe.get_cached_value(
+							"Salary Component", row.salary_component, "exclude_from_gross_wages"
+						)
+					),
 				}
 			)
 		for row in self.deductions:
@@ -314,7 +319,14 @@ class SalaryStructure(Document):
 				}
 			)
 
-		gross = sum(r["amount"] for r in earnings if not r["statistical"])
+		# All paid (non-statistical) earnings; then split out heads paid as an
+		# advance / bonus (Statutory Bonus), which stay in Net and CTC but are kept
+		# out of Gross Wages under the Payment of Bonus Act.
+		paid_earnings = sum(r["amount"] for r in earnings if not r["statistical"])
+		bonus_advance = sum(
+			r["amount"] for r in earnings if not r["statistical"] and r["exclude_from_gross_wages"]
+		)
+		gross = paid_earnings - bonus_advance
 		# Current-period employer contributions (PF / ESI / EDLI / EPS ...) count
 		# toward CTC; long-term / exit provisions flagged exclude_from_ctc
 		# (Gratuity, leave-encashment provision) are surfaced as a separate layer.
@@ -327,7 +339,9 @@ class SalaryStructure(Document):
 			r["amount"] for r in earnings if r["statistical"] and r["exclude_from_ctc"]
 		)
 		total_deduction = sum(r["amount"] for r in deductions if not r["statistical"])
-		ctc = gross + employer_ctc
+		# CTC and Net keep the bonus advance (it is a real cost and is paid); only
+		# the Gross figure excludes it.
+		ctc = paid_earnings + employer_ctc
 		return {
 			"base": base,
 			"uan_number": uan,
@@ -336,12 +350,13 @@ class SalaryStructure(Document):
 			"earnings": earnings,
 			"deductions": deductions,
 			"gross": gross,
+			"bonus_advance": bonus_advance,
 			"employer_ctc": employer_ctc,
 			"provisions": provisions,
 			# retained for backward compatibility (all employer-side statistical)
 			"employer_contributions": employer_ctc + provisions,
 			"total_deduction": total_deduction,
-			"net": gross - total_deduction,
+			"net": paid_earnings - total_deduction,
 			"ctc": ctc,
 			"total_cost": ctc + provisions,
 		}

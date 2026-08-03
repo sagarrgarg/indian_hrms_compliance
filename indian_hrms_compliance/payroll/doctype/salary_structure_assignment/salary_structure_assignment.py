@@ -301,7 +301,15 @@ def preview_salary(salary_structure, base=0, variable=0, leave_encashment=0, emp
 		data[r.abbr] = amt
 		return amt
 
-	earnings, gross = [], 0.0
+	# Heads paid as advance / bonus (Statutory Bonus): stay in Net and the taxable
+	# base, but excluded from the displayed Gross Wages.
+	excluded = set()
+	if frappe.get_meta("Salary Component").has_field("exclude_from_gross_wages"):
+		excluded = set(
+			frappe.get_all("Salary Component", filters={"exclude_from_gross_wages": 1}, pluck="name")
+		)
+
+	earnings, gross, bonus_advance = [], 0.0, 0.0
 	for r in ss.earnings:
 		amt = row_amount(r)
 		if amt is None:
@@ -309,6 +317,8 @@ def preview_salary(salary_structure, base=0, variable=0, leave_encashment=0, emp
 		earnings.append({"component": r.salary_component, "amount": amt, "statistical": bool(r.statistical_component)})
 		if not r.statistical_component:
 			gross += amt
+			if r.salary_component in excluded:
+				bonus_advance += amt
 	if le:
 		earnings.append({"component": _("Leave Encashment"), "amount": le, "statistical": False})
 		gross += le
@@ -355,7 +365,9 @@ def preview_salary(salary_structure, base=0, variable=0, leave_encashment=0, emp
 		"currency": ss.currency,
 		"earnings": earnings,
 		"deductions": deductions,
-		"gross": flt(gross, 2),
+		# Gross Wages excludes the advance bonus; Net keeps it (it is paid).
+		"gross": flt(gross - bonus_advance, 2),
+		"bonus_advance": flt(bonus_advance, 2),
 		"total_deduction": flt(total_ded, 2),
 		"net": flt(gross - total_ded, 2),
 		"tax": tax_detail,
