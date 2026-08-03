@@ -178,6 +178,49 @@
 						</Button>
 					</div>
 
+					<!-- Delegate the whole instance to one direct report — distinct
+					     from Distribute, which splits it into sub-tasks. Reuses the
+					     same reports list the Distribute panel loads. -->
+					<div
+						v-if="canDelegate && myReports.length"
+						class="flex flex-col gap-2 bg-white rounded p-4"
+					>
+						<span class="text-sm font-semibold text-gray-800">{{ __("Delegate to a report") }}</span>
+						<span class="text-xs text-gray-500">
+							{{ __("Hand this task over to one of your direct reports.") }}
+						</span>
+						<FormControl
+							type="autocomplete"
+							:options="reportOptions"
+							v-model="delegateTo"
+							:placeholder="__('Select a report')"
+						/>
+						<Button
+							variant="subtle"
+							:loading="reassigning"
+							:disabled="!delegateTo?.value"
+							@click="onDelegate"
+						>
+							<template #prefix><FeatherIcon name="user-plus" class="h-4 w-4" /></template>
+							{{ __("Delegate") }}
+						</Button>
+					</div>
+
+					<!-- Pull this instance back to yourself. Allowed for the delegator,
+					     a manager above the current doer, or HR — the server enforces
+					     it and rejects with a clear message otherwise. -->
+					<div v-if="!isLocked" class="flex justify-end">
+						<Button
+							variant="ghost"
+							class="text-blue-700"
+							:loading="reassigning"
+							@click="onAssignToMe"
+						>
+							<template #prefix><FeatherIcon name="user-check" class="h-4 w-4" /></template>
+							{{ __("Assign to me") }}
+						</Button>
+					</div>
+
 					<div v-if="!isLocked" class="flex flex-col gap-4">
 						<FormControl
 							v-if="task.completion_type === 'Numeric Entry'"
@@ -322,6 +365,7 @@ import {
 	myTeam,
 	distributeTask,
 	bounceTask,
+	reassignTask,
 } from "@/data/tasks"
 import { employees } from "@/data/employees"
 
@@ -382,6 +426,51 @@ async function onBounce() {
 		toast.success(__("Bounced back to your manager"))
 	} catch (e) {
 		toast.error(e?.messages?.[0] || __("Could not bounce"))
+	}
+}
+
+// --- Re-route a single instance: delegate to a report, or pull it back to me. ---
+const reassigning = ref(false)
+const delegateTo = ref(null)
+// Same direct-reports source the Distribute panel uses (myReports off myTeam).
+const reportOptions = computed(() =>
+	myReports.value.map((m) => ({ label: m.employee_name, value: m.name })),
+)
+// Delegate applies to a plain open instance you own — not a distributed parent
+// (auto-completed from children) or a sub-task already routed to you.
+const canDelegate = computed(
+	() =>
+		!isLocked.value &&
+		!task.value?.is_distributed_child &&
+		!task.value?.has_distributed_children,
+)
+async function onDelegate() {
+	if (!delegateTo.value?.value) return
+	reassigning.value = true
+	try {
+		await reassignTask.submit({ goal_name: task.value.name, to_employee: delegateTo.value.value })
+		tasks.reload()
+		myTaskSummary.reload()
+		delegateTo.value = null
+		toast.success(__("Delegated to your report"))
+		router.back()
+	} catch (e) {
+		toast.error(e?.messages?.[0] || __("Could not delegate"))
+	} finally {
+		reassigning.value = false
+	}
+}
+async function onAssignToMe() {
+	reassigning.value = true
+	try {
+		await reassignTask.submit({ goal_name: task.value.name })
+		tasks.reload()
+		myTaskSummary.reload()
+		toast.success(__("Assigned to you"))
+	} catch (e) {
+		toast.error(e?.messages?.[0] || __("Could not assign"))
+	} finally {
+		reassigning.value = false
 	}
 }
 
