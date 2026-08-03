@@ -5,7 +5,7 @@
 import frappe
 from frappe import _, bold
 from frappe.model.document import Document
-from frappe.utils import comma_and, date_diff, formatdate, get_link_to_form, getdate
+from frappe.utils import comma_and, date_diff, flt, formatdate, get_link_to_form, getdate
 
 from indian_hrms_compliance.hr.utils import validate_active_employee
 
@@ -25,15 +25,45 @@ class AdditionalSalary(Document):
 
 	def validate(self):
 		validate_active_employee(self.employee)
+		self.validate_grant_mode()
 		self.validate_dates()
+
+		# A days-only grant (Grace Days, no component) adds paid days to the slip
+		# rather than a component amount, so the component-based validations below
+		# don't apply — the period (payroll_date / from-to) is the only thing that
+		# matters, and it's already checked by validate_dates.
+		if self.is_grace_days_only():
+			return
+
 		self.validate_salary_structure()
 		self.validate_recurring_additional_salary_overlap()
 		self.validate_employee_referral()
 		self.validate_duplicate_additional_salary()
 		self.validate_tax_component_overwrite()
 
-		if self.amount < 0:
+		if flt(self.amount) < 0:
 			frappe.throw(_("Amount should not be less than zero"))
+
+	def is_grace_days_only(self) -> bool:
+		"""A days-only grant: Grace Days with no Salary Component. Adds paid days
+		(scaling every payment-days component) instead of a component amount."""
+		return flt(self.get("grace_days")) > 0 and not self.salary_component
+
+	def validate_grant_mode(self):
+		"""Each Additional Salary is EITHER a Salary Component with an Amount, OR a
+		Grace Days (full-day) grant — never both, never neither."""
+		has_component = bool(self.salary_component) and flt(self.amount)
+		has_grace = flt(self.get("grace_days")) > 0
+		if not has_component and not has_grace:
+			frappe.throw(
+				_("Enter either a Salary Component with an Amount, or a number of Grace Days.")
+			)
+		if self.salary_component and has_grace:
+			frappe.throw(
+				_(
+					"An Additional Salary grants either a component amount or Grace Days, not both — use a separate record for each."
+				)
+			)
 
 	def validate_salary_structure(self):
 		salary_structure = frappe.db.get_value(

@@ -609,15 +609,59 @@ class SalarySlip(TransactionBase):
 		):
 			self.payment_days = flt(self.payment_days) + self._get_holidays_worked_days(holidays)
 
-		# Company grace: extra paid days granted as goodwill, added on top of the
-		# computed payment days. total_working_days is left untouched, so each
-		# grace day pays exactly one extra day across every payment-days-dependent
-		# component (e.g. 28/27 of the monthly amount for one grace day) — the way
-		# to "let go" a full day's salary, all components included, without editing
-		# attendance. Read straight off the slip so HR just types it in and saves.
-		grace_days = flt(self.get("grace_days"))
-		if grace_days > 0:
-			self.payment_days = flt(self.payment_days) + grace_days
+		# Company grace / full-day increment: extra paid days granted via Additional
+		# Salary (Grace Days) for this employee this period, added on top of the
+		# computed payment days. total_working_days is left untouched, so each grace
+		# day pays exactly one extra day across every payment-days-dependent
+		# component (e.g. 28/27 of the monthly amount) — a full day's salary, all
+		# components included, without editing attendance. Sourced from Additional
+		# Salary so day-grants and component-amount grants share one pre-payroll
+		# workflow; the slip field just displays the total that was applied.
+		self.grace_days = self._get_granted_grace_days()
+		if flt(self.grace_days) > 0:
+			self.payment_days = flt(self.payment_days) + flt(self.grace_days)
+
+	def _get_granted_grace_days(self) -> float:
+		"""Total Grace Days granted to this employee for the period via Additional
+		Salary (the days-only 'full-day increment' grant). Mirrors the period logic
+		of get_additional_salaries (recurring window OR payroll_date in period).
+		Defensive: 0 if the field isn't installed yet."""
+		if not frappe.get_meta("Additional Salary").has_field("grace_days"):
+			return 0.0
+		from frappe.query_builder import Criterion
+
+		add_sal = frappe.qb.DocType("Additional Salary")
+		rows = (
+			frappe.qb.from_(add_sal)
+			.select(add_sal.grace_days)
+			.where(
+				(add_sal.employee == self.employee)
+				& (add_sal.docstatus == 1)
+				& (add_sal.disabled == 0)
+				& (add_sal.grace_days > 0)
+			)
+			.where(
+				Criterion.any(
+					[
+						Criterion.all(
+							[
+								add_sal.is_recurring == 1,
+								add_sal.from_date <= self.end_date,
+								add_sal.to_date >= self.end_date,
+							]
+						),
+						Criterion.all(
+							[
+								add_sal.is_recurring == 0,
+								add_sal.payroll_date[self.start_date : self.end_date],
+							]
+						),
+					]
+				)
+			)
+			.run(as_dict=True)
+		)
+		return sum(flt(r.grace_days) for r in rows)
 
 	def _get_holidays_worked_days(self, holidays: list) -> float:
 		"""Full days the employee actually worked on a holiday / weekly-off (Sunday)

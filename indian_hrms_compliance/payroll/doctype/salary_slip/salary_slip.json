@@ -265,11 +265,12 @@
   },
   {
    "default": "0",
-   "description": "Extra paid days the company grants as grace (goodwill), added on top of Payment Days. Every payment-days-dependent component (Basic, HRA, allowances, and PF/ESI computed on them) is then paid for these extra days too. Leave 0 for none.",
+   "description": "Full paid days granted to this employee this period via Additional Salary (Grace Days), added on top of Payment Days so every payment-days component is paid for the extra day(s). Computed from Additional Salary — grant it there, not here.",
    "fieldname": "grace_days",
    "fieldtype": "Float",
-   "label": "Grace Days (company goodwill)",
-   "non_negative": 1
+   "label": "Grace Days (from Additional Salary)",
+   "non_negative": 1,
+   "read_only": 1
   },
   {
    "fieldname": "payment_days",
@@ -773,7 +774,7 @@
  "idx": 9,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-08-03 12:00:00.000000",
+ "modified": "2026-08-03 13:30:00.000000",
  "modified_by": "Administrator",
  "module": "Payroll",
  "name": "Salary Slip",
