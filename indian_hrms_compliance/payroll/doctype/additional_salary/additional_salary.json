@@ -25,6 +25,7 @@
   "type",
   "currency",
   "amount",
+  "grace_days",
   "column_break_8",
   "deduct_full_tax_on_selected_payroll_date",
   "overwrite_salary_structure_amount",
@@ -57,7 +58,6 @@
    "in_standard_filter": 1,
    "label": "Salary Component",
    "options": "Salary Component",
-   "reqd": 1,
    "search_index": 1
   },
   {
@@ -65,8 +65,15 @@
    "fieldtype": "Currency",
    "in_list_view": 1,
    "label": "Amount",
-   "options": "currency",
-   "reqd": 1
+   "options": "currency"
+  },
+  {
+   "default": "0",
+   "description": "Full paid days to add for this employee this period as a company grace / increment — scales EVERY payment-days component (Basic, HRA, allowances, and the PF/ESI computed on them). Leave Salary Component and Amount blank for a days-only grant.",
+   "fieldname": "grace_days",
+   "fieldtype": "Float",
+   "label": "Grace Days (full-day increment)",
+   "non_negative": 1
   },
   {
    "default": "1",

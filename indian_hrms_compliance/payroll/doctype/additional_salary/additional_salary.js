@@ -24,6 +24,22 @@ frappe.ui.form.on("Additional Salary", {
 		frm.trigger("set_component_query");
 	},
 
+	refresh: function (frm) {
+		frm.trigger("toggle_grant_mode");
+	},
+
+	grace_days: function (frm) {
+		frm.trigger("toggle_grant_mode");
+	},
+
+	// One record grants EITHER a component amount OR Grace Days (a full-day
+	// increment). Hide the component/amount pair once Grace Days is entered so the
+	// two modes don't get mixed (the server enforces this too).
+	toggle_grant_mode: function (frm) {
+		const days_only = flt(frm.doc.grace_days) > 0;
+		frm.toggle_display(["salary_component", "amount"], !days_only);
+	},
+
 	employee: function (frm) {
 		if (frm.doc.employee) {
 			frappe.run_serially([
