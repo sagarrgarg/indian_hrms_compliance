@@ -609,6 +609,16 @@ class SalarySlip(TransactionBase):
 		):
 			self.payment_days = flt(self.payment_days) + self._get_holidays_worked_days(holidays)
 
+		# Company grace: extra paid days granted as goodwill, added on top of the
+		# computed payment days. total_working_days is left untouched, so each
+		# grace day pays exactly one extra day across every payment-days-dependent
+		# component (e.g. 28/27 of the monthly amount for one grace day) — the way
+		# to "let go" a full day's salary, all components included, without editing
+		# attendance. Read straight off the slip so HR just types it in and saves.
+		grace_days = flt(self.get("grace_days"))
+		if grace_days > 0:
+			self.payment_days = flt(self.payment_days) + grace_days
+
 	def _get_holidays_worked_days(self, holidays: list) -> float:
 		"""Full days the employee actually worked on a holiday / weekly-off (Sunday)
 		in the period — a Present or Work From Home marked on a holiday date. Lets

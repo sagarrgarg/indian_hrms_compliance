@@ -42,6 +42,7 @@
   "leave_without_pay",
   "column_break_geio",
   "absent_days",
+  "grace_days",
   "payment_days",
   "help_section",
   "payment_days_calculation_help",
@@ -259,6 +260,14 @@
    "label": "Leave Without Pay",
    "oldfieldname": "leave_without_pay",
    "oldfieldtype": "Currency"
+  },
+  {
+   "default": "0",
+   "description": "Extra paid days the company grants as grace (goodwill), added on top of Payment Days. Every payment-days-dependent component (Basic, HRA, allowances, and PF/ESI computed on them) is then paid for these extra days too. Leave 0 for none.",
+   "fieldname": "grace_days",
+   "fieldtype": "Float",
+   "label": "Grace Days (company goodwill)",
+   "non_negative": 1
   },
   {
    "fieldname": "payment_days",
@@ -746,7 +755,7 @@
  "idx": 9,
  "is_submittable": 1,
  "links": [],
- "modified": "2024-07-01 21:25:36.651583",
+ "modified": "2026-08-03 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Payroll",
  "name": "Salary Slip",
