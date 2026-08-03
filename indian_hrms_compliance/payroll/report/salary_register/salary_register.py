@@ -65,10 +65,15 @@ def execute(filters=None):
 		for d in ded_types:
 			row.update({frappe.scrub(d): ss_ded_map.get(ss.name, {}).get(d)})
 
+		# Gross column shows Gross Wages (excludes paid-but-not-wages heads such as
+		# the Statutory Bonus advance, which still appear in their own earning
+		# column and in Net Pay). Fall back to gross_pay on pre-back-fill slips.
+		gw = flt(ss.gross_wages) if ss.get("gross_wages") is not None else flt(ss.gross_pay)
+
 		if currency == company_currency:
 			row.update(
 				{
-					"gross_pay": flt(ss.gross_pay) * flt(ss.exchange_rate),
+					"gross_pay": gw * flt(ss.exchange_rate),
 					"total_deduction": (flt(ss.total_deduction) + flt(ss.total_loan_repayment))
 					* flt(ss.exchange_rate),
 					"net_pay": flt(ss.net_pay) * flt(ss.exchange_rate),
@@ -78,7 +83,7 @@ def execute(filters=None):
 		else:
 			row.update(
 				{
-					"gross_pay": ss.gross_pay,
+					"gross_pay": gw,
 					"total_deduction": flt(ss.total_deduction) + flt(ss.total_loan_repayment),
 					"net_pay": ss.net_pay,
 				}
@@ -211,7 +216,7 @@ def get_columns(earning_types, ded_types):
 
 	columns.append(
 		{
-			"label": _("Gross Pay"),
+			"label": _("Gross Wages"),
 			"fieldname": "gross_pay",
 			"fieldtype": "Currency",
 			"options": "currency",
@@ -472,6 +477,18 @@ def _inr(v):
 	return ("-" + out) if neg else out
 
 
+def _gross_wages_excluded_components():
+	"""Salary Components that are PAID but excluded from Gross Wages (e.g. the
+	monthly Statutory Bonus, an advance against annual bonus under the Payment of
+	Bonus Act). Returns an empty set if the flag field isn't installed yet, so
+	callers degrade to the old behaviour on an un-migrated site."""
+	if not frappe.get_meta("Salary Component").has_field("exclude_from_gross_wages"):
+		return set()
+	return set(
+		frappe.get_all("Salary Component", filters={"exclude_from_gross_wages": 1}, pluck="name")
+	)
+
+
 @frappe.whitelist()
 def get_wages_register_html(filters=None):
 	"""Render the employee-wise statutory Salary / Wages Register as a
@@ -511,6 +528,10 @@ def get_wages_register_html(filters=None):
 		key = "earn" if r.parentfield == "earnings" else "ded"
 		bucket[key].append(r)
 
+	# Paid-but-not-wages heads (e.g. Statutory Bonus advance): kept out of the
+	# wage columns and the Gross, shown in a separate "Bonus (Advance)" column.
+	excluded = _gross_wages_excluded_components()
+
 	# discover ordered, dynamic column sets
 	earn_cols, ded_cols = [], []
 	has_employer = {"pf": False, "esi": False, "lwf": False}
@@ -522,6 +543,8 @@ def get_wages_register_html(filters=None):
 				has_employer[kind] = True
 				continue
 			if r.statistical_component or r.do_not_include_in_total:
+				continue
+			if r.salary_component in excluded:
 				continue
 			if r.salary_component not in earn_cols:
 				earn_cols.append(r.salary_component)
@@ -557,6 +580,7 @@ def get_wages_register_html(filters=None):
 		rate_total=0.0,
 		earn={c: 0.0 for c in earn_cols},
 		gross=0.0,
+		bonus=0.0,
 		ded={c: 0.0 for c in ded_cols},
 		ded_total=0.0,
 		emp={c: 0.0 for c in emp_cols},
@@ -572,6 +596,7 @@ def get_wages_register_html(filters=None):
 		earn = {c: 0.0 for c in earn_cols}
 		empl = {c: 0.0 for c in emp_cols}
 		employer_pf_amt = 0.0
+		bonus = 0.0
 
 		for r in d["earn"]:
 			kind = _employer_kind(r.salary_component)
@@ -587,6 +612,10 @@ def get_wages_register_html(filters=None):
 					empl["LWF (Employer)"] += flt(r.amount)
 				continue
 			if r.statistical_component or r.do_not_include_in_total:
+				continue
+			if r.salary_component in excluded:
+				# Paid, but a bonus advance — segregated from wages/gross.
+				bonus += flt(r.amount)
 				continue
 			if r.salary_component in rate:
 				rate[r.salary_component] += flt(r.default_amount)
@@ -607,7 +636,9 @@ def get_wages_register_html(filters=None):
 		rate_total = sum(rate.values())
 		emp_total = sum(empl.values())
 		ded_total = flt(s.total_deduction) + flt(s.total_loan_repayment)
-		gross = flt(s.gross_pay)
+		# Gross Wages excludes the bonus advance; fall back to gross_pay-bonus on a
+		# slip that predates the derived field (before the back-fill patch ran).
+		gross = flt(s.gross_wages) if s.get("gross_wages") is not None else (flt(s.gross_pay) - bonus)
 		net = flt(s.net_pay)
 
 		row = frappe._dict(
@@ -629,6 +660,7 @@ def get_wages_register_html(filters=None):
 			rate_total=rate_total,
 			earn=earn,
 			gross=gross,
+			bonus=bonus,
 			ded=ded,
 			ded_total=ded_total,
 			emp=empl,
@@ -646,6 +678,7 @@ def get_wages_register_html(filters=None):
 			totals.emp[c] += empl[c]
 		totals.rate_total += rate_total
 		totals.gross += gross
+		totals.bonus += bonus
 		totals.ded_total += ded_total
 		totals.emp_total += emp_total
 		totals.net += net
@@ -663,6 +696,8 @@ def get_wages_register_html(filters=None):
 		"earn_cols": earn_cols,
 		"ded_cols": ded_cols,
 		"emp_cols": emp_cols,
+		# Only show the "Bonus (Advance)" column when some slip actually has one.
+		"has_bonus": bool(totals.bonus),
 		"rows": rows,
 		"totals": totals,
 		"currency": company_currency,
@@ -740,8 +775,9 @@ def get_payroll_summary_html(filters=None):
 	esi_emp_comp = mapping.esi_employee_component if mapping else None
 
 	# --- pass over slips: earnings/deductions totals + actual statutory amts
+	excluded = _gross_wages_excluded_components()
 	earn_tot, ded_tot = {}, {}
-	gross = ded_total = net = 0.0
+	gross = ded_total = net = bonus_tot = 0.0
 	lwf_employer_total = 0.0
 	per_pf = []  # (pf_employee, vpf, employer_pf) per PF member
 	per_esi = []  # (esi_employee, employer_esi) per ESI member
@@ -762,6 +798,10 @@ def get_payroll_summary_html(filters=None):
 				slip_lwf_er += flt(r.amount)
 				continue
 			if r.statistical_component or r.do_not_include_in_total:
+				continue
+			if r.salary_component in excluded:
+				# Paid advance bonus — shown as its own line, out of wage earnings.
+				bonus_tot += flt(r.amount)
 				continue
 			earn_tot[r.salary_component] = earn_tot.get(r.salary_component, 0.0) + flt(r.amount)
 
@@ -787,7 +827,7 @@ def get_payroll_summary_html(filters=None):
 			elif (esi_emp_comp and name == esi_emp_comp) or (not esi_emp_comp and _is_esi_employee(name)):
 				slip_esi_emp += flt(r.amount)
 
-		gross += flt(d.gross_pay)
+		gross += flt(d.gross_wages) if d.get("gross_wages") is not None else flt(d.gross_pay)
 		ded_total += flt(d.total_deduction) + flt(d.get("total_loan_repayment"))
 		net += flt(d.net_pay)
 		lwf_employer_total += slip_lwf_er
@@ -877,6 +917,7 @@ def get_payroll_summary_html(filters=None):
 		"period_label": _period_label(filters.get("from_date")),
 		"earn_tot": earn_tot,
 		"total_earning": total_earning,
+		"bonus_advance": bonus_tot,
 		"ded_tot": ded_tot,
 		"ded_total": ded_total,
 		"employer": employer,
