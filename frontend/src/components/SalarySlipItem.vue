@@ -10,8 +10,8 @@
 					<span>
 						{{
 							__("{0}: {1}", [
-								__("Gross Pay"),
-								formatCurrency(doc.gross_pay, doc.currency),
+								__("Gross Wages"),
+								formatCurrency(doc.gross_wages ?? doc.gross_pay, doc.currency),
 							])
 						}}
 					</span>
