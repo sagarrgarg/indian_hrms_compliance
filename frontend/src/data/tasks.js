@@ -55,3 +55,9 @@ export const distributeTask = createResource({
 export const bounceTask = createResource({
 	url: "indian_hrms_compliance.api.bounce_task",
 })
+
+// Re-route a single OPEN instance: with to_employee → delegate it to one of the
+// caller's direct reports; without → pull it back to the caller ("assign to me").
+export const reassignTask = createResource({
+	url: "indian_hrms_compliance.api.reassign_task_instance",
+})

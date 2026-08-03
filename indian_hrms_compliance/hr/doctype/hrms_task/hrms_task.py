@@ -70,10 +70,26 @@ class HRMSTask(Document):
 		self._validate_weight()
 		self._validate_dates()
 		self._validate_scope()
+		self._validate_playbook_company()
 		self._validate_approval_routing()
 		self._validate_kpi_fields()
 		self._validate_reminder_lead()
 		self._sync_cadence_schedule()
+
+	def _validate_playbook_company(self):
+		"""An attached Playbook is OPTIONAL, but when set it must belong to the same
+		company as this task — a task can't run another company's SOP. (Playbook.company
+		is itself compulsory, so this keeps the whole chain company-consistent.)"""
+		if not self.get("playbook"):
+			return
+		pb_company = frappe.db.get_value("Playbook", self.playbook, "company")
+		if self.company and pb_company and pb_company != self.company:
+			frappe.throw(
+				_("The attached Playbook must belong to the same company as this task ({0}).").format(
+					self.company
+				),
+				title=_("Company Mismatch"),
+			)
 
 	def _apply_risk_tier(self):
 		"""Keep the tier and the actual controls in agreement, resolving upward.
