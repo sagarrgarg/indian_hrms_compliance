@@ -48,14 +48,14 @@
 	<div class="wr-title">Salary / Wages Register for the month of {{ period_label }}</div>
 </div>
 
-{% set ncols = 5 + (earn_cols|length + 1) + 4 + (earn_cols|length + 1) + (ded_cols|length + 1) + ((emp_cols|length + 1) if emp_cols else 0) + 2 %}
+{% set ncols = 5 + (earn_cols|length + 1) + 4 + (earn_cols|length + 1) + (1 if has_bonus else 0) + (ded_cols|length + 1) + ((emp_cols|length + 1) if emp_cols else 0) + 2 %}
 <table class="wr">
 	<thead>
 		<tr>
 			<th class="grp" colspan="5">Particulars</th>
 			<th class="grp" colspan="{{ earn_cols|length + 1 }}">Salary / Wage Rate</th>
 			<th class="grp" colspan="4">Attendance</th>
-			<th class="grp" colspan="{{ earn_cols|length + 1 }}">Earnings</th>
+			<th class="grp" colspan="{{ earn_cols|length + 1 + (1 if has_bonus else 0) }}">Earnings</th>
 			<th class="grp" colspan="{{ ded_cols|length + 1 }}">Deductions</th>
 			{% if emp_cols %}<th class="grp" colspan="{{ emp_cols|length + 1 }}">Employer Share</th>{% endif %}
 			<th class="grp" rowspan="2">Net<br>Payment</th>
@@ -72,6 +72,7 @@
 			<th>W.D.</th><th>E.L.</th><th>LWP</th><th>P.D.</th>
 			{% for c in earn_cols %}<th>{{ c }}</th>{% endfor %}
 			<th>Gross</th>
+			{% if has_bonus %}<th>Bonus<br>(Advance)</th>{% endif %}
 			{% for c in ded_cols %}<th>{{ c }}</th>{% endfor %}
 			<th>Total</th>
 			{% if emp_cols %}{% for c in emp_cols %}<th>{{ c }}</th>{% endfor %}<th>Total</th>{% endif %}
@@ -93,6 +94,7 @@
 			<td class="num">{{ "%g"|format(r.pd) }}</td>
 			{% for c in earn_cols %}{{ n(r.earn[c]) }}{% endfor %}
 			{{ n(r.gross) }}
+			{% if has_bonus %}{{ n(r.bonus) }}{% endif %}
 			{% for c in ded_cols %}{{ n(r.ded[c]) }}{% endfor %}
 			{{ n(r.ded_total) }}
 			{% if emp_cols %}{% for c in emp_cols %}{{ n(r.emp[c]) }}{% endfor %}{{ n(r.emp_total) }}{% endif %}
@@ -107,6 +109,7 @@
 			<td colspan="4"></td>
 			{% for c in earn_cols %}{{ n(totals.earn[c]) }}{% endfor %}
 			{{ n(totals.gross) }}
+			{% if has_bonus %}{{ n(totals.bonus) }}{% endif %}
 			{% for c in ded_cols %}{{ n(totals.ded[c]) }}{% endfor %}
 			{{ n(totals.ded_total) }}
 			{% if emp_cols %}{% for c in emp_cols %}{{ n(totals.emp[c]) }}{% endfor %}{{ n(totals.emp_total) }}{% endif %}

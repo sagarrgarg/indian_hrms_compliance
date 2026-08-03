@@ -48,7 +48,8 @@
 	<span class="pill">Total Earning</span>
 	<table class="kv">
 		{% for comp, amt in earn_tot.items() %}{{ row(comp, amt) }}{% endfor %}
-		{{ row("Total Earning", total_earning, "tot") }}
+		{{ row("Total Earning (Gross Wages)", total_earning, "tot") }}
+		{% if bonus_advance %}{{ row("Add: Statutory Bonus (Advance)", bonus_advance) }}{% endif %}
 	</table>
 </div>
 
