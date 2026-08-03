@@ -228,6 +228,20 @@ def apply_property_setters():
 def get_custom_fields():
 	"""HR specific custom fields that need to be added to the masters in ERPNext"""
 	return {
+		"Salary Component": [
+			{
+				"fieldname": "exclude_from_gross_wages",
+				"fieldtype": "Check",
+				"label": _("Exclude from Gross Wages (paid as advance / bonus)"),
+				"insert_after": "do_not_include_in_total",
+				"description": _(
+					"Paid to the employee (counts in Net Pay / take-home and stays taxable), but "
+					"shown OUTSIDE 'Gross Wages' on payslips and statutory registers — e.g. the "
+					"monthly Statutory Bonus, which under the Payment of Bonus Act is an advance "
+					"against annual bonus, not wages."
+				),
+			},
+		],
 		"Company": [
 			{
 				"fieldname": "hr_and_payroll_tab",

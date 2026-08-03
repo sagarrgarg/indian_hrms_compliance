@@ -992,6 +992,46 @@ class SalarySlip(TransactionBase):
 			flt(self.total_deduction) + flt(self.get("total_loan_repayment"))
 		)
 		self.rounded_total = rounded(self.net_pay)
+		self._set_gross_wages_split()
+
+	def _get_gross_wages_excluded_components(self) -> set:
+		"""Earning components that are PAID but must be kept out of 'gross wages' —
+		e.g. the monthly Statutory Bonus, which is paid in take-home yet, under the
+		Payment of Bonus Act, is an advance against annual bonus, not wages. Marked
+		by the 'exclude_from_gross_wages' flag on Salary Component. Cached per slip.
+		Defensive: returns an empty set if the flag field isn't installed yet, so it
+		is a no-op on a site that hasn't migrated the custom field."""
+		if getattr(self, "_excl_gross_cache", None) is not None:
+			return self._excl_gross_cache
+		components = set()
+		if frappe.get_meta("Salary Component").has_field("exclude_from_gross_wages"):
+			components = set(
+				frappe.get_all(
+					"Salary Component", filters={"exclude_from_gross_wages": 1}, pluck="name"
+				)
+			)
+		self._excl_gross_cache = components
+		return components
+
+	def _set_gross_wages_split(self):
+		"""Derive the compliant presentation split WITHOUT touching the tax engine:
+		- ``bonus_advance`` = paid earnings flagged out of gross wages (Statutory
+		  Bonus advance),
+		- ``gross_wages``   = ``gross_pay`` minus that, i.e. statutory wages only.
+
+		``gross_pay`` / ``net_pay`` / the taxable base / the accrual stay intact —
+		the bonus IS paid and IS taxable — so only the *displayed* gross changes on
+		payslips and statutory registers, reconciling as
+		Gross Wages + Bonus (Advance) - Deductions = Net.
+		"""
+		excluded = self._get_gross_wages_excluded_components()
+		bonus = 0.0
+		if excluded:
+			for d in self.get("earnings"):
+				if not d.do_not_include_in_total and d.salary_component in excluded:
+					bonus += flt(d.amount, d.precision("amount"))
+		self.bonus_advance = flt(bonus)
+		self.gross_wages = flt(self.gross_pay) - flt(bonus)
 		self.base_net_pay = flt(flt(self.net_pay) * flt(self.exchange_rate), self.precision("base_net_pay"))
 		self.base_rounded_total = flt(rounded(self.base_net_pay), self.precision("base_net_pay"))
 		if self.hour_rate:
@@ -2221,6 +2261,7 @@ class SalarySlip(TransactionBase):
 		self.base_net_pay = flt(self.net_pay) * flt(self.exchange_rate)
 		self.base_rounded_total = rounded(self.base_net_pay or 0)
 		self.set_net_total_in_words()
+		self._set_gross_wages_split()
 
 	# calculate total working hours, earnings based on hourly wages and totals
 	def calculate_total_for_salary_slip_based_on_timesheet(self):

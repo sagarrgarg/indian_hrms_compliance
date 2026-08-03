@@ -59,6 +59,8 @@
   "deductions",
   "totals",
   "gross_pay",
+  "gross_wages",
+  "bonus_advance",
   "base_gross_pay",
   "gross_year_to_date",
   "base_gross_year_to_date",
@@ -345,6 +347,22 @@
    "fieldname": "gross_pay",
    "fieldtype": "Currency",
    "label": "Gross Pay",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "description": "Statutory wages only = Gross Pay minus paid-but-excluded heads (e.g. Statutory Bonus advance). Used for compliant display on payslips and statutory registers; does not affect net pay or tax.",
+   "fieldname": "gross_wages",
+   "fieldtype": "Currency",
+   "label": "Gross Wages (statutory)",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "description": "Total of paid earnings shown as advance bonus rather than wages (Statutory Bonus). Included in net pay / take-home, excluded from Gross Wages.",
+   "fieldname": "bonus_advance",
+   "fieldtype": "Currency",
+   "label": "Statutory Bonus (Advance)",
    "options": "currency",
    "read_only": 1
   },
