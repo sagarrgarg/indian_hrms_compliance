@@ -214,6 +214,12 @@ class SalarySlip(TransactionBase):
 			make_loan_repayment_entry(self)
 
 			if not frappe.flags.via_payroll_entry and not frappe.flags.in_patch:
+				# Slip submitted straight from the form (not the Payroll Entry's
+				# "Submit Salary Slip" button): the batch flow that books the accrual
+				# never ran, so book it ourselves once the run is complete — else
+				# salary expense / PF / ESI / TDS never reach the ledger.
+				self._book_accrual_if_run_complete()
+
 				email_salary_slip = cint(
 					frappe.db.get_single_value("Payroll Settings", "email_salary_slip_to_employee")
 				)
@@ -234,6 +240,53 @@ class SalarySlip(TransactionBase):
 						)
 
 		self.update_payment_status_for_gratuity_and_leave_encashment()
+
+	def _book_accrual_if_run_complete(self):
+		"""Book the payroll accrual Journal Entry when slips of a Payroll Entry are
+		submitted one-by-one from the Salary Slip form instead of through the
+		Payroll Entry's "Submit Salary Slip" button.
+
+		The accrual — the entry that actually moves salary expense, PF / ESI / TDS
+		and the net payable into the ledger — is a Payroll-Entry-level operation
+		(``make_accrual_jv_entry``). Submitting slips individually never runs it, so
+		the COA stays untouched even though every slip is submitted (the tell-tale
+		is ``Salary Slip.journal_entry`` staying empty). Here we reproduce the tail
+		of ``submit_salary_slips_for_employees``: once every *submittable* slip of
+		the parent run is submitted, book ONE accrual for the whole run — matching
+		the button flow (one JV per run, not one per slip) — and flip the run to
+		Submitted so the form offers "Make Bank Entry".
+
+		Safe to reach on every manual submit:
+		- ``salary_slips_submitted`` short-circuits once the run is booked, so it
+		  never fires twice or races the batch flow.
+		- ``get_sal_slip_list`` only returns slips that don't yet carry a
+		  ``journal_entry``, so a re-run can't double-post.
+		- A missing Salary Component account throws here (same guard the batch path
+		  enforces) and rolls the whole submit back, so the accrual can never post
+		  half-mapped — the fix that makes PF/ESI actually reach the COA also stops
+		  a slip submitting against an un-mapped component.
+		"""
+		if not self.payroll_entry:
+			# Ad-hoc slip with no parent run — no run-level accrual to book.
+			return
+		pe = frappe.get_doc("Payroll Entry", self.payroll_entry)
+		if pe.salary_slips_submitted:
+			return
+		# Hold off until the run is fully processed: every slip that CAN be
+		# submitted (net pay >= 0) is submitted. Net-negative slips can never be
+		# submitted, so they must not block the accrual for everyone else.
+		if frappe.db.count(
+			"Salary Slip",
+			{"payroll_entry": pe.name, "docstatus": 0, "net_pay": [">=", 0]},
+		):
+			return
+		slips = [
+			frappe.get_doc("Salary Slip", d.name)
+			for d in pe.get_sal_slip_list(ss_status=1, as_dict=True)
+		]
+		if slips:
+			pe.make_accrual_jv_entry(slips)
+		pe.db_set({"salary_slips_submitted": 1, "status": "Submitted", "error_message": ""})
 
 	def update_payment_status_for_gratuity_and_leave_encashment(self):
 		additional_salary_docs = frappe.db.get_all(
