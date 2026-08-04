@@ -44,6 +44,7 @@
   "column_break_geio",
   "absent_days",
   "grace_days",
+  "absence_penalty_days",
   "payment_days",
   "help_section",
   "payment_days_calculation_help",
@@ -274,6 +275,15 @@
    "fieldname": "grace_days",
    "fieldtype": "Float",
    "label": "Grace Days (from Additional Salary)",
+   "non_negative": 1,
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "description": "Extra days docked for UNNOTIFIED absence (absent with no leave application) under the company's unauthorised-absence penalty factor — the amount beyond the normal 1:1 day. Reconciles as Working Days - LWP - Absent Days - this = Payment Days.",
+   "fieldname": "absence_penalty_days",
+   "fieldtype": "Float",
+   "label": "Absence Penalty Days",
    "non_negative": 1,
    "read_only": 1
   },
