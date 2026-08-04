@@ -11,6 +11,17 @@ from indian_hrms_compliance.hr.utils import validate_active_employee
 
 
 class RetentionBonus(Document):
+	def before_insert(self):
+		# Deprecated: Retention Bonus is now a grant_type on Additional Salary,
+		# which carries the approval flow. Block new ones; existing stay viewable.
+		frappe.throw(
+			_(
+				"Retention Bonus is now part of Additional Salary. Create an "
+				"Additional Salary with Grant Type = Retention Bonus instead."
+			),
+			title=_("Use Additional Salary"),
+		)
+
 	def validate(self):
 		validate_active_employee(self.employee)
 		if getdate(self.bonus_payment_date) < getdate():
