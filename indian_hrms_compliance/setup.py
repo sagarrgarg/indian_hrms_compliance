@@ -270,6 +270,20 @@ def get_custom_fields():
 				),
 			},
 			{
+				"fieldname": "unauthorised_absence_penalty_factor",
+				"fieldtype": "Float",
+				"label": _("Unauthorised Absence Penalty Factor"),
+				"default": "1",
+				"non_negative": 1,
+				"insert_after": "governance_profile",
+				"description": _(
+					"Payroll multiplier for UNNOTIFIED absence — a day marked (or unmarked-as) "
+					"Absent with NO leave application. 1 = dock 1:1 (default / off). e.g. 1.5 docks "
+					"1.5 days per unnotified absent day; the extra shows on the slip as 'Absence "
+					"Penalty Days'. A filed unpaid leave (LWP) is unaffected — it stays 1:1."
+				),
+			},
+			{
 				"depends_on": "eval:!doc.__islocal",
 				"fieldname": "default_expense_claim_payable_account",
 				"fieldtype": "Link",

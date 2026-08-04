@@ -572,11 +572,18 @@ class SalarySlip(TransactionBase):
 
 		payment_days = self.get_payment_days(payroll_settings.include_holidays_in_total_working_days)
 
+		# Day-equivalents of UNNOTIFIED absence (marked Absent / unmarked-as-Absent /
+		# half-day Absent) — i.e. an absence with NO leave application. These carry
+		# the per-company unauthorised-absence penalty; LWP (a filed unpaid leave)
+		# is deliberately excluded and stays 1:1.
+		self.absence_penalty_days = 0.0
+		unnotified_absent = 0.0
 		if flt(payment_days) > flt(lwp):
 			self.payment_days = flt(payment_days) - flt(lwp)
 
 			if payroll_settings.payroll_based_on == "Attendance":
 				self.payment_days -= flt(absent)
+				unnotified_absent += flt(absent)
 
 			consider_unmarked_attendance_as = payroll_settings.consider_unmarked_attendance_as or "Present"
 
@@ -587,12 +594,23 @@ class SalarySlip(TransactionBase):
 					)
 					self.absent_days += unmarked_days  # will be treated as absent
 					self.payment_days -= unmarked_days
+					unnotified_absent += flt(unmarked_days)
 				half_absent_days = self.get_half_absent_days(
 					consider_marked_attendance_on_holidays,
 					holidays,
 				)
 				self.absent_days += half_absent_days * daily_wages_fraction_for_half_day
 				self.payment_days -= half_absent_days * daily_wages_fraction_for_half_day
+				unnotified_absent += flt(half_absent_days) * daily_wages_fraction_for_half_day
+
+			# Unauthorised-absence penalty: dock unnotified absence at the company's
+			# factor (>1) instead of 1:1. The extra beyond the day itself is
+			# (factor - 1) per unnotified day, shown separately as absence_penalty_days
+			# so the slip still reconciles (Working - LWP - Absent - Penalty = Payment).
+			penalty_factor = self._get_unauthorised_absence_factor()
+			if penalty_factor > 1 and unnotified_absent:
+				self.absence_penalty_days = flt(unnotified_absent) * (penalty_factor - 1.0)
+				self.payment_days = max(flt(self.payment_days) - flt(self.absence_penalty_days), 0.0)
 		else:
 			self.payment_days = 0
 
@@ -620,6 +638,20 @@ class SalarySlip(TransactionBase):
 		self.grace_days = self._get_granted_grace_days()
 		if flt(self.grace_days) > 0:
 			self.payment_days = flt(self.payment_days) + flt(self.grace_days)
+
+	def _get_unauthorised_absence_factor(self) -> float:
+		"""Per-company multiplier for UNNOTIFIED absence (marked/unmarked Absent with
+		no leave application). 1.0 (default / unset) = no penalty, docked 1:1; e.g.
+		1.5 docks 1.5 days per unnotified absent day. Defensive: 1.0 if the company
+		or the field is missing."""
+		if not self.company or not frappe.get_meta("Company").has_field(
+			"unauthorised_absence_penalty_factor"
+		):
+			return 1.0
+		return (
+			flt(frappe.db.get_value("Company", self.company, "unauthorised_absence_penalty_factor"))
+			or 1.0
+		)
 
 	def _get_granted_grace_days(self) -> float:
 		"""Total Grace Days granted to this employee for the period via Additional
