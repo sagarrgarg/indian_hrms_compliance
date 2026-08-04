@@ -614,19 +614,6 @@ class SalarySlip(TransactionBase):
 		else:
 			self.payment_days = 0
 
-		# Holiday / weekly-off actually worked. With holidays kept OUT of the
-		# working-day divisor (include_holidays_in_total_working_days off), a
-		# Sunday the employee actually turns up for is counted nowhere above —
-		# not in total_working_days, and not by the absent/LWP pass (which
-		# ignores holiday-dated attendance while that setting is off). Company
-		# rule: pay it as one extra normal day, so add it back here. Since the
-		# divisor stays at the working-day count, +1 payment day pays exactly one
-		# extra day's wages (e.g. 28/27 of the monthly amount).
-		if payroll_settings.payroll_based_on == "Attendance" and not cint(
-			payroll_settings.include_holidays_in_total_working_days
-		):
-			self.payment_days = flt(self.payment_days) + self._get_holidays_worked_days(holidays)
-
 		# Company grace / full-day increment: extra paid days granted via Additional
 		# Salary (Grace Days) for this employee this period, added on top of the
 		# computed payment days. total_working_days is left untouched, so each grace
@@ -695,34 +682,6 @@ class SalarySlip(TransactionBase):
 			.run(as_dict=True)
 		)
 		return sum(flt(r.grace_days) for r in rows)
-
-	def _get_holidays_worked_days(self, holidays: list) -> float:
-		"""Full days the employee actually worked on a holiday / weekly-off (Sunday)
-		in the period — a Present or Work From Home marked on a holiday date. Lets
-		holiday working be paid as extra days when holidays are excluded from the
-		working-day divisor. Returns 0 when there are no holidays or no such
-		attendance, so it's a no-op for anyone who didn't work a holiday.
-
-		A worked Half Day on a holiday is deliberately not credited here, to avoid
-		mistaking a half-day leave for half a day worked — revisit if that case
-		turns out to be real.
-		"""
-		if not holidays:
-			return 0.0
-
-		attendance = frappe.qb.DocType("Attendance")
-		rows = (
-			frappe.qb.from_(attendance)
-			.select(attendance.attendance_date)
-			.where(
-				(attendance.employee == self.employee)
-				& (attendance.docstatus == 1)
-				& (attendance.status.isin(["Present", "Work From Home"]))
-				& (attendance.attendance_date.between(self.actual_start_date, self.actual_end_date))
-			)
-		).run(as_dict=1)
-
-		return float(sum(1 for row in rows if getdate(row.attendance_date) in holidays))
 
 	def get_unmarked_days(
 		self, include_holidays_in_total_working_days: bool, holidays: list | None = None
