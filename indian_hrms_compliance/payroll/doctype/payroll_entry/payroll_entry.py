@@ -34,7 +34,7 @@ from indian_hrms_compliance.payroll.doctype.salary_withholding.salary_withholdin
 
 class PayrollEntry(Document):
 	def autoname(self):
-		"""Name as PE-{company abbr}-{FY}-#### (e.g. PE-GGIL-2026-2027-0001).
+		"""Name as PE-{company abbr}-{FY}-#### (e.g. PE-GGIL-27-0001; FY = 2-digit end year).
 
 		Frappe naming can't derive a company's abbreviation from the company field,
 		so build the key here with the abbr, then let make_autoname resolve the
