@@ -200,6 +200,11 @@ has_upload_permission = {"Employee": "erpnext.setup.doctype.employee.employee.ha
 
 # DocType Class
 # ---------------
+# Custom naming-series tokens — adds .FY. (fiscal year) support to naming series.
+naming_series_variables = {
+	"FY": "indian_hrms_compliance.utils.naming.get_fiscal_year",
+}
+
 # Override standard doctype classes
 
 override_doctype_class = {

@@ -103,3 +103,4 @@ indian_hrms_compliance.patches.v15_0.fix_attendance_request_status_from_docstatu
 indian_hrms_compliance.patches.v15_0.backfill_hrms_task_risk_tier #2026-07-30
 indian_hrms_compliance.patches.v15_0.seed_org_integrity_defaults #2026-07-30
 indian_hrms_compliance.patches.v15_0.exclude_statutory_bonus_from_gross_wages #2026-08-03
+indian_hrms_compliance.patches.v15_0.set_neat_naming_series #2026-08-04

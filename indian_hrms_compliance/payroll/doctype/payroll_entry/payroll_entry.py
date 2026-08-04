@@ -33,6 +33,23 @@ from indian_hrms_compliance.payroll.doctype.salary_withholding.salary_withholdin
 
 
 class PayrollEntry(Document):
+	def autoname(self):
+		"""Name as PE-{company abbr}-{FY}-#### (e.g. PE-GGIL-2026-2027-0001).
+
+		Frappe naming can't derive a company's abbreviation from the company field,
+		so build the key here with the abbr, then let make_autoname resolve the
+		.FY. token (via the naming hook) and the per-(company, FY) counter. A
+		custom autoname Property Setter, if present, wins — this is the default.
+		"""
+		if frappe.db.exists("Property Setter", {"doc_type": "Payroll Entry", "property": "autoname"}):
+			return
+		from frappe.model.naming import make_autoname
+
+		abbr = (frappe.get_cached_value("Company", self.company, "abbr") if self.company else None) or (
+			self.company or ""
+		)
+		self.name = make_autoname(f"PE-{abbr}-.FY.-.####.", doc=self)
+
 	def onload(self):
 		if not self.docstatus == 1 or self.salary_slips_submitted:
 			return
