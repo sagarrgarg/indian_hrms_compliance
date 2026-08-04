@@ -6,8 +6,8 @@
 Relies on the .FY. naming token registered via the naming_series_variables hook.
 Payroll Entry naming (PE-{abbr}-{FY}-####) is handled in its controller autoname.
 
-  - Salary Slip  -> SS-{emp code}-{FY}-##   (e.g. SS-GGIL-003-2026-2027-01)
-  - Journal Entry-> JV{FY}-####  system-wide (e.g. JV2026-2027-0001)
+  - Salary Slip  -> SS-{emp code}-{FY}-##   (e.g. SS-GGIL-003-27-01)
+  - Journal Entry-> JV{FY}-####  system-wide (e.g. JV27-0001)
 
 Existing documents keep their names; only new ones use the new series. Runs
 once; safe to re-run (make_property_setter upserts).
