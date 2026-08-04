@@ -2309,6 +2309,77 @@ def get_my_team():
 
 
 @frappe.whitelist()
+def get_grant_form_options() -> dict:
+	"""Options for the PWA 'request a grant' form: who the current user may grant
+	to (all active employees if HR, else their direct reports) and the available
+	earning components."""
+	me = get_current_employee()
+	user = frappe.session.user
+	if _is_hr_user(user):
+		emp_filters = {"status": "Active"}
+		scope = _hr_company_scope(user)
+		if scope is not None:
+			emp_filters["company"] = ("in", scope)
+		employees = frappe.get_all(
+			"Employee", filters=emp_filters, fields=["name", "employee_name", "company"],
+			order_by="employee_name asc",
+		)
+	else:
+		employees = frappe.get_all(
+			"Employee", filters={"reports_to": me, "status": "Active"},
+			fields=["name", "employee_name", "company"], order_by="employee_name asc",
+		)
+	components = frappe.get_all(
+		"Salary Component", filters={"type": "Earning", "disabled": 0}, pluck="name", order_by="name asc"
+	)
+	return {
+		"employees": employees,
+		"components": components,
+		"grant_types": ["Additional Salary", "Incentive", "Retention Bonus"],
+	}
+
+
+@frappe.whitelist()
+def request_additional_salary(
+	employee, grant_type="Incentive", salary_component=None, amount=0, grace_days=0, payroll_date=None
+) -> dict:
+	"""PWA: raise an ad-hoc pay grant (Incentive / Retention Bonus / Additional
+	Salary, or grace days) for an employee and send it for approval. HR may grant
+	to anyone in scope; a manager only to their active direct reports."""
+	requester = get_current_employee()
+	if not requester:
+		frappe.throw(_("You have no active employee record."), frappe.PermissionError)
+
+	if not _is_hr_user(frappe.session.user) and not frappe.db.exists(
+		"Employee", {"name": employee, "reports_to": requester, "status": "Active"}
+	):
+		frappe.throw(
+			_("You can only request a grant for your active direct reports."), frappe.PermissionError
+		)
+
+	company = frappe.db.get_value("Employee", employee, "company")
+	doc = frappe.new_doc("Additional Salary")
+	doc.employee = employee
+	doc.grant_type = grant_type or "Additional Salary"
+	doc.company = company
+	doc.currency = frappe.db.get_value("Company", company, "default_currency")
+	doc.payroll_date = payroll_date or frappe.utils.nowdate()
+	if flt(grace_days) > 0 and not salary_component:
+		doc.grace_days = flt(grace_days)
+	else:
+		doc.salary_component = salary_component
+		doc.amount = flt(amount)
+	doc.insert()
+
+	from indian_hrms_compliance.payroll.doctype.additional_salary.additional_salary import (
+		submit_for_approval,
+	)
+
+	res = submit_for_approval(doc.name)
+	return {"name": doc.name, "approval_status": res.get("approval_status")}
+
+
+@frappe.whitelist()
 def create_team_task(employee, title, due_date=None, description=None):
 	"""A reporting manager (or HR) assigns a one-off task directly as a Goal
 	(Task Instance) to a team member — one-off work lives as a Goal, not a
@@ -3976,6 +4047,59 @@ def _pending_grievance_approvals(user: str) -> list[dict]:
 	return out
 
 
+def _pending_additional_salary_approvals(user: str) -> list[dict]:
+	"""Additional Salary grants awaiting approval. The HR pool sees grants with no
+	named approver (scoped to their company); a named approver — the beneficiary's
+	reporting manager, when the beneficiary is HR — sees theirs."""
+	is_hr = _is_hr_user(user)
+	scope = _hr_company_scope(user) if is_hr else None
+	rows = frappe.get_all(
+		"Additional Salary",
+		filters={"approval_status": "Pending Approval", "docstatus": 0},
+		fields=[
+			"name",
+			"employee",
+			"employee_name",
+			"grant_type",
+			"salary_component",
+			"amount",
+			"grace_days",
+			"payroll_date",
+			"approver",
+			"company",
+		],
+		order_by="modified desc",
+	)
+	out = []
+	for r in rows:
+		if r.approver:
+			if r.approver != user:
+				continue
+		else:
+			# HR pool — must be HR and (when scoped) in the HR user's company.
+			if not is_hr or (scope is not None and r.company not in scope):
+				continue
+
+		if flt(r.grace_days) > 0 and not r.salary_component:
+			detail = _("{0} grace day(s)").format(flt(r.grace_days))
+		else:
+			detail = _("{0}: {1}").format(r.salary_component or _("Amount"), flt(r.amount))
+		out.append(
+			{
+				"doctype": "Additional Salary",
+				"name": r.name,
+				"category": "Compensation",
+				"title": _("{0} — {1}").format(r.grant_type or _("Grant"), detail),
+				"subtitle": detail,
+				"employee": r.employee,
+				"employee_name": r.employee_name,
+				"date": str(r.payroll_date) if r.payroll_date else None,
+				"action_type": "status",
+			}
+		)
+	return out
+
+
 _APPROVAL_PROVIDERS = (
 	_pending_leave_approvals,
 	_pending_expense_approvals,
@@ -3987,6 +4111,7 @@ _APPROVAL_PROVIDERS = (
 	_pending_profile_change_approvals,
 	_pending_onboarding_approvals,
 	_pending_grievance_approvals,
+	_pending_additional_salary_approvals,
 )
 
 
@@ -4201,8 +4326,27 @@ def _validate_approver(doc) -> None:
 		_assert_hr_role("onboarding application")
 	elif dt == "Employee Grievance":
 		_assert_hr_role("grievance")
+	elif dt == "Additional Salary":
+		_assert_additional_salary_approver(doc)
 	else:
 		frappe.throw(_("Unsupported approval document type: {0}").format(dt))
+
+
+def _assert_additional_salary_approver(doc) -> None:
+	"""Only the resolved approver may decide a grant: the named approver (the
+	beneficiary's manager, when the beneficiary is HR) or, when unset, any HR
+	user. System Manager always allowed."""
+	user = frappe.session.user
+	roles = set(frappe.get_roles(user))
+	if "System Manager" in roles:
+		return
+	if doc.get("approver"):
+		if user != doc.approver:
+			frappe.throw(
+				_("Only {0} can decide this grant.").format(doc.approver), frappe.PermissionError
+			)
+	elif not (roles & {"HR Manager", "HR User"}):
+		frappe.throw(_("Only HR can decide this grant."), frappe.PermissionError)
 
 
 def _add_comment_if_any(doc, comment: str | None) -> None:
@@ -4645,6 +4789,7 @@ _APPROVAL_DOCTYPES = (
 	"Employee Profile Change Request",
 	"Employee Onboarding Application",
 	"Employee Grievance",
+	"Additional Salary",
 )
 
 # Inbox doctypes whose own controllers already raise a PWA Notification to the
@@ -4829,6 +4974,14 @@ def approve_request(doctype: str, name: str, comment: str | None = None) -> dict
 		# No approval status — approval = submission of the request.
 		if doc.docstatus == 0:
 			doc.submit()
+	elif doctype == "Additional Salary":
+		# Approval stamps the decider and submits, so the grant feeds payroll.
+		doc.approval_status = "Approved"
+		doc.approved_by = frappe.session.user
+		doc.approved_on = now_datetime()
+		doc.save(ignore_permissions=True)
+		if doc.docstatus == 0:
+			doc.submit()
 	elif doctype == "Goal":
 		# Approve the task-instance completion. Stamping WHO approved and WHEN is
 		# the whole point of an approval control — without it the record proves
@@ -5009,6 +5162,14 @@ def reject_request(doctype: str, name: str, comment: str | None = None) -> dict:
 		# No reject status — cancel the draft request.
 		if doc.docstatus == 0:
 			doc.delete(ignore_permissions=True)
+	elif doctype == "Additional Salary":
+		# Keep the record (docstatus 0) so the requester sees it was rejected,
+		# with the reason. It never feeds payroll (payroll needs Approved).
+		doc.approval_status = "Rejected"
+		doc.approved_by = frappe.session.user
+		doc.approved_on = now_datetime()
+		doc.rejection_reason = strip_html(comment).strip()
+		doc.save(ignore_permissions=True)
 	elif doctype == "Goal":
 		# Bounce the completion back to the employee to redo.
 		#

@@ -11,6 +11,11 @@
 					</span>
 				</div>
 
+				<Button variant="subtle" @click="router.push({ name: 'GrantRequestForm' })">
+					<template #prefix><FeatherIcon name="plus" class="h-4 w-4" /></template>
+					{{ __("Request a Grant (Incentive / Bonus)") }}
+				</Button>
+
 				<ion-segment v-model="activeTab" mode="md" scrollable>
 					<ion-segment-button value="All">
 						<ion-label>{{ __("All") }}</ion-label>
@@ -44,6 +49,8 @@
 <script setup>
 import { ref, computed, inject, onMounted, onBeforeUnmount } from "vue"
 import { IonSegment, IonSegmentButton, IonLabel } from "@ionic/vue"
+import { Button, FeatherIcon } from "frappe-ui"
+import { useRouter } from "vue-router"
 
 import BaseLayout from "@/components/BaseLayout.vue"
 import EmptyState from "@/components/EmptyState.vue"
@@ -53,6 +60,7 @@ import { pendingApprovals, approvalsSummary } from "@/data/approvals"
 
 const socket = inject("$socket")
 
+const router = useRouter()
 const activeTab = ref("All")
 
 const categories = [
@@ -66,6 +74,7 @@ const categories = [
 	"Profile Update",
 	"Onboarding",
 	"Grievance",
+	"Compensation",
 ]
 
 // The 9 doctypes that can drop a row into the inbox. We subscribe to all so
@@ -83,6 +92,7 @@ const INBOX_DOCTYPES = [
 	"Employee Profile Change Request",
 	"Employee Onboarding Application",
 	"Employee Grievance",
+	"Additional Salary",
 ]
 
 const filteredItems = computed(() => {

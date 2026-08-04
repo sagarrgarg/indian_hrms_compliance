@@ -347,7 +347,37 @@ def submit_for_approval(name):
 	doc.approval_status = "Pending Approval"
 	doc.rejection_reason = None
 	doc.save()
+	_notify_grant_approver(doc)
 	return {"approval_status": doc.approval_status, "approver": doc.approver}
+
+
+def _notify_grant_approver(doc):
+	"""Tell the named approver (SoD manager) a grant awaits them, or nudge the HR
+	pool's inbox to refresh. Best-effort — never blocks the request."""
+	try:
+		if doc.approver and doc.approver != frappe.session.user:
+			from frappe import bold
+
+			frappe.get_doc(
+				{
+					"doctype": "PWA Notification",
+					"from_user": frappe.session.user,
+					"to_user": doc.approver,
+					"message": _("{0} — a {1} awaits your approval: {2}").format(
+						bold(doc.employee_name or doc.employee), doc.grant_type or _("grant"), doc.name
+					),
+					"reference_document_type": "Additional Salary",
+					"reference_document_name": doc.name,
+				}
+			).insert(ignore_permissions=True)
+		elif not doc.approver:
+			from indian_hrms_compliance.api import _broadcast_hr_inbox_refresh
+
+			_broadcast_hr_inbox_refresh()
+	except Exception:
+		frappe.log_error(
+			title="Additional Salary approval notification failed", message=frappe.get_traceback()
+		)
 
 
 @frappe.whitelist()
