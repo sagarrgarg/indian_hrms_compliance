@@ -669,6 +669,7 @@ class SalarySlip(TransactionBase):
 			.where(
 				(add_sal.employee == self.employee)
 				& (add_sal.docstatus == 1)
+				& (add_sal.approval_status == "Approved")
 				& (add_sal.disabled == 0)
 				& (add_sal.grace_days > 0)
 			)

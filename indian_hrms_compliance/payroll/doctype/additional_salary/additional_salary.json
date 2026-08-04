@@ -10,6 +10,7 @@
   "naming_series",
   "employee",
   "employee_name",
+  "grant_type",
   "department",
   "column_break_5",
   "company",
@@ -28,6 +29,13 @@
   "column_break_8",
   "deduct_full_tax_on_selected_payroll_date",
   "overwrite_salary_structure_amount",
+  "approval_section",
+  "approval_status",
+  "approver",
+  "approval_col",
+  "approved_by",
+  "approved_on",
+  "rejection_reason",
   "properties_and_references_section",
   "ref_doctype",
   "ref_docname"
@@ -68,7 +76,7 @@
   },
   {
    "default": "0",
-   "description": "Full paid days to add for this employee this period as a company grace / increment — scales EVERY payment-days component (Basic, HRA, allowances, and the PF/ESI computed on them). Leave Salary Component and Amount blank for a days-only grant.",
+   "description": "Full paid days to add for this employee this period as a company grace / increment \u2014 scales EVERY payment-days component (Basic, HRA, allowances, and the PF/ESI computed on them). Leave Salary Component and Amount blank for a days-only grant.",
    "fieldname": "grace_days",
    "fieldtype": "Float",
    "label": "Grace Days (full-day increment)",
@@ -206,11 +214,68 @@
    "fieldtype": "Check",
    "label": "Disabled",
    "no_copy": 1
+  },
+  {
+   "fieldname": "grant_type",
+   "fieldtype": "Select",
+   "label": "Grant Type",
+   "options": "Additional Salary\nIncentive\nRetention Bonus",
+   "default": "Additional Salary",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "description": "What this ad-hoc pay is. Incentive and Retention Bonus were separate doctypes, now unified here."
+  },
+  {
+   "fieldname": "approval_section",
+   "fieldtype": "Section Break",
+   "label": "Approval"
+  },
+  {
+   "fieldname": "approval_status",
+   "fieldtype": "Select",
+   "label": "Approval Status",
+   "options": "Draft\nPending Approval\nApproved\nRejected",
+   "default": "Draft",
+   "read_only": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "description": "A grant only takes effect (feeds payroll) once Approved."
+  },
+  {
+   "fieldname": "approver",
+   "fieldtype": "Link",
+   "options": "User",
+   "label": "Approver",
+   "read_only": 1,
+   "description": "Resolved on submit-for-approval: HR, or (if the beneficiary is HR) the beneficiary's reporting manager."
+  },
+  {
+   "fieldname": "approval_col",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "approved_by",
+   "fieldtype": "Link",
+   "options": "User",
+   "label": "Decided By",
+   "read_only": 1
+  },
+  {
+   "fieldname": "approved_on",
+   "fieldtype": "Datetime",
+   "label": "Decided On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "rejection_reason",
+   "fieldtype": "Small Text",
+   "label": "Rejection Reason",
+   "read_only": 1
   }
  ],
  "is_submittable": 1,
  "links": [],
- "modified": "2026-08-03 13:00:00.000000",
+ "modified": "2026-08-04 14:00:00.000000",
  "modified_by": "Administrator",
  "module": "Payroll",
  "name": "Additional Salary",

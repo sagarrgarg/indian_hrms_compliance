@@ -5,7 +5,7 @@
 import frappe
 from frappe import _, bold
 from frappe.model.document import Document
-from frappe.utils import comma_and, date_diff, flt, formatdate, get_link_to_form, getdate
+from frappe.utils import comma_and, date_diff, flt, formatdate, get_link_to_form, getdate, now_datetime
 
 from indian_hrms_compliance.hr.utils import validate_active_employee
 
@@ -23,8 +23,50 @@ class AdditionalSalary(Document):
 		self.update_return_amount_in_employee_advance()
 		self.update_employee_referral(cancel=True)
 
+	def before_submit(self):
+		# Approval gate: a manually-created grant only submits (→ feeds payroll)
+		# once Approved. Grants created by another system document (Employee Advance
+		# return, the legacy Incentive / Retention Bonus wrappers) are controlled by
+		# that parent and are auto-approved, so they pass.
+		if self.get("approval_status") != "Approved":
+			frappe.throw(
+				_("This {0} must be Approved before it can take effect.").format(
+					self.get("grant_type") or _("grant")
+				),
+				title=_("Approval Required"),
+			)
+
+	def _is_approval_exempt(self) -> bool:
+		"""Grants created by another system document (they carry ref_doctype) or a
+		controlled backfill skip the manual approval gate — the parent is the
+		control."""
+		return bool(self.get("ref_doctype")) or bool(
+			frappe.flags.get("ignore_additional_salary_approval")
+		)
+
+	def _set_default_approval_status(self):
+		"""Exempt grants are born Approved; user-created grants start Draft and must
+		be sent for approval. Never downgrades a Pending/Approved/Rejected status."""
+		if not self.get("approval_status") or self.approval_status == "Draft":
+			self.approval_status = "Approved" if self._is_approval_exempt() else "Draft"
+
+	def _is_hr_employee(self) -> bool:
+		"""True if the beneficiary's user holds an HR role — used to route their own
+		grant to their reporting manager instead of HR (no self-approval)."""
+		user = frappe.db.get_value("Employee", self.employee, "user_id") if self.employee else None
+		return bool(user and (set(frappe.get_roles(user)) & {"HR Manager", "HR User"}))
+
+	def resolve_approver(self) -> str | None:
+		"""Who must approve. HR by default; but if the BENEFICIARY is HR, route to
+		their reporting manager (segregation of duties). None = the HR pool."""
+		if self._is_hr_employee():
+			mgr = frappe.db.get_value("Employee", self.employee, "reports_to")
+			return frappe.db.get_value("Employee", mgr, "user_id") if mgr else None
+		return None
+
 	def validate(self):
 		validate_active_employee(self.employee)
+		self._set_default_approval_status()
 		self.validate_grant_mode()
 		self.validate_dates()
 
@@ -279,6 +321,67 @@ class AdditionalSalary(Document):
 			self.validate_recurring_additional_salary_overlap()
 
 
+def _check_can_decide(doc):
+	"""Only the resolved approver may decide: the named approver (beneficiary's
+	manager, when the beneficiary is HR) or, when no single approver, any HR user.
+	System Manager always allowed."""
+	user = frappe.session.user
+	roles = set(frappe.get_roles(user))
+	if "System Manager" in roles:
+		return
+	if doc.approver:
+		if user != doc.approver:
+			frappe.throw(_("Only {0} can decide this grant.").format(doc.approver), frappe.PermissionError)
+	elif not (roles & {"HR Manager", "HR User"}):
+		frappe.throw(_("Only HR can decide this grant."), frappe.PermissionError)
+
+
+@frappe.whitelist()
+def submit_for_approval(name):
+	"""Send a draft grant for approval — resolves the approver (HR, or the
+	beneficiary's manager when the beneficiary is HR) and marks it Pending."""
+	doc = frappe.get_doc("Additional Salary", name)
+	if doc.docstatus != 0 or doc.approval_status not in ("Draft", "Rejected"):
+		frappe.throw(_("Only a draft grant can be sent for approval."))
+	doc.approver = doc.resolve_approver()
+	doc.approval_status = "Pending Approval"
+	doc.rejection_reason = None
+	doc.save()
+	return {"approval_status": doc.approval_status, "approver": doc.approver}
+
+
+@frappe.whitelist()
+def approve_additional_salary(name, comment=None):
+	"""Approve a pending grant — stamps the decider and submits it, so it feeds
+	payroll for its period."""
+	doc = frappe.get_doc("Additional Salary", name)
+	_check_can_decide(doc)
+	if doc.approval_status != "Pending Approval":
+		frappe.throw(_("This grant is not awaiting approval."))
+	doc.approval_status = "Approved"
+	doc.approved_by = frappe.session.user
+	doc.approved_on = now_datetime()
+	doc.save()
+	doc.submit()
+	return {"approval_status": doc.approval_status}
+
+
+@frappe.whitelist()
+def reject_additional_salary(name, reason=None):
+	"""Reject a pending grant with a reason — it stays a draft and never feeds
+	payroll."""
+	doc = frappe.get_doc("Additional Salary", name)
+	_check_can_decide(doc)
+	if doc.approval_status != "Pending Approval":
+		frappe.throw(_("This grant is not awaiting approval."))
+	doc.approval_status = "Rejected"
+	doc.approved_by = frappe.session.user
+	doc.approved_on = now_datetime()
+	doc.rejection_reason = reason
+	doc.save()
+	return {"approval_status": doc.approval_status}
+
+
 def get_additional_salaries(employee, start_date, end_date, component_type):
 	from frappe.query_builder import Criterion
 
@@ -302,6 +405,7 @@ def get_additional_salaries(employee, start_date, end_date, component_type):
 		.where(
 			(additional_sal.employee == employee)
 			& (additional_sal.docstatus == 1)
+			& (additional_sal.approval_status == "Approved")
 			& (additional_sal.type == comp_type)
 			& (additional_sal.disabled == 0)
 		)
