@@ -1378,7 +1378,7 @@ class SalarySlip(TransactionBase):
 		):
 			return
 
-		amount = self.eval_condition_and_formula(struct_row, self.data)
+		amount = self.eval_condition_and_formula(struct_row, self.data, condition_data=self.default_data)
 		if struct_row.statistical_component:
 			# update statitical component amount in reference data based on payment days
 			# since row for statistical component is not added to salary slip
@@ -1493,10 +1493,18 @@ class SalarySlip(TransactionBase):
 
 		return frappe.cache().get_value(SALARY_COMPONENT_VALUES, generator=_fetch_component_values)
 
-	def eval_condition_and_formula(self, struct_row, data):
+	def eval_condition_and_formula(self, struct_row, data, condition_data=None):
+		# Eligibility CONDITIONS are judged against the monthly (unprorated)
+		# component values (`condition_data`), so a threshold like PF's "monthly
+		# basic <= 15000" is tested on the wage RATE, not a prorated mid-month
+		# amount — otherwise a late-month joiner's basic (a few days' worth) trips
+		# the check and gets PF he isn't due. The FORMULA (the actual amount)
+		# stays on `data`, which prorates exactly as before. Callers that don't
+		# pass condition_data keep the old behaviour (condition == formula data).
+		condition_data = condition_data if condition_data is not None else data
 		try:
 			condition, formula, amount = struct_row.condition, struct_row.formula, struct_row.amount
-			if condition and not _safe_eval(condition, self.whitelisted_globals, data):
+			if condition and not _safe_eval(condition, self.whitelisted_globals, condition_data):
 				return None
 			if struct_row.amount_based_on_formula and formula:
 				amount = flt(
