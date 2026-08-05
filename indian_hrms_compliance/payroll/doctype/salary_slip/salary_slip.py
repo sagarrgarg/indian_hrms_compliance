@@ -197,6 +197,11 @@ class SalarySlip(TransactionBase):
 			self.set_status()
 			self.update_status(self.name)
 
+			# Recovery of an Employee Advance is only real once payroll posts it (not when
+			# the Additional Salary is created). v16 handles this natively: the accrual JE
+			# references the Employee Advance and its return_amount is recomputed from the
+			# Advance Payment Ledger, so the v15 _update_recovered_advances hook is not ported.
+
 			make_loan_repayment_entry(self)
 
 			if not frappe.flags.via_payroll_entry and not frappe.flags.in_patch:

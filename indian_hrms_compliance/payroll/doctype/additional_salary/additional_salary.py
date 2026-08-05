@@ -28,6 +28,10 @@ class AdditionalSalary(Document):
 			self.to_date = None
 
 	def on_submit(self):
+		# NOTE: an advance-recovery deduction does NOT touch the Employee Advance
+		# here — recovery is only real once the salary that carries it is posted.
+		# (v16: Employee Advance.return_amount is recomputed from the Advance Payment
+		# Ledger when the payroll accrual JE posts the deduction against the advance.)
 		self.update_employee_referral()
 
 	def on_cancel(self):
