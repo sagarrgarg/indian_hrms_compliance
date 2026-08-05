@@ -393,7 +393,7 @@ frappe.ui.form.on("Payroll Entry", {
 const submit_salary_slip = function (frm) {
 	frappe.confirm(
 		__(
-			"This will submit Salary Slips and create accrual Journal Entry. Do you want to proceed?",
+			"This will submit the Salary Slips and post their ledger entries. Do you want to proceed?",
 		),
 		function () {
 			frappe.call({
@@ -401,7 +401,7 @@ const submit_salary_slip = function (frm) {
 				args: {},
 				doc: frm.doc,
 				freeze: true,
-				freeze_message: __("Submitting Salary Slips and creating Journal Entry..."),
+				freeze_message: __("Submitting Salary Slips and posting ledger entries..."),
 			});
 		},
 		function () {

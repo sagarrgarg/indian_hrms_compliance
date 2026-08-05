@@ -29,9 +29,11 @@ from frappe.utils import (
 from frappe.utils.background_jobs import enqueue
 
 import erpnext
+from erpnext.accounts.general_ledger import make_gl_entries
 from erpnext.accounts.utils import get_fiscal_year
+from erpnext.controllers.accounts_controller import AccountsController
 from erpnext.setup.doctype.employee.employee import get_holiday_list_for_employee
-from erpnext.utilities.transaction_base import TransactionBase
+from erpnext.utilities.transaction_base import TransactionBase  # noqa: F401 (kept for back-compat)
 
 from indian_hrms_compliance.hr.utils import validate_active_employee
 from indian_hrms_compliance.payroll.doctype.additional_salary.additional_salary import get_additional_salaries
@@ -63,7 +65,20 @@ SALARY_COMPONENT_VALUES = "salary_component_values"
 TAX_COMPONENTS_BY_COMPANY = "tax_components_by_company"
 
 
-class SalarySlip(TransactionBase):
+class SalarySlip(AccountsController):
+	def before_submit(self):
+		# Submission is locked to the Payroll Entry: a slip that belongs to a run
+		# can only be submitted through it (the batch sets frappe.flags.via_payroll_entry).
+		# A truly standalone/ad-hoc slip (no payroll_entry) may still self-submit.
+		if (
+			self.get("payroll_entry")
+			and not frappe.flags.get("via_payroll_entry")
+			and not frappe.flags.get("in_patch")
+		):
+			frappe.throw(
+				_("Submit this run from its Payroll Entry — individual slips can't be submitted directly."),
+				title=_("Submit via Payroll Entry"),
+			)
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
 		self.default_series = f"Sal Slip/{self.employee}/.#####"
@@ -218,13 +233,14 @@ class SalarySlip(TransactionBase):
 
 			make_loan_repayment_entry(self)
 
-			if not frappe.flags.via_payroll_entry and not frappe.flags.in_patch:
-				# Slip submitted straight from the form (not the Payroll Entry's
-				# "Submit Salary Slip" button): the batch flow that books the accrual
-				# never ran, so book it ourselves once the run is complete — else
-				# salary expense / PF / ESI / TDS never reach the ledger.
-				self._book_accrual_if_run_complete()
+			# Post this slip's own GL directly on submit — Dr salary expense,
+			# Cr statutory payables / Employee Advances, Cr Payroll Payable (net),
+			# plus employer provisions. No separate accrual Journal Entry.
+			self.create_gl_entries()
 
+			if not frappe.flags.via_payroll_entry and not frappe.flags.in_patch:
+				# Ad-hoc slips (not submitted through the Payroll Entry batch) email
+				# themselves; the batch path emails via payroll_entry.email_salary_slip.
 				email_salary_slip = cint(
 					frappe.db.get_single_value("Payroll Settings", "email_salary_slip_to_employee")
 				)
@@ -246,52 +262,182 @@ class SalarySlip(TransactionBase):
 
 		self.update_payment_status_for_gratuity_and_leave_encashment()
 
-	def _book_accrual_if_run_complete(self):
-		"""Book the payroll accrual Journal Entry when slips of a Payroll Entry are
-		submitted one-by-one from the Salary Slip form instead of through the
-		Payroll Entry's "Submit Salary Slip" button.
+	def create_gl_entries(self, cancel: bool = False):
+		"""Post this slip's GL directly (or reverse on cancel) — replaces the
+		run-level accrual Journal Entry. Each slip is its own accounting voucher,
+		so submit = ledger posted, cancel = ledger reversed atomically."""
+		gl = self.get_gl_entries()
+		if gl:
+			make_gl_entries(gl, cancel=cancel, merge_entries=False)
 
-		The accrual — the entry that actually moves salary expense, PF / ESI / TDS
-		and the net payable into the ledger — is a Payroll-Entry-level operation
-		(``make_accrual_jv_entry``). Submitting slips individually never runs it, so
-		the COA stays untouched even though every slip is submitted (the tell-tale
-		is ``Salary Slip.journal_entry`` staying empty). Here we reproduce the tail
-		of ``submit_salary_slips_for_employees``: once every *submittable* slip of
-		the parent run is submitted, book ONE accrual for the whole run — matching
-		the button flow (one JV per run, not one per slip) — and flip the run to
-		Submitted so the form offers "Make Bank Entry".
+	def get_gl_entries(self):
+		"""Reproduce, per slip, what the accrual JE did in aggregate:
+		Dr each earning's expense account; Cr each deduction's payable account;
+		Cr Employee Advances for advance-recovery rows; Cr Payroll Payable (net),
+		party = employee, linked to this slip; and a self-balancing Dr expense /
+		Cr payable pair for employer statistical components (Employer PF/ESI/
+		Gratuity) at the default cost center. Amounts are company currency
+		(× exchange_rate)."""
+		payable_account = frappe.db.get_value(
+			"Company", self.company, "default_payroll_payable_account"
+		)
+		if not payable_account:
+			frappe.throw(_("Set the Default Payroll Payable Account in Company {0}.").format(self.company))
 
-		Safe to reach on every manual submit:
-		- ``salary_slips_submitted`` short-circuits once the run is booked, so it
-		  never fires twice or races the batch flow.
-		- ``get_sal_slip_list`` only returns slips that don't yet carry a
-		  ``journal_entry``, so a re-run can't double-post.
-		- A missing Salary Component account throws here (same guard the batch path
-		  enforces) and rolls the whole submit back, so the accrual can never post
-		  half-mapped — the fix that makes PF/ESI actually reach the COA also stops
-		  a slip submitting against an un-mapped component.
-		"""
-		if not self.payroll_entry:
-			# Ad-hoc slip with no parent run — no run-level accrual to book.
-			return
-		pe = frappe.get_doc("Payroll Entry", self.payroll_entry)
-		if pe.salary_slips_submitted:
-			return
-		# Hold off until the run is fully processed: every slip that CAN be
-		# submitted (net pay >= 0) is submitted. Net-negative slips can never be
-		# submitted, so they must not block the accrual for everyone else.
-		if frappe.db.count(
-			"Salary Slip",
-			{"payroll_entry": pe.name, "docstatus": 0, "net_pay": [">=", 0]},
-		):
-			return
-		slips = [
-			frappe.get_doc("Salary Slip", d.name)
-			for d in pe.get_sal_slip_list(ss_status=1, as_dict=True)
-		]
-		if slips:
-			pe.make_accrual_jv_entry(slips)
-		pe.db_set({"salary_slips_submitted": 1, "status": "Submitted", "error_message": ""})
+		ex = flt(self.exchange_rate) or 1.0
+		default_cc = self._gl_default_cost_center()
+		cost_centers = self._gl_cost_centers()
+		gl = []
+		payable = 0.0  # running net → credited to Payroll Payable
+
+		# Earnings → Dr expense (skip statistical + only-tax-impact flexi benefits).
+		for e in self.earnings:
+			if self._gl_is_statistical(e.salary_component) or self._gl_only_tax_impact(e.salary_component):
+				continue
+			if not self._gl_hits_accounts(e):
+				continue
+			amt = flt(flt(e.amount) * ex, 2)
+			if not amt:
+				continue
+			acct = self.get_salary_component_account(e.salary_component)
+			for cc, pct in cost_centers.items():
+				a = flt(amt * pct / 100.0, 2)
+				if a:
+					gl.append(self._gl_row(acct, debit=a, cost_center=cc, against=payable_account))
+			payable += amt
+
+		# Deductions → Cr payable, or Cr Employee Advances for recovery rows.
+		for d in self.deductions:
+			if self._gl_is_statistical(d.salary_component) or not self._gl_hits_accounts(d):
+				continue
+			amt = flt(flt(d.amount) * ex, 2)
+			if not amt:
+				continue
+			acct = self.get_salary_component_account(d.salary_component)
+			advance = self._gl_advance_ref(d)
+			for cc, pct in cost_centers.items():
+				a = flt(amt * pct / 100.0, 2)
+				if not a:
+					continue
+				if advance:
+					gl.append(self._gl_row(acct, credit=a, cost_center=cc, against=payable_account,
+						party_type="Employee", party=self.employee,
+						against_voucher_type="Employee Advance", against_voucher=advance, is_advance="Yes"))
+				else:
+					gl.append(self._gl_row(acct, credit=a, cost_center=cc, against=payable_account))
+			payable -= amt
+
+		# Net → Cr Payroll Payable (party = employee, linked to this slip).
+		payable = flt(payable, 2)
+		if payable:
+			gl.append(self._gl_row(payable_account, credit=payable, cost_center=default_cc,
+				party_type="Employee", party=self.employee,
+				against_voucher_type="Salary Slip", against_voucher=self.name))
+
+		# Employer provisions (statistical): self-balancing Dr/Cr, single cost center.
+		for e in self.earnings:
+			if not self._gl_is_statistical(e.salary_component):
+				continue
+			amt = flt(flt(e.amount) * ex, 2)
+			if not amt:
+				continue
+			mapping = frappe.db.get_value(
+				"Salary Component Account",
+				{"parent": e.salary_component, "company": self.company},
+				["account", "payable_account"], as_dict=True,
+			)
+			if not (mapping and mapping.account and mapping.payable_account):
+				continue
+			gl.append(self._gl_row(mapping.account, debit=amt, cost_center=default_cc, against=mapping.payable_account))
+			gl.append(self._gl_row(mapping.payable_account, credit=amt, cost_center=default_cc, against=mapping.account))
+
+		return gl
+
+	def _gl_row(self, account, debit=0.0, credit=0.0, cost_center=None, against=None,
+		party_type=None, party=None, against_voucher_type=None, against_voucher=None, is_advance=None):
+		args = {
+			"account": account,
+			"debit": flt(debit),
+			"credit": flt(credit),
+			"debit_in_account_currency": flt(debit),
+			"credit_in_account_currency": flt(credit),
+			"cost_center": cost_center,
+			"against": against,
+		}
+		if party_type:
+			args.update({"party_type": party_type, "party": party})
+		if against_voucher:
+			args.update({"against_voucher_type": against_voucher_type, "against_voucher": against_voucher})
+		if is_advance:
+			args["is_advance"] = is_advance
+		return self.get_gl_dict(args, item=self)
+
+	def get_salary_component_account(self, salary_component):
+		account = frappe.db.get_value(
+			"Salary Component Account", {"parent": salary_component, "company": self.company}, "account", cache=True
+		)
+		if not account:
+			from frappe.utils import get_link_to_form
+
+			frappe.throw(
+				_("Please set account in Salary Component {0}").format(
+					get_link_to_form("Salary Component", salary_component)
+				)
+			)
+		return account
+
+	def _gl_is_statistical(self, component):
+		return bool(frappe.get_cached_value("Salary Component", component, "statistical_component"))
+
+	def _gl_only_tax_impact(self, component):
+		fb, oti = frappe.get_cached_value(
+			"Salary Component", component, ["is_flexible_benefit", "only_tax_impact"]
+		)
+		return bool(cint(fb) and cint(oti))
+
+	def _gl_hits_accounts(self, row):
+		# Same filter the accrual used: rows counted in the total always post; a
+		# do-not-include-in-total row posts only if still flagged to hit accounts.
+		if not cint(row.get("do_not_include_in_total")):
+			return True
+		return not cint(
+			frappe.get_cached_value("Salary Component", row.salary_component, "do_not_include_in_accounts")
+		)
+
+	def _gl_advance_ref(self, deduction_row):
+		if not deduction_row.get("additional_salary"):
+			return None
+		ref = frappe.db.get_value(
+			"Additional Salary", deduction_row.additional_salary, ["ref_doctype", "ref_docname"], as_dict=True
+		)
+		if ref and ref.ref_doctype == "Employee Advance" and ref.ref_docname:
+			return ref.ref_docname
+		return None
+
+	def _gl_default_cost_center(self):
+		return frappe.get_cached_value("Employee", self.employee, "payroll_cost_center") or frappe.get_cached_value(
+			"Company", self.company, "cost_center"
+		)
+
+	def _gl_cost_centers(self):
+		"""Employee cost-center split (Salary Structure Assignment → Employee Cost
+		Center rows), else the default. Returns {cost_center: percentage}."""
+		assignment = (
+			frappe.db.get_value(
+				"Salary Structure Assignment",
+				{"employee": self.employee, "salary_structure": self.salary_structure, "docstatus": 1},
+				"name",
+			)
+			if self.salary_structure
+			else None
+		)
+		rows = (
+			frappe.get_all("Employee Cost Center", filters={"parent": assignment}, fields=["cost_center", "percentage"])
+			if assignment
+			else []
+		)
+		cc = {r.cost_center: r.percentage for r in rows}
+		return cc or {self._gl_default_cost_center(): 100}
 
 	def update_payment_status_for_gratuity_and_leave_encashment(self):
 		additional_salary_docs = frappe.db.get_all(
@@ -318,10 +464,14 @@ class SalarySlip(TransactionBase):
 				)
 
 	def on_cancel(self):
+		# Let the framework's link-check ignore the ledger rows this slip owns, so
+		# cancel can reverse them instead of being blocked.
+		self.ignore_linked_doctypes = ("GL Entry", "Payment Ledger Entry", "Advance Payment Ledger Entry")
 		self.set_status()
 		self.update_status()
 		self.update_payment_status_for_gratuity_and_leave_encashment()
-		# Reverse any advance recovery this slip had recorded.
+		# Reverse this slip's own GL, then its advance recovery — atomically.
+		self.create_gl_entries(cancel=True)
 		self._update_recovered_advances(cancel=True)
 
 		cancel_loan_repayment_entry(self)
