@@ -6,7 +6,7 @@ import frappe
 from frappe import _
 from frappe.model.document import Document
 from frappe.query_builder.functions import Abs, Sum
-from frappe.utils import flt, get_link_to_form, nowdate
+from frappe.utils import add_months, flt, get_first_day, get_link_to_form, getdate, nowdate
 
 import erpnext
 from erpnext.accounts.doctype.journal_entry.journal_entry import get_default_bank_cash_account
@@ -323,6 +323,103 @@ def create_return_through_additional_salary(doc):
 	additional_salary.ref_docname = doc.name
 
 	return additional_salary
+
+
+_RECOVERY_MONTHS = {
+	"Single (Next Salary)": 1,
+	"3 Monthly Installments": 3,
+	"6 Monthly Installments": 6,
+}
+_ADVANCE_RECOVERY_COMPONENT = "Advance Recovery"
+
+
+def _ensure_advance_recovery_component(company: str) -> str:
+	"""Get-or-create the 'Advance Recovery' Deduction component and point its
+	per-company account at that company's Employee Advances receivable, so a
+	recovery deduction CLEARS the advance instead of crediting a payable. Fixed
+	amount (not prorated), non-taxable."""
+	name = _ADVANCE_RECOVERY_COMPONENT
+	if not frappe.db.exists("Salary Component", name):
+		frappe.get_doc(
+			{
+				"doctype": "Salary Component",
+				"salary_component": name,
+				"salary_component_abbr": "AR",
+				"type": "Deduction",
+				"depends_on_payment_days": 0,
+				"is_tax_applicable": 0,
+				"description": "Recovery of an Employee Advance from salary. Books against the "
+				"company's Employee Advances receivable (not a payable), clearing the advance.",
+			}
+		).insert(ignore_permissions=True)
+
+	# Map each company's row to its Employee Advances account (overrides the
+	# generic '<Component> Payable' default the account sync would otherwise fill).
+	comp = frappe.get_doc("Salary Component", name)
+	changed = False
+	for row in comp.get("accounts") or []:
+		abbr = frappe.get_cached_value("Company", row.company, "abbr")
+		adv_account = f"Employee Advances - {abbr}"
+		if row.account != adv_account and frappe.db.exists("Account", adv_account):
+			row.account = adv_account
+			changed = True
+	if changed:
+		comp.save(ignore_permissions=True)
+	return name
+
+
+@frappe.whitelist()
+def schedule_salary_recovery(name: str) -> dict:
+	"""Create the Advance Recovery salary deductions for the chosen plan (1 / 3 /
+	6 equal monthly installments). Each is an Additional Salary deduction that
+	references this advance, so payroll books it against the advance account and
+	each salary slip auto-picks it up. Refuses to double-schedule."""
+	doc = frappe.get_doc("Employee Advance", name)
+	if doc.docstatus != 1:
+		frappe.throw(_("Submit the advance first."))
+	months = _RECOVERY_MONTHS.get(doc.get("salary_recovery_plan"))
+	if not months:
+		frappe.throw(_("Select a Salary Recovery Plan first."))
+
+	pending = flt(doc.paid_amount) - flt(doc.claimed_amount) - flt(doc.return_amount)
+	if pending <= 0:
+		frappe.throw(_("Nothing to recover — the advance is unpaid or fully claimed/returned."))
+
+	if frappe.db.count(
+		"Additional Salary",
+		{"ref_doctype": "Employee Advance", "ref_docname": name, "docstatus": 1},
+	):
+		frappe.throw(_("Salary recovery is already scheduled for this advance."))
+
+	component = _ensure_advance_recovery_component(doc.company)
+	start = getdate(doc.get("recovery_start_date") or add_months(nowdate(), 1))
+	# Equal split; the last installment absorbs the rounding remainder.
+	per = flt(pending / months, 2)
+	amounts = [per] * (months - 1) + [flt(pending - per * (months - 1), 2)]
+
+	created = []
+	for k, amt in enumerate(amounts):
+		add_sal = frappe.new_doc("Additional Salary")
+		add_sal.employee = doc.employee
+		add_sal.company = doc.company
+		add_sal.currency = doc.currency
+		add_sal.salary_component = component
+		add_sal.amount = amt
+		add_sal.payroll_date = get_first_day(add_months(start, k))
+		add_sal.ref_doctype = "Employee Advance"
+		add_sal.ref_docname = name
+		add_sal.overwrite_salary_structure_amount = 0
+		add_sal.insert(ignore_permissions=True)
+		add_sal.submit()
+		created.append(add_sal.name)
+
+	frappe.db.set_value(
+		"Employee Advance", name, "repay_unclaimed_amount_from_salary", 1, update_modified=False
+	)
+	frappe.msgprint(
+		_("Scheduled {0} recovery deduction(s) totalling {1}.").format(len(created), pending)
+	)
+	return {"created": created, "total": pending, "months": months}
 
 
 @frappe.whitelist()

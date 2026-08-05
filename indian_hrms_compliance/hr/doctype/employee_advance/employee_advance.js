@@ -88,6 +88,28 @@ frappe.ui.form.on("Employee Advance", {
 				);
 			}
 		}
+
+		// One-click scheduled recovery over the chosen plan (1 / 3 / 6 months).
+		if (
+			frm.doc.docstatus === 1 &&
+			frm.doc.salary_recovery_plan &&
+			flt(frm.doc.paid_amount) - flt(frm.doc.claimed_amount) - flt(frm.doc.return_amount) > 0
+		) {
+			frm.add_custom_button(
+				__("Schedule Salary Recovery"),
+				function () {
+					frappe.call({
+						method: "indian_hrms_compliance.hr.doctype.employee_advance.employee_advance.schedule_salary_recovery",
+						args: { name: frm.doc.name },
+						freeze: true,
+						callback: function () {
+							frm.reload_doc();
+						},
+					});
+				},
+				__("Create"),
+			);
+		}
 	},
 
 	make_deduction_via_additional_salary: function (frm) {
