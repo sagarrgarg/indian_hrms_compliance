@@ -30,7 +30,7 @@ from frappe.utils import (
 from frappe.utils.background_jobs import enqueue
 
 import erpnext
-from erpnext.accounts.general_ledger import make_gl_entries
+from erpnext.accounts.general_ledger import make_gl_entries, make_reverse_gl_entries
 from erpnext.accounts.utils import get_fiscal_year
 from erpnext.controllers.accounts_controller import AccountsController
 from erpnext.utilities.transaction_base import TransactionBase  # noqa: F401 (kept for back-compat)
@@ -252,9 +252,16 @@ class SalarySlip(AccountsController):
 		"""Post this slip's GL directly (or reverse on cancel) — replaces the
 		run-level accrual Journal Entry. Each slip is its own accounting voucher,
 		so submit = ledger posted, cancel = ledger reversed atomically."""
+		if cancel:
+			# Reverse the rows ACTUALLY posted for this voucher — never a freshly
+			# recomputed map. The split/cost-centre is derived from live external
+			# data (Salary Structure Assignment) that could drift between submit and
+			# cancel; reversing the stored rows keeps the ledger exactly net-zero.
+			make_reverse_gl_entries(voucher_type=self.doctype, voucher_no=self.name)
+			return
 		gl = self.get_gl_entries()
 		if gl:
-			make_gl_entries(gl, cancel=cancel, merge_entries=False)
+			make_gl_entries(gl, merge_entries=False)
 
 	def get_gl_entries(self):
 		"""Reproduce, per slip, what the accrual JE did in aggregate:
@@ -282,6 +289,11 @@ class SalarySlip(AccountsController):
 			frappe.throw(_("Set the Default Payroll Payable Account in Company {0}.").format(self.company))
 
 		ex = flt(self.exchange_rate) or 1.0
+		# get_gl_dict reads self.conversion_rate to fill the *_in_transaction_currency
+		# columns; the slip only has exchange_rate. Expose it so those columns are
+		# correct (base = txn × ex ⇒ txn = base / ex) and can never be None-blocked
+		# on a foreign-currency slip.
+		self.conversion_rate = ex
 		default_cc = self._gl_default_cost_center()
 		cost_centers = self._gl_cost_centers()
 		gl = []
@@ -297,16 +309,13 @@ class SalarySlip(AccountsController):
 			if not amt:
 				continue
 			acct = self.get_salary_component_account(e.salary_component)
-			line_total = 0.0
-			for cc, pct in cost_centers.items():
-				a = flt(amt * pct / 100.0, 2)
+			for cc, a in self._gl_split(amt, cost_centers):
 				if a:
 					gl.append(self._gl_row(acct, debit=a, cost_center=cc, against=payable_account))
-					line_total += a
-			# Accumulate the net payable from the ROUNDED per-cost-center lines
-			# actually posted — not the unsplit amount — so total Dr == total Cr to
-			# the paise even when a component is split across cost centers.
-			payable += line_total
+			# The split lines sum EXACTLY to amt (last line absorbs the rounding
+			# residual), so the payable stays the unsplit component total — total Dr
+			# == total Cr, AND the net equals what the bank entry later debits.
+			payable += amt
 
 		# Deductions → Cr payable, or Cr Employee Advances for recovery rows.
 		for d in self.deductions:
@@ -317,9 +326,7 @@ class SalarySlip(AccountsController):
 				continue
 			acct = self.get_salary_component_account(d.salary_component)
 			advance = self._gl_advance_ref(d)
-			line_total = 0.0
-			for cc, pct in cost_centers.items():
-				a = flt(amt * pct / 100.0, 2)
+			for cc, a in self._gl_split(amt, cost_centers):
 				if not a:
 					continue
 				if advance:
@@ -333,8 +340,7 @@ class SalarySlip(AccountsController):
 						advance_voucher_type="Employee Advance", advance_voucher_no=advance))
 				else:
 					gl.append(self._gl_row(acct, credit=a, cost_center=cc, against=payable_account))
-				line_total += a
-			payable -= line_total
+			payable -= amt
 
 		# Net → Cr Payroll Payable. Mirror the bank entry exactly so the two net:
 		# same account (resolved above), and a party ONLY in employee-wise mode
@@ -399,6 +405,23 @@ class SalarySlip(AccountsController):
 		for advance in advances:
 			if frappe.db.exists("Employee Advance", advance):
 				frappe.get_doc("Employee Advance", advance).set_total_advance_paid()
+
+	def _gl_split(self, amt, cost_centers):
+		"""Split amt across cost centers by percentage, rounding each line to 2 dp
+		and plugging the LAST line with the residual so the lines sum EXACTLY to amt.
+		Keeps the slip's GL balanced AND the net payable equal to the un-split total
+		the bank entry debits (so Payroll Payable clears to zero). Returns [(cc, a)]."""
+		items = list(cost_centers.items())
+		out = []
+		running = 0.0
+		for i, (cc, pct) in enumerate(items):
+			if i == len(items) - 1:
+				a = flt(amt - running, 2)  # last line absorbs the rounding residual
+			else:
+				a = flt(amt * pct / 100.0, 2)
+				running += a
+			out.append((cc, a))
+		return out
 
 	def get_salary_component_account(self, salary_component):
 		account = frappe.db.get_value(
