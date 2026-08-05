@@ -34,6 +34,26 @@ frappe.ui.form.on("Employee Advance", {
 	},
 
 	refresh: function (frm) {
+		// A draft advance can't be submitted directly — it must be approved.
+		// Offer "Send for Approval" so it routes to HR (or the requester's manager
+		// if the requester is HR).
+		if (
+			frm.doc.docstatus === 0 &&
+			!frm.is_new() &&
+			["Draft", "Rejected", "Needs Clarification", undefined, ""].includes(frm.doc.approval_status)
+		) {
+			frm.add_custom_button(__("Send for Approval"), function () {
+				frappe.call({
+					method: "indian_hrms_compliance.hr.doctype.employee_advance.employee_advance.submit_advance_for_approval",
+					args: { name: frm.doc.name },
+					freeze: true,
+					callback: function () {
+						frm.reload_doc()
+					},
+				})
+			}).addClass("btn-primary")
+		}
+
 		if (
 			frm.doc.docstatus === 1 &&
 			flt(frm.doc.paid_amount) < flt(frm.doc.advance_amount) &&

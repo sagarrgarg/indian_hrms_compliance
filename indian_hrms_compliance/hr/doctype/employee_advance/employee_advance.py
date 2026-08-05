@@ -27,12 +27,35 @@ class EmployeeAdvance(Document):
 
 	def validate(self):
 		validate_active_employee(self.employee)
+		if not self.get("approval_status"):
+			self.approval_status = "Draft"
 		self.validate_exchange_rate()
 		self.validate_advance_account_type()
 		self.set_status()
 		self.set_pending_amount()
 
+	def _is_hr_employee(self) -> bool:
+		"""True if the requester's user holds an HR role — so their own advance
+		routes to their reporting manager instead of HR (no self-approval)."""
+		user = frappe.db.get_value("Employee", self.employee, "user_id") if self.employee else None
+		return bool(user and (set(frappe.get_roles(user)) & {"HR Manager", "HR User"}))
+
+	def resolve_approver(self):
+		"""HR approves by default; if the REQUESTER is HR, route to their reporting
+		manager (segregation of duties). None = the HR pool."""
+		if self._is_hr_employee():
+			mgr = frappe.db.get_value("Employee", self.employee, "reports_to")
+			return frappe.db.get_value("Employee", mgr, "user_id") if mgr else None
+		return None
+
 	def before_submit(self):
+		# Approval gate: an advance can only be submitted once Approved (approval
+		# submits it via the inbox). Blocks anyone self-submitting on the Desk.
+		if self.get("approval_status") != "Approved":
+			frappe.throw(
+				_("This advance must be Approved before it can be submitted."),
+				title=_("Approval Required"),
+			)
 		if not self.get("advance_account"):
 			default_advance_account = frappe.db.get_value(
 				"Company", self.company, "default_employee_advance_account"
@@ -307,6 +330,20 @@ def get_paying_amount_paying_exchange_rate(payment_account, doc):
 
 
 @frappe.whitelist()
+@frappe.whitelist()
+def submit_advance_for_approval(name):
+	"""Send a draft advance for approval — resolves the approver (HR, or the
+	requester's reporting manager when the requester is HR) and marks it Pending."""
+	doc = frappe.get_doc("Employee Advance", name)
+	if doc.docstatus != 0 or doc.approval_status not in ("Draft", "Rejected", "Needs Clarification"):
+		frappe.throw(_("Only a draft advance can be sent for approval."))
+	doc.approver = doc.resolve_approver()
+	doc.approval_status = "Pending Approval"
+	doc.clarification_note = None
+	doc.save()
+	return {"approval_status": doc.approval_status, "approver": doc.approver}
+
+
 def create_return_through_additional_salary(doc):
 	import json
 

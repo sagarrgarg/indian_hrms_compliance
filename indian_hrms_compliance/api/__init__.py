@@ -3562,15 +3562,14 @@ def _pending_expense_approvals(user: str) -> list[dict]:
 
 
 def _pending_advance_approvals(user: str) -> list[dict]:
-	"""Employee Advances awaiting approval (Draft, docstatus 0) whose employee
-	reports to this manager. Employee Advance has no approver field — the
-	manager authority is the reporting line."""
-	reports = _resignation_reports_to_user(user)
-	if not reports:
-		return []
+	"""Employee Advances awaiting approval. HR sees advances routed to the HR pool
+	(company-scoped); a named approver — the requester's manager, when the
+	requester is HR — sees theirs."""
+	is_hr = _is_hr_user(user)
+	scope = _hr_company_scope(user) if is_hr else None
 	rows = frappe.get_all(
 		"Employee Advance",
-		filters={"status": "Draft", "docstatus": 0, "employee": ("in", list(reports))},
+		filters={"approval_status": "Pending Approval", "docstatus": 0},
 		fields=[
 			"name",
 			"employee",
@@ -3578,11 +3577,18 @@ def _pending_advance_approvals(user: str) -> list[dict]:
 			"purpose",
 			"advance_amount",
 			"posting_date",
+			"approver",
+			"company",
 		],
 		order_by="posting_date desc",
 	)
 	out = []
 	for r in rows:
+		if r.approver:
+			if r.approver != user:
+				continue
+		elif not is_hr or (scope is not None and r.company not in scope):
+			continue
 		out.append(
 			{
 				"doctype": "Employee Advance",
@@ -4306,7 +4312,7 @@ def _validate_approver(doc) -> None:
 	elif dt == "Shift Request":
 		_assert_shift_approver(doc)
 	elif dt == "Employee Advance":
-		_assert_reports_to_approver(doc, "advance")
+		_assert_additional_salary_approver(doc)
 	elif dt == "Attendance Request":
 		_assert_attendance_approver(doc)
 	elif dt == "Resignation Request":
@@ -4971,7 +4977,11 @@ def approve_request(doctype: str, name: str, comment: str | None = None) -> dict
 		finally:
 			frappe.flags.mute_messages = _muted
 	elif doctype == "Employee Advance":
-		# No approval status — approval = submission of the request.
+		# Approval stamps the decider and submits the advance.
+		doc.approval_status = "Approved"
+		doc.decided_by = frappe.session.user
+		doc.decided_on = now_datetime()
+		doc.save(ignore_permissions=True)
 		if doc.docstatus == 0:
 			doc.submit()
 	elif doctype == "Additional Salary":
@@ -5159,9 +5169,13 @@ def reject_request(doctype: str, name: str, comment: str | None = None) -> dict:
 			# Field not present (older site mid-migrate) — fall back to old behaviour.
 			doc.delete(ignore_permissions=True)
 	elif doctype == "Employee Advance":
-		# No reject status — cancel the draft request.
-		if doc.docstatus == 0:
-			doc.delete(ignore_permissions=True)
+		# Keep the record (draft) with the reason so the requester sees it — never
+		# submitted, so nothing is paid.
+		doc.approval_status = "Rejected"
+		doc.decided_by = frappe.session.user
+		doc.decided_on = now_datetime()
+		doc.clarification_note = strip_html(comment).strip()
+		doc.save(ignore_permissions=True)
 	elif doctype == "Additional Salary":
 		# Keep the record (docstatus 0) so the requester sees it was rejected,
 		# with the reason. It never feeds payroll (payroll needs Approved).

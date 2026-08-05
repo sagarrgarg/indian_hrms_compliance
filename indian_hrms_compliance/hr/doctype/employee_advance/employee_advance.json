@@ -32,6 +32,13 @@
   "mode_of_payment",
   "column_break_nhlv",
   "repay_unclaimed_amount_from_salary",
+  "advance_approval_section",
+  "approval_status",
+  "approver",
+  "approval_col",
+  "decided_by",
+  "decided_on",
+  "clarification_note",
   "salary_recovery_plan",
   "recovery_start_date",
   "more_info_section",
@@ -252,12 +259,59 @@
    "label": "Recovery Starts (Payroll Month)",
    "depends_on": "eval:doc.salary_recovery_plan",
    "description": "First payroll month to recover from. Defaults to next month."
+  },
+  {
+   "fieldname": "advance_approval_section",
+   "fieldtype": "Section Break",
+   "label": "Approval"
+  },
+  {
+   "fieldname": "approval_status",
+   "fieldtype": "Select",
+   "label": "Approval Status",
+   "options": "Draft\nPending Approval\nApproved\nRejected\nNeeds Clarification",
+   "default": "Draft",
+   "read_only": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "description": "An advance can only be submitted once Approved."
+  },
+  {
+   "fieldname": "approver",
+   "fieldtype": "Link",
+   "options": "User",
+   "label": "Approver",
+   "read_only": 1,
+   "description": "HR, or (if the requester is HR) their reporting manager."
+  },
+  {
+   "fieldname": "approval_col",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "decided_by",
+   "fieldtype": "Link",
+   "options": "User",
+   "label": "Decided By",
+   "read_only": 1
+  },
+  {
+   "fieldname": "decided_on",
+   "fieldtype": "Datetime",
+   "label": "Decided On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "clarification_note",
+   "fieldtype": "Small Text",
+   "label": "Rejection / Clarification Note",
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-08-05 10:00:00.000000",
+ "modified": "2026-08-05 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "HR",
  "name": "Employee Advance",

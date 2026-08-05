@@ -105,3 +105,4 @@ indian_hrms_compliance.patches.v15_0.seed_org_integrity_defaults #2026-07-30
 indian_hrms_compliance.patches.v15_0.exclude_statutory_bonus_from_gross_wages #2026-08-03
 indian_hrms_compliance.patches.v15_0.set_neat_naming_series #2026-08-04
 indian_hrms_compliance.patches.v15_0.additional_salary_approval_backfill #2026-08-04
+indian_hrms_compliance.patches.v15_0.employee_advance_approval_backfill #2026-08-05
