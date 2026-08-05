@@ -210,6 +210,19 @@ frappe.ui.form.on("Salary Slip", {
 	refresh: function (frm) {
 		frm.trigger("toggle_fields");
 
+		// A slip that belongs to a payroll run is submitted from its Payroll Entry,
+		// not here — hide the Submit action and say so (the server enforces it too).
+		if (frm.doc.docstatus === 0 && frm.doc.payroll_entry) {
+			frm.page.clear_primary_action();
+			frm.dashboard.add_comment(
+				__("Submit this run from its Payroll Entry ({0}) — individual slips can't be submitted here.", [
+					frm.doc.payroll_entry,
+				]),
+				"blue",
+				true,
+			);
+		}
+
 		var salary_detail_fields = [
 			"formula",
 			"abbr",

@@ -339,7 +339,6 @@ class PayrollEntry(Document):
 				& (ss.start_date >= self.start_date)
 				& (ss.end_date <= self.end_date)
 				& (ss.payroll_entry == self.name)
-				& ((ss.journal_entry.isnull()) | (ss.journal_entry == ""))
 				& (Coalesce(ss.salary_slip_based_on_timesheet, 0) == self.salary_slip_based_on_timesheet)
 			)
 		).run(as_dict=as_dict)
@@ -1944,7 +1943,16 @@ def submit_salary_slips_for_employees(payroll_entry, salary_slips, publish_progr
 				)
 
 		if submitted:
-			payroll_entry.make_accrual_jv_entry(submitted)
+			# Each slip posts its own GL directly on submit — no run-level accrual JE.
+			# v16: components of type "Employer Contribution" (own slip table, booked to the
+			# Salary Component Account's liability_account) were posted by the tail of
+			# make_accrual_jv_entry; keep posting them as the separate run-level JE v16 makes.
+			payroll_entry.make_employer_contribution_jv_entry(
+				payroll_entry.get_salary_components("employer_contributions") or [],
+				frappe.db.get_single_value(
+					"Payroll Settings", "process_payroll_accounting_entry_based_on_employee"
+				),
+			)
 			payroll_entry.email_salary_slip(submitted)
 			payroll_entry.db_set({"salary_slips_submitted": 1, "status": "Submitted", "error_message": ""})
 
