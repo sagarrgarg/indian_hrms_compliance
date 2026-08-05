@@ -278,9 +278,20 @@ class SalarySlip(AccountsController):
 		Cr payable pair for employer statistical components (Employer PF/ESI/
 		Gratuity) at the default cost center. Amounts are company currency
 		(× exchange_rate)."""
-		payable_account = frappe.db.get_value(
-			"Company", self.company, "default_payroll_payable_account"
-		)
+		# Post the net to the SAME payable account the bank entry will later debit.
+		# For a run, that is the Payroll Entry's own payable account (a user-editable
+		# field that only defaults from the Company); fall back to the Company default
+		# for truly ad-hoc slips. If they diverge the two sides never net — so source
+		# it from the run when the slip belongs to one.
+		payable_account = None
+		if self.payroll_entry:
+			payable_account = frappe.db.get_value(
+				"Payroll Entry", self.payroll_entry, "payroll_payable_account"
+			)
+		if not payable_account:
+			payable_account = frappe.db.get_value(
+				"Company", self.company, "default_payroll_payable_account"
+			)
 		if not payable_account:
 			frappe.throw(_("Set the Default Payroll Payable Account in Company {0}.").format(self.company))
 
@@ -300,11 +311,16 @@ class SalarySlip(AccountsController):
 			if not amt:
 				continue
 			acct = self.get_salary_component_account(e.salary_component)
+			line_total = 0.0
 			for cc, pct in cost_centers.items():
 				a = flt(amt * pct / 100.0, 2)
 				if a:
 					gl.append(self._gl_row(acct, debit=a, cost_center=cc, against=payable_account))
-			payable += amt
+					line_total += a
+			# Accumulate the net payable from the ROUNDED per-cost-center lines
+			# actually posted — not the unsplit amount — so total Dr == total Cr to
+			# the paise even when a component is split across cost centers.
+			payable += line_total
 
 		# Deductions → Cr payable, or Cr Employee Advances for recovery rows.
 		for d in self.deductions:
@@ -315,6 +331,7 @@ class SalarySlip(AccountsController):
 				continue
 			acct = self.get_salary_component_account(d.salary_component)
 			advance = self._gl_advance_ref(d)
+			line_total = 0.0
 			for cc, pct in cost_centers.items():
 				a = flt(amt * pct / 100.0, 2)
 				if not a:
@@ -325,14 +342,22 @@ class SalarySlip(AccountsController):
 						against_voucher_type="Employee Advance", against_voucher=advance, is_advance="Yes"))
 				else:
 					gl.append(self._gl_row(acct, credit=a, cost_center=cc, against=payable_account))
-			payable -= amt
+				line_total += a
+			payable -= line_total
 
-		# Net → Cr Payroll Payable (party = employee, linked to this slip).
+		# Net → Cr Payroll Payable. Mirror the bank entry exactly so the two net:
+		# same account (resolved above), and a party ONLY in employee-wise mode
+		# (the bank debit is party-less otherwise). No against_voucher — this is a
+		# plain Current Liability (account_type is forbidden on it), so netting is by
+		# account balance, and the bank side keys to the Payroll Entry, not the slip.
 		payable = flt(payable, 2)
 		if payable:
-			gl.append(self._gl_row(payable_account, credit=payable, cost_center=default_cc,
-				party_type="Employee", party=self.employee,
-				against_voucher_type="Salary Slip", against_voucher=self.name))
+			party_args = {}
+			if cint(frappe.db.get_single_value(
+				"Payroll Settings", "process_payroll_accounting_entry_based_on_employee"
+			)):
+				party_args = {"party_type": "Employee", "party": self.employee}
+			gl.append(self._gl_row(payable_account, credit=payable, cost_center=default_cc, **party_args))
 
 		# Employer provisions (statistical): self-balancing Dr/Cr, single cost center.
 		for e in self.earnings:
@@ -398,11 +423,11 @@ class SalarySlip(AccountsController):
 	def _gl_hits_accounts(self, row):
 		# Same filter the accrual used: rows counted in the total always post; a
 		# do-not-include-in-total row posts only if still flagged to hit accounts.
+		# Read the flag from the slip ROW (as the accrual/bank entry do), not the
+		# component template — the row may have been edited independently.
 		if not cint(row.get("do_not_include_in_total")):
 			return True
-		return not cint(
-			frappe.get_cached_value("Salary Component", row.salary_component, "do_not_include_in_accounts")
-		)
+		return not cint(row.get("do_not_include_in_accounts"))
 
 	def _gl_advance_ref(self, deduction_row):
 		if not deduction_row.get("additional_salary"):
@@ -415,18 +440,30 @@ class SalarySlip(AccountsController):
 		return None
 
 	def _gl_default_cost_center(self):
-		return frappe.get_cached_value("Employee", self.employee, "payroll_cost_center") or frappe.get_cached_value(
-			"Company", self.company, "cost_center"
-		)
+		# Match the accrual's fallback chain: Employee → Department → Company.
+		cc = frappe.get_cached_value("Employee", self.employee, "payroll_cost_center")
+		if not cc:
+			department = frappe.get_cached_value("Employee", self.employee, "department")
+			if department:
+				cc = frappe.get_cached_value("Department", department, "payroll_cost_center")
+		return cc or frappe.get_cached_value("Company", self.company, "cost_center")
 
 	def _gl_cost_centers(self):
 		"""Employee cost-center split (Salary Structure Assignment → Employee Cost
-		Center rows), else the default. Returns {cost_center: percentage}."""
+		Center rows), else the default. Returns {cost_center: percentage}. Picks the
+		LATEST assignment effective on or before the slip's end date — matching the
+		accrual — so a salary revision doesn't grab an arbitrary older split."""
 		assignment = (
 			frappe.db.get_value(
 				"Salary Structure Assignment",
-				{"employee": self.employee, "salary_structure": self.salary_structure, "docstatus": 1},
+				{
+					"employee": self.employee,
+					"salary_structure": self.salary_structure,
+					"docstatus": 1,
+					"from_date": ("<=", self.end_date),
+				},
 				"name",
+				order_by="from_date desc",
 			)
 			if self.salary_structure
 			else None
@@ -512,6 +549,14 @@ class SalarySlip(AccountsController):
 
 		if not self.has_custom_naming_series:
 			revert_series_if_last(self.default_series, self.name)
+
+		# The slip now owns its GL / ledger rows (posted directly on submit). On
+		# cancel they were reversed (net zero) but the rows persist with docstatus 1,
+		# which the dynamic-link check would treat as a live link and block deletion.
+		# A Payroll Entry cancel cancels then DELETES each slip, so purge this slip's
+		# own ledger rows here (it is Draft — no rows — or Cancelled — reversed rows).
+		for dt in ("GL Entry", "Payment Ledger Entry", "Advance Payment Ledger Entry"):
+			frappe.db.delete(dt, {"voucher_type": "Salary Slip", "voucher_no": self.name})
 
 	def get_status(self):
 		if self.docstatus == 2:
