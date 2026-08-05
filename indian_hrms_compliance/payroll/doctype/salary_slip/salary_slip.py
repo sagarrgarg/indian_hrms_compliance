@@ -1490,7 +1490,7 @@ class SalarySlip(TransactionBase):
 		#   - self.data:         payment-days prorated values -> the actual `amount`
 		#   - self.default_data: full-cycle values            -> the `default_amount`
 		# (proration cascades through dependent formulas, e.g. SA = BS * 0.5 inherits BS's proration).
-		amount = self.eval_condition_and_formula(struct_row, self.data)
+		amount = self.eval_condition_and_formula(struct_row, self.data, condition_data=self.default_data)
 		# amount is None when the component's condition is false for this slip
 		condition_met = amount is not None
 		if struct_row.statistical_component or struct_row.accrual_component:
@@ -1629,10 +1629,18 @@ class SalarySlip(TransactionBase):
 
 		return data, default_data
 
-	def eval_condition_and_formula(self, struct_row, data):
+	def eval_condition_and_formula(self, struct_row, data, condition_data=None):
+		# Eligibility CONDITIONS are judged against the monthly (unprorated)
+		# component values (`condition_data`), so a threshold like PF's "monthly
+		# basic <= 15000" is tested on the wage RATE, not a prorated mid-month
+		# amount — otherwise a late-month joiner's basic (a few days' worth) trips
+		# the check and gets PF he isn't due. The FORMULA (the actual amount)
+		# stays on `data`, which prorates exactly as before. Callers that don't
+		# pass condition_data keep the old behaviour (condition == formula data).
+		condition_data = condition_data if condition_data is not None else data
 		try:
 			condition, formula, amount = struct_row.condition, struct_row.formula, struct_row.amount
-			if condition and not _safe_eval(condition, self.whitelisted_globals, data):
+			if condition and not _safe_eval(condition, self.whitelisted_globals, condition_data):
 				return None
 			if struct_row.amount_based_on_formula and formula:
 				# struct_row is a evaluated row (frappe._dict) from the SSA; precision is carried as an int
