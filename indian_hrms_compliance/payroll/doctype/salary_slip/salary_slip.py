@@ -211,6 +211,11 @@ class SalarySlip(TransactionBase):
 			self.set_status()
 			self.update_status(self.name)
 
+			# Recovery of an Employee Advance is only real now — when the slip
+			# carrying the deduction is submitted — not when the Additional
+			# Salary was created.
+			self._update_recovered_advances()
+
 			make_loan_repayment_entry(self)
 
 			if not frappe.flags.via_payroll_entry and not frappe.flags.in_patch:
@@ -316,9 +321,32 @@ class SalarySlip(TransactionBase):
 		self.set_status()
 		self.update_status()
 		self.update_payment_status_for_gratuity_and_leave_encashment()
+		# Reverse any advance recovery this slip had recorded.
+		self._update_recovered_advances(cancel=True)
 
 		cancel_loan_repayment_entry(self)
 		self.publish_update()
+
+	def _update_recovered_advances(self, cancel: bool = False):
+		"""Reflect advance-recovery deductions on this slip against the linked
+		Employee Advance — on slip submit (add to return_amount) or cancel
+		(reverse). A recovery deduction is a Salary Detail row whose source
+		Additional Salary points at an Employee Advance. Uses the ACTUAL amount
+		deducted on the slip, so partial/prorated recoveries are exact."""
+		for d in self.get("deductions") or []:
+			if not d.get("additional_salary"):
+				continue
+			ref = frappe.db.get_value(
+				"Additional Salary", d.additional_salary, ["ref_doctype", "ref_docname"], as_dict=True
+			)
+			if not ref or ref.ref_doctype != "Employee Advance" or not ref.ref_docname:
+				continue
+			if not frappe.db.exists("Employee Advance", ref.ref_docname):
+				continue
+			advance = frappe.get_doc("Employee Advance", ref.ref_docname)
+			delta = -flt(d.amount) if cancel else flt(d.amount)
+			advance.db_set("return_amount", flt(advance.return_amount) + delta, update_modified=False)
+			advance.set_status(update=True)
 
 	def publish_update(self):
 		employee_user = frappe.db.get_value("Employee", self.employee, "user_id", cache=True)

@@ -16,11 +16,13 @@ class AdditionalSalary(Document):
 			self.payroll_date = None
 
 	def on_submit(self):
-		self.update_return_amount_in_employee_advance()
+		# NOTE: an advance-recovery deduction does NOT touch the Employee Advance
+		# here — recovery is only real once the SALARY SLIP that carries it is
+		# submitted. The Salary Slip's on_submit/on_cancel updates the advance
+		# (see Salary Slip._update_recovered_advances).
 		self.update_employee_referral()
 
 	def on_cancel(self):
-		self.update_return_amount_in_employee_advance()
 		self.update_employee_referral(cancel=True)
 
 	def before_submit(self):
@@ -285,19 +287,6 @@ class AdditionalSalary(Document):
 				"To overwrite the salary component amount for a tax component, please enable {0}"
 			).format(frappe.bold(_("Overwrite Salary Structure Amount")))
 			frappe.throw(msg, title=_("Invalid Additional Salary"))
-
-	def update_return_amount_in_employee_advance(self):
-		if self.ref_doctype == "Employee Advance" and self.ref_docname:
-			return_amount = frappe.db.get_value("Employee Advance", self.ref_docname, "return_amount")
-
-			if self.docstatus == 2:
-				return_amount -= self.amount
-			else:
-				return_amount += self.amount
-
-			frappe.db.set_value("Employee Advance", self.ref_docname, "return_amount", return_amount)
-			advance = frappe.get_doc("Employee Advance", self.ref_docname)
-			advance.set_status(update=True)
 
 	def update_employee_referral(self, cancel=False):
 		if self.ref_doctype == "Employee Referral":
