@@ -33,6 +33,8 @@
   "mode_of_payment",
   "column_break_nhlv",
   "repay_unclaimed_amount_from_salary",
+  "salary_recovery_plan",
+  "recovery_start_date",
   "more_info_section",
   "status",
   "column_break_kimx",
@@ -225,6 +227,20 @@
    "fieldtype": "Column Break"
   },
   {
+   "fieldname": "salary_recovery_plan",
+   "fieldtype": "Select",
+   "label": "Salary Recovery Plan",
+   "options": "\nSingle (Next Salary)\n3 Monthly Installments\n6 Monthly Installments",
+   "description": "Auto-create the salary deductions that recover this advance. On submit (or via the 'Schedule Salary Recovery' button) the Advance Recovery deductions are created for the coming month(s) and picked up by payroll."
+  },
+  {
+   "fieldname": "recovery_start_date",
+   "fieldtype": "Date",
+   "label": "Recovery Starts (Payroll Month)",
+   "depends_on": "eval:doc.salary_recovery_plan",
+   "description": "First payroll month to recover from. Defaults to next month."
+  },
+  {
    "description": "Amount that has been paid against this advance",
    "fieldname": "base_paid_amount",
    "fieldtype": "Currency",
@@ -294,10 +310,10 @@
    "color": "Green",
    "title": "Paid"
   },
-    {
-     "color": "Blue",
-     "title": "Partially Paid"
-    },
+  {
+   "color": "Blue",
+   "title": "Partially Paid"
+  },
   {
    "color": "Orange",
    "title": "Unpaid"
