@@ -20,6 +20,7 @@ def after_install():
 	add_non_standard_user_types()
 	set_single_defaults()
 	create_default_role_profiles()
+	seed_backdated_attendance_role()
 	run_post_install_patches()
 
 
@@ -1615,6 +1616,26 @@ def create_custom_role(data):
 		frappe.get_doc(
 			{"doctype": "Role", "role_name": data.get("role"), "desk_access": 1, "is_custom": 1}
 		).insert(ignore_permissions=True)
+
+
+def seed_backdated_attendance_role():
+	"""Ensure the back-dated-attendance approval role exists and HR Settings points
+	at it. The HR Settings Link field carries NO default — a Link default there
+	crashes a fresh install's init_singles (the role doesn't exist yet) — so the
+	value is seeded here (after install / on migrate), once the role is created.
+	Idempotent + defensive."""
+	role = "HRMS Master Manager"
+	if not frappe.db.exists("Role", role):
+		frappe.get_doc(
+			{"doctype": "Role", "role_name": role, "desk_access": 1, "is_custom": 1}
+		).insert(ignore_permissions=True)
+
+	if frappe.get_meta("HR Settings").has_field("role_allowed_to_approve_backdated_attendance") and not (
+		frappe.db.get_single_value("HR Settings", "role_allowed_to_approve_backdated_attendance")
+	):
+		frappe.db.set_single_value(
+			"HR Settings", "role_allowed_to_approve_backdated_attendance", role
+		)
 
 
 def create_user_type(user_type, data):

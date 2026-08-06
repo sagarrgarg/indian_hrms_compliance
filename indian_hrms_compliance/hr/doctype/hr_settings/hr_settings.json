@@ -468,7 +468,7 @@
   },
   {
    "default": "0",
-   "description": "Treat multiple check-ins for the same employee within this many minutes as one accidental repeat punch (biometric double-taps), ignoring the extras when computing status and working hours. All raw logs stay linked to the attendance. Note: a day still needs at least two distinct punches (an in and an out) to be marked Present \u2014 a single punch always stays Absent. Set 0 to disable de-duplication.",
+   "description": "Treat multiple check-ins for the same employee within this many minutes as one accidental repeat punch (biometric double-taps), ignoring the extras when computing status and working hours. All raw logs stay linked to the attendance. Note: a day still needs at least two distinct punches (an in and an out) to be marked Present — a single punch always stays Absent. Set 0 to disable de-duplication.",
    "fieldname": "duplicate_checkin_window_minutes",
    "fieldtype": "Int",
    "label": "Ignore Repeat Check-ins Within (Minutes)",
@@ -483,8 +483,7 @@
    "non_negative": 1
   },
   {
-   "default": "HRMS Master Manager",
-   "description": "Only users holding this role may submit attendance dated beyond the months threshold above (Administrator always can).",
+   "description": "Only users holding this role may submit attendance dated beyond the months threshold above (Administrator always can). Defaults to the HRMS Master Manager role, seeded on install/migrate.",
    "fieldname": "role_allowed_to_approve_backdated_attendance",
    "fieldtype": "Link",
    "label": "Role Allowed to Approve Back-dated Attendance",
@@ -709,7 +708,7 @@
    "fieldname": "notice_recovery_section",
    "fieldtype": "Section Break",
    "label": "Notice Period Recovery / Pay-in-Lieu",
-   "description": "Drives the FnF notice math: per-day rate \u00d7 notice balance. Used in receivables (Short Notice) or payables (Pay in Lieu)."
+   "description": "Drives the FnF notice math: per-day rate × notice balance. Used in receivables (Short Notice) or payables (Pay in Lieu)."
   },
   {
    "default": "Basic Only",
@@ -749,7 +748,7 @@
    "fieldname": "auto_create_gratuity_on_fnf",
    "fieldtype": "Check",
    "label": "Auto-create Gratuity on FnF",
-   "description": "When tenure \u2265 Gratuity Rule's minimum years AND no Gratuity exists for the Employee, FnF.validate creates a Gratuity draft using the Company's Gratuity Rule (or the first one found) and adds a payables line."
+   "description": "When tenure ≥ Gratuity Rule's minimum years AND no Gratuity exists for the Employee, FnF.validate creates a Gratuity draft using the Company's Gratuity Rule (or the first one found) and adds a payables line."
   },
   {
    "default": "1",
@@ -767,7 +766,7 @@
    "fieldname": "compute_tds_on_fnf",
    "fieldtype": "Check",
    "label": "Compute TDS on Final Settlement",
-   "description": "FnF.validate computes projected_annual_tax via Income Tax Slab applied to (YTD gross + FnF taxable payables) \u2212 YTD TDS deducted. Adds a 'TDS on Final Settlement' line to receivables. Skipped silently when no slab applies."
+   "description": "FnF.validate computes projected_annual_tax via Income Tax Slab applied to (YTD gross + FnF taxable payables) − YTD TDS deducted. Adds a 'TDS on Final Settlement' line to receivables. Skipped silently when no slab applies."
   },
   {
    "fieldname": "exit_letters_section",
@@ -881,7 +880,7 @@
    "fieldtype": "Int",
    "label": "Statutory SLA (days)",
    "non_negative": 1,
-   "description": "Sec 11 of POSH Act 2013 mandates 90 days. Editable for jurisdictions that adopt different timelines \u2014 change with legal advice."
+   "description": "Sec 11 of POSH Act 2013 mandates 90 days. Editable for jurisdictions that adopt different timelines — change with legal advice."
   },
   {
    "default": "HR Manager",
@@ -889,7 +888,7 @@
    "fieldtype": "Link",
    "options": "Role",
    "label": "POSH IC Alert Role",
-   "description": "Role notified when the IC for a Company is missing or has fewer than 4 active members (informational \u2014 not enforced)."
+   "description": "Role notified when the IC for a Company is missing or has fewer than 4 active members (informational — not enforced)."
   },
   {
    "fieldname": "column_break_posh_1",
@@ -907,7 +906,7 @@
    "fieldname": "disciplinary_section",
    "fieldtype": "Section Break",
    "label": "Disciplinary Action Triggers",
-   "description": "Each downstream document trigger can be disabled here \u2014 useful for staged rollouts or when HR wants to keep manual control."
+   "description": "Each downstream document trigger can be disabled here — useful for staged rollouts or when HR wants to keep manual control."
   },
   {
    "default": "30",
@@ -951,7 +950,7 @@
    "fieldname": "wage_code_section",
    "fieldtype": "Section Break",
    "label": "Wage Code Enforcement",
-   "description": "Wage Code \u00a72(y) (live since 21 Nov 2025) requires Basic + DA + Retaining Allowance \u2265 50% of total wages."
+   "description": "Wage Code §2(y) (live since 21 Nov 2025) requires Basic + DA + Retaining Allowance ≥ 50% of total wages."
   },
   {
    "default": "HARD",
@@ -982,7 +981,7 @@
    "fieldname": "pf_wage_ceiling",
    "fieldtype": "Currency",
    "label": "PF Wage Ceiling",
-   "description": "EPS / EDLI capped at this monthly wage (\u20b915,000 in 2026)."
+   "description": "EPS / EDLI capped at this monthly wage (₹15,000 in 2026)."
   },
   {
    "default": "12.0",
@@ -1023,7 +1022,7 @@
    "fieldname": "pf_admin_charges_min",
    "fieldtype": "Currency",
    "label": "PF Admin Charges Minimum",
-   "description": "Per-establishment per-month minimum (\u20b9500 in 2026)."
+   "description": "Per-establishment per-month minimum (₹500 in 2026)."
   },
   {
    "default": "20",
@@ -1042,7 +1041,7 @@
    "fieldname": "esi_wage_ceiling",
    "fieldtype": "Currency",
    "label": "ESI Wage Ceiling",
-   "description": "Monthly gross at or below which ESI applies (\u20b921,000 standard)."
+   "description": "Monthly gross at or below which ESI applies (₹21,000 standard)."
   },
   {
    "default": "25000",
@@ -1083,7 +1082,7 @@
    "fieldname": "pan_mandatory_annual_income",
    "fieldtype": "Currency",
    "label": "PAN Mandatory Above Annual Income",
-   "description": "Below this annual income (monthly base \u00d7 12) a missing PAN is a non-blocking warning \u2014 no TDS / Form 16 arises. At or above it, a missing PAN hard-blocks the Salary Structure Assignment. Set to 0 to make PAN mandatory for everyone."
+   "description": "Below this annual income (monthly base × 12) a missing PAN is a non-blocking warning — no TDS / Form 16 arises. At or above it, a missing PAN hard-blocks the Salary Structure Assignment. Set to 0 to make PAN mandatory for everyone."
   },
   {
    "fieldname": "min_wage_section",
@@ -1113,7 +1112,7 @@
    "fieldname": "dpdp_section",
    "fieldtype": "Section Break",
    "label": "Digital Personal Data Protection (DPDP)",
-   "description": "Forward-looking \u2014 DPDP Rules 2026 implementation."
+   "description": "Forward-looking — DPDP Rules 2026 implementation."
   },
   {
    "default": "1",
@@ -1219,7 +1218,7 @@
    "label": "DPDP: Access Log Throttle (Seconds)",
    "fieldtype": "Int",
    "default": "3600",
-   "description": "Minimum seconds between identical access log entries for (user \u00d7 doctype \u00d7 record \u00d7 field). Prevents log floods on repeated form refreshes. Default 3600 (1 hour)."
+   "description": "Minimum seconds between identical access log entries for (user × doctype × record × field). Prevents log floods on repeated form refreshes. Default 3600 (1 hour)."
   },
   {
    "fieldname": "dpdp_purge_max_per_run",
@@ -1280,14 +1279,14 @@
    "label": "PF ECR: Skip Employees Missing UAN",
    "fieldtype": "Check",
    "default": "1",
-   "description": "When ON, employees without a UAN are skipped (logged in Exceptions). When OFF, ECR generation throws \u2014 useful in strict environments where missing UAN must be fixed before filing."
+   "description": "When ON, employees without a UAN are skipped (logged in Exceptions). When OFF, ECR generation throws — useful in strict environments where missing UAN must be fixed before filing."
   },
   {
    "fieldname": "pf_edli_per_member_cap",
-   "label": "PF EDLI Per-Member Cap (\u20b9)",
+   "label": "PF EDLI Per-Member Cap (₹)",
    "fieldtype": "Int",
    "default": "75",
-   "description": "Per-member EDLI contribution cap. Computed as EDLI wage cap \u00d7 0.50% (15,000 \u00d7 0.005 = 75). Set higher only if Notification 2024-XX raises it."
+   "description": "Per-member EDLI contribution cap. Computed as EDLI wage cap × 0.50% (15,000 × 0.005 = 75). Set higher only if Notification 2024-XX raises it."
   },
   {
    "fieldname": "esi_filing_window_days",
@@ -1381,21 +1380,21 @@
    "label": "Standing Orders Threshold (Workers)",
    "fieldtype": "Int",
    "default": "300",
-   "description": "IR Code \u00a728 \u2014 Standing Orders mandatory at this worker count."
+   "description": "IR Code §28 — Standing Orders mandatory at this worker count."
   },
   {
    "fieldname": "works_committee_threshold_workers",
    "label": "Works Committee Threshold (Workers)",
    "fieldtype": "Int",
    "default": "100",
-   "description": "IR Code \u00a73 \u2014 Works Committee mandatory at this worker count."
+   "description": "IR Code §3 — Works Committee mandatory at this worker count."
   },
   {
    "fieldname": "grc_threshold_workers",
    "label": "GRC Threshold (Workers)",
    "fieldtype": "Int",
    "default": "20",
-   "description": "IR Code \u00a74 \u2014 Grievance Redressal Committee mandatory at this worker count."
+   "description": "IR Code §4 — Grievance Redressal Committee mandatory at this worker count."
   },
   {
    "fieldname": "labour_code_col_break",
@@ -1406,34 +1405,34 @@
    "label": "Safety Committee Threshold (Workers)",
    "fieldtype": "Int",
    "default": "250",
-   "description": "OSH&WC \u00a796 \u2014 Safety Committee mandatory at this worker count."
+   "description": "OSH&WC §96 — Safety Committee mandatory at this worker count."
   },
   {
    "fieldname": "posh_ic_threshold_workers",
    "label": "POSH IC Threshold (Workers)",
    "fieldtype": "Int",
    "default": "10",
-   "description": "POSH Act \u00a74 \u2014 Internal Committee mandatory at this worker count."
+   "description": "POSH Act §4 — Internal Committee mandatory at this worker count."
   },
   {
    "fieldname": "enable_uan_aadhaar_validation",
    "label": "Enable UAN Aadhaar Validation",
    "fieldtype": "Check",
    "default": "1",
-   "description": "Warn on Employee.validate when UAN is set but not seeded with Aadhaar (SS Code \u00a7142)."
+   "description": "Warn on Employee.validate when UAN is set but not seeded with Aadhaar (SS Code §142)."
   },
   {
    "fieldname": "enable_monthly_labour_code_compliance_check",
    "label": "Enable Monthly Labour Code Compliance Check",
    "fieldtype": "Check",
    "default": "1",
-   "description": "Monthly scheduler \u2014 compare worker count vs thresholds; notify HR Manager on gaps."
+   "description": "Monthly scheduler — compare worker count vs thresholds; notify HR Manager on gaps."
   },
   {
    "fieldname": "org_integrity_section",
    "fieldtype": "Section Break",
    "label": "Org Integrity Check (nightly)",
-   "description": "A daily sweep that flags governance drift Step 1 can only warn about on save \u2014 an Active KRA/task whose accountable owner (DRI) has left, an approval stuck with no one able to act, or a Critical task that is unroutable or badly overdue \u2014 and escalates each to the DRI's/employee's reporting manager, or HR."
+   "description": "A daily sweep that flags governance drift Step 1 can only warn about on save — an Active KRA/task whose accountable owner (DRI) has left, an approval stuck with no one able to act, or a Critical task that is unroutable or badly overdue — and escalates each to the DRI's/employee's reporting manager, or HR."
   },
   {
    "default": "1",
@@ -1474,7 +1473,7 @@
  "idx": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-07-30 13:00:00.000000",
+ "modified": "2026-08-06 22:00:00.000000",
  "modified_by": "Administrator",
  "module": "HR",
  "name": "HR Settings",

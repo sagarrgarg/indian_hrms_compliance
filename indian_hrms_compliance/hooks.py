@@ -136,6 +136,7 @@ after_migrate = [
 	"indian_hrms_compliance.setup.reconcile_hrms_task_risk_tiers",
 	"indian_hrms_compliance.setup.backfill_reports_to_from_heads",
 	"indian_hrms_compliance.setup.seed_governance_profile",
+	"indian_hrms_compliance.setup.seed_backdated_attendance_role",
 	"indian_hrms_compliance.setup.apply_property_setters",
 	"indian_hrms_compliance.regional.india.tax_defaults.seed_all",
 	"indian_hrms_compliance.setup.update_select_perm_after_install",
