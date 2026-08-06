@@ -429,7 +429,11 @@ def schedule_salary_recovery(name: str, quiet: bool = False) -> dict:
 		frappe.throw(_("Salary recovery is already scheduled for this advance."))
 
 	component = _ensure_advance_recovery_component(doc.company)
-	start = getdate(doc.get("recovery_start_date") or add_months(nowdate(), 1))
+	# Default: recover starting the SAME month the advance was taken (its posting
+	# month), so that month's salary already carries the deduction — not next month.
+	# An explicit recovery_start_date (or the payroll run's month, set by the auto
+	# path) always wins.
+	start = getdate(doc.get("recovery_start_date") or get_first_day(doc.get("posting_date") or nowdate()))
 	# Equal split; the last installment absorbs the rounding remainder.
 	per = flt(pending / months, 2)
 	amounts = [per] * (months - 1) + [flt(pending - per * (months - 1), 2)]
