@@ -340,6 +340,92 @@ class PayrollEntry(Document):
 			frappe.msgprint(_("No pending advance recoveries to schedule."), indicator="blue", alert=True)
 		return scheduled
 
+	@frappe.whitelist()
+	def refresh_salary_slips(self):
+		"""Delete this run's DRAFT salary slips and rebuild them, so they reflect
+		changes made AFTER the slips were first created — corrected attendance,
+		newly-scheduled Employee Advance recoveries, or added/edited Additional
+		Salary. A draft slip is a point-in-time snapshot and does NOT auto-recompute
+		when those inputs change; this button rebuilds it. SUBMITTED slips are never
+		touched.
+
+		Safety: the rebuild runs synchronously in THIS transaction via
+		create_salary_slips_for_employees, which rolls back on any failure — and
+		that rollback also undoes the deletes below, so a failed rebuild leaves the
+		original drafts intact. We deliberately do NOT commit the deletes ourselves."""
+		self.check_permission("write")
+		draft = frappe.get_all(
+			"Salary Slip",
+			filters={"payroll_entry": self.name, "docstatus": 0},
+			fields=["name", "employee"],
+		)
+		if not draft:
+			frappe.msgprint(_("No draft salary slips to update."), indicator="blue", alert=True)
+			return {"refreshed": 0}
+
+		employees = [d.employee for d in draft]
+		args = frappe._dict(
+			{
+				"salary_slip_based_on_timesheet": self.salary_slip_based_on_timesheet,
+				"payroll_frequency": self.payroll_frequency,
+				"start_date": self.start_date,
+				"end_date": self.end_date,
+				"company": self.company,
+				"posting_date": self.posting_date,
+				"deduct_tax_for_unclaimed_employee_benefits": self.deduct_tax_for_unclaimed_employee_benefits,
+				"deduct_tax_for_unsubmitted_tax_exemption_proof": self.deduct_tax_for_unsubmitted_tax_exemption_proof,
+				"payroll_entry": self.name,
+				"exchange_rate": self.exchange_rate,
+				"currency": self.currency,
+			}
+		)
+
+		# Delete + rebuild as ONE uncommitted unit: nothing is committed until the
+		# rebuild succeeds (create_salary_slips_for_employees commits in its finally).
+		# If the delete OR the rebuild throws, we roll back — restoring every original
+		# draft — and report. So the run is never left half-rebuilt or emptied.
+		failed = False
+		try:
+			for d in draft:
+				frappe.delete_doc("Salary Slip", d.name, force=True, ignore_permissions=True)
+
+			# Re-run advance-recovery auto-scheduling so any newly-eligible advance is
+			# picked up by the rebuilt slips. Best-effort — never blocks the rebuild.
+			try:
+				from indian_hrms_compliance.hr.doctype.employee_advance.employee_advance import (
+					ensure_recoveries_scheduled,
+				)
+
+				ensure_recoveries_scheduled(employees, self.company, get_first_day(self.start_date))
+			except Exception:
+				frappe.log_error(
+					title="Auto advance-recovery scheduling failed (refresh)", message=frappe.get_traceback()
+				)
+
+			create_salary_slips_for_employees(employees, args, publish_progress=False)
+		except Exception:
+			frappe.db.rollback()
+			failed = True
+
+		# create_salary_slips_for_employees can also swallow a failure (rolls back +
+		# flags the entry Failed) instead of re-raising — cover that path too.
+		self.reload()
+		if failed or self.status == "Failed":
+			frappe.throw(
+				_(
+					"Could not rebuild the salary slips — your original drafts were kept. "
+					"Check the Error Log and the employees' Salary Structure Assignments."
+				)
+			)
+		frappe.msgprint(
+			_("Updated {0} draft salary slip(s) with the latest attendance, advances and additional salary.").format(
+				len(employees)
+			),
+			indicator="green",
+			alert=True,
+		)
+		return {"refreshed": len(employees)}
+
 	def get_sal_slip_list(self, ss_status, as_dict=False):
 		"""
 		Returns list of salary slips based on selected criteria

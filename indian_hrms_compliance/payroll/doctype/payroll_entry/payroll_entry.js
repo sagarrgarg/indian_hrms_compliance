@@ -161,6 +161,28 @@ frappe.ui.form.on("Payroll Entry", {
 			frm.add_custom_button(__("Submit Salary Slip"), function () {
 				submit_salary_slip(frm);
 			}).addClass("btn-primary");
+
+			// Recompute the DRAFT slips so they pick up anything edited after they
+			// were created — corrected attendance, advance recoveries, additional
+			// salary. Rebuilds by delete + recreate; submitted slips are untouched.
+			frm.add_custom_button(__("Update Salary Slips"), function () {
+				frappe.confirm(
+					__(
+						"Delete and recreate the draft salary slips in this run so they reflect the latest attendance, advances and additional salary? Submitted slips are not affected.",
+					),
+					function () {
+						frappe.call({
+							method: "refresh_salary_slips",
+							doc: frm.doc,
+							freeze: true,
+							freeze_message: __("Updating salary slips…"),
+							callback: function () {
+								frm.reload_doc();
+							},
+						});
+					},
+				);
+			});
 		} else if (!frm.doc.salary_slips_created && frm.doc.status === "Failed") {
 			frm.add_custom_button(__("Create Salary Slips"), function () {
 				frm.trigger("create_salary_slip");
