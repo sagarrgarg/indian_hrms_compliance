@@ -26,6 +26,62 @@ frappe.ui.form.on("Additional Salary", {
 
 	refresh: function (frm) {
 		frm.trigger("toggle_grant_mode");
+		frm.trigger("render_approval_actions");
+	},
+
+	// Wire the grant approval workflow (backend: submit_for_approval /
+	// approve_additional_salary / reject_additional_salary) into the Desk form.
+	// Grants born from another document (ref_doctype: advance recovery, legacy
+	// wrappers) are auto-approved and need no buttons.
+	render_approval_actions: function (frm) {
+		if (frm.is_new() || frm.doc.docstatus !== 0 || frm.doc.ref_doctype) return;
+
+		const status = frm.doc.approval_status;
+		const call = (method, args) =>
+			frappe.call({
+				method: `indian_hrms_compliance.payroll.doctype.additional_salary.additional_salary.${method}`,
+				args: Object.assign({ name: frm.doc.name }, args || {}),
+				freeze: true,
+				callback: () => frm.reload_doc(),
+			});
+
+		if (status === "Draft" || status === "Rejected") {
+			frm.add_custom_button(__("Send for Approval"), () => call("submit_for_approval")).addClass(
+				"btn-primary",
+			);
+		}
+
+		// Only the resolved approver, HR, or a System Manager can decide.
+		const roles = frappe.user_roles || [];
+		const can_decide =
+			roles.includes("System Manager") ||
+			roles.includes("HR Manager") ||
+			roles.includes("HR User") ||
+			frm.doc.approver === frappe.session.user;
+
+		if (status === "Pending Approval" && can_decide) {
+			frm.add_custom_button(__("Approve"), () => {
+				frappe.confirm(__("Approve this grant? It will be submitted and feed payroll."), () =>
+					call("approve_additional_salary"),
+				);
+			}).addClass("btn-success");
+
+			frm.add_custom_button(__("Reject"), () => {
+				frappe.prompt(
+					[
+						{
+							fieldname: "reason",
+							fieldtype: "Small Text",
+							label: __("Reason for rejection"),
+							reqd: 1,
+						},
+					],
+					(v) => call("reject_additional_salary", { reason: v.reason }),
+					__("Reject Grant"),
+					__("Reject"),
+				);
+			}).addClass("btn-danger");
+		}
 	},
 
 	grace_days: function (frm) {

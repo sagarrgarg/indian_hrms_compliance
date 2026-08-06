@@ -3448,6 +3448,7 @@ _APPROVAL_CATEGORIES = (
 	"Profile Update",
 	"Onboarding",
 	"Grievance",
+	"Compensation",
 )
 _HR_APPROVER_ROLES = frozenset(("HR Manager", "HR User", "System Manager"))
 
