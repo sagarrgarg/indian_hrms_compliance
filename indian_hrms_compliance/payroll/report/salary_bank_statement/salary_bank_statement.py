@@ -43,18 +43,30 @@ def get_columns(filters):
 
 def get_rows(filters):
 	use_fh = bool(filters.get("use_father_husband_name"))
+	# Bank = show only this bank; Exclude Bank = leave this bank out (e.g. pay
+	# same-bank transfers in one file and everyone else by NEFT in another).
+	only_bank = (filters.get("bank") or "").strip()
+	exclude_bank = (filters.get("exclude_bank") or "").strip()
+
 	slips = _get_slips(filters)
 	emp_map = _employee_map([s.employee for s in slips])
 
 	rows = []
-	for i, s in enumerate(slips, start=1):
+	sno = 0
+	for s in slips:
 		emp = emp_map.get(s.employee, {})
+		row_bank = s.bank_name or emp.get("bank_name") or ""
+		if only_bank and row_bank != only_bank:
+			continue
+		if exclude_bank and row_bank == exclude_bank:
+			continue
+		sno += 1
 		rows.append(
 			{
-				"sno": i,
+				"sno": sno,
 				"employee_name": s.employee_name or emp.get("employee_name"),
 				"designation": (emp.get("father_or_husband_name") if use_fh else emp.get("designation")) or "",
-				"bank_name": s.bank_name or emp.get("bank_name") or "",
+				"bank_name": row_bank,
 				"account_no": s.bank_account_no or emp.get("bank_ac_no") or "",
 				"ifsc": emp.get("ifsc_code") or "",
 				"amount": flt(s.net_pay),
@@ -97,7 +109,9 @@ def _employee_map(employees):
 
 
 @frappe.whitelist()
-def download_salary_bank_statement(company, from_date=None, to_date=None, use_father_husband_name=0):
+def download_salary_bank_statement(
+	company, from_date=None, to_date=None, use_father_husband_name=0, bank=None, exclude_bank=None
+):
 	"""Emit the exact per-company bank statement workbook (.xlsx): company header,
 	period title, the columns, and a TOTAL row — the firm's ready-to-upload format."""
 	from openpyxl import Workbook
@@ -109,6 +123,8 @@ def download_salary_bank_statement(company, from_date=None, to_date=None, use_fa
 			"from_date": from_date,
 			"to_date": to_date,
 			"use_father_husband_name": frappe.utils.cint(use_father_husband_name),
+			"bank": bank,
+			"exclude_bank": exclude_bank,
 		}
 	)
 	rows = get_rows(filters)
