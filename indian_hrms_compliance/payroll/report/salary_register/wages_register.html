@@ -54,7 +54,7 @@
 		<tr>
 			<th class="grp" colspan="5">Particulars</th>
 			<th class="grp" colspan="{{ earn_cols|length + 1 }}">Salary / Wage Rate</th>
-			<th class="grp" colspan="4">Attendance</th>
+			<th class="grp" colspan="5">Attendance</th>
 			<th class="grp" colspan="{{ earn_cols|length + 1 + (1 if has_bonus else 0) }}">Earnings</th>
 			<th class="grp" colspan="{{ ded_cols|length + 1 }}">Deductions</th>
 			{% if emp_cols %}<th class="grp" colspan="{{ emp_cols|length + 1 }}">Employer Share</th>{% endif %}
@@ -69,7 +69,7 @@
 			<th>Insurance<br>Number</th>
 			{% for c in earn_cols %}<th>{{ c }}</th>{% endfor %}
 			<th>Total</th>
-			<th>W.D.</th><th>E.L.</th><th>LWP</th><th>P.D.</th>
+			<th>W.D.</th><th>E.L.</th><th>LWP</th><th>ABS</th><th>P.D.</th>
 			{% for c in earn_cols %}<th>{{ c }}</th>{% endfor %}
 			<th>Gross</th>
 			{% if has_bonus %}<th>Bonus<br>(Advance)</th>{% endif %}
@@ -91,6 +91,7 @@
 			<td class="num">{{ "%g"|format(r.wd) }}</td>
 			<td class="num">{{ "%g"|format(r.el) if r.el else "" }}</td>
 			<td class="num">{{ "%g"|format(r.lwp) if r.lwp else "" }}</td>
+			<td class="num">{{ "%g"|format(r.absent) if r.absent else "" }}</td>
 			<td class="num">{{ "%g"|format(r.pd) }}</td>
 			{% for c in earn_cols %}{{ n(r.earn[c]) }}{% endfor %}
 			{{ n(r.gross) }}
@@ -106,7 +107,7 @@
 			<td class="ctr" colspan="5">TOTAL &nbsp;({{ rows|length }} employees)</td>
 			{% for c in earn_cols %}{{ n(totals.rate[c]) }}{% endfor %}
 			{{ n(totals.rate_total) }}
-			<td colspan="4"></td>
+			<td colspan="5"></td>
 			{% for c in earn_cols %}{{ n(totals.earn[c]) }}{% endfor %}
 			{{ n(totals.gross) }}
 			{% if has_bonus %}{{ n(totals.bonus) }}{% endif %}
