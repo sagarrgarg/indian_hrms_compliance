@@ -41,6 +41,7 @@ def execute(filters=None):
 	}
 
 	doj_map = get_employee_doj_map()
+	lwp_types = _get_lwp_leave_types()
 
 	data = []
 	for ss in salary_slips:
@@ -55,6 +56,9 @@ def execute(filters=None):
 			"company": ss.company,
 			"start_date": ss.start_date,
 			"end_date": ss.end_date,
+			# Attendance split, shown separately: paid earned/other leave (EL),
+			# unpaid leave (LWP) and unauthorised absence (Absent) are distinct.
+			"earned_leave": _get_el_days(ss.employee, ss.start_date, ss.end_date, lwp_types),
 			"leave_without_pay": ss.leave_without_pay,
 			"absent_days": ss.absent_days,
 			"payment_days": ss.payment_days,
@@ -232,6 +236,12 @@ def get_columns(components, fieldnames):
 			"fieldname": "end_date",
 			"fieldtype": "Date",
 			"width": 80,
+		},
+		{
+			"label": _("Earned/Paid Leave"),
+			"fieldname": "earned_leave",
+			"fieldtype": "Float",
+			"width": 50,
 		},
 		{
 			"label": _("Leave Without Pay"),
@@ -726,6 +736,7 @@ def get_wages_register_html(filters=None):
 			wd=flt(s.total_working_days),
 			el=_get_el_days(s.employee, s.start_date, s.end_date, lwp_types),
 			lwp=flt(s.leave_without_pay),
+			absent=flt(s.absent_days),
 			pd=flt(s.payment_days),
 			rate=rate,
 			rate_total=rate_total,
