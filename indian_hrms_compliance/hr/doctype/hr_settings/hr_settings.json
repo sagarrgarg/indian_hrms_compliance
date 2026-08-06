@@ -460,8 +460,7 @@
    "non_negative": 1
   },
   {
-   "default": "HRMS Master Manager",
-   "description": "Only users holding this role may submit attendance dated beyond the months threshold above (Administrator always can).",
+   "description": "Only users holding this role may submit attendance dated beyond the months threshold above (Administrator always can). Defaults to the HRMS Master Manager role, seeded on install/migrate.",
    "fieldname": "role_allowed_to_approve_backdated_attendance",
    "fieldtype": "Link",
    "label": "Role Allowed to Approve Back-dated Attendance",
