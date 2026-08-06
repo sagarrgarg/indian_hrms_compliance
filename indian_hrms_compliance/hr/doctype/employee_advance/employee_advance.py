@@ -406,7 +406,7 @@ def _ensure_advance_recovery_component(company: str) -> str:
 
 
 @frappe.whitelist()
-def schedule_salary_recovery(name: str) -> dict:
+def schedule_salary_recovery(name: str, quiet: bool = False) -> dict:
 	"""Create the Advance Recovery salary deductions for the chosen plan (1 / 3 /
 	6 equal monthly installments). Each is an Additional Salary deduction that
 	references this advance, so payroll books it against the advance account and
@@ -453,10 +453,55 @@ def schedule_salary_recovery(name: str) -> dict:
 	frappe.db.set_value(
 		"Employee Advance", name, "repay_unclaimed_amount_from_salary", 1, update_modified=False
 	)
-	frappe.msgprint(
-		_("Scheduled {0} recovery deduction(s) totalling {1}.").format(len(created), pending)
-	)
+	if not quiet:
+		frappe.msgprint(
+			_("Scheduled {0} recovery deduction(s) totalling {1}.").format(len(created), pending)
+		)
 	return {"created": created, "total": pending, "months": months}
+
+
+def ensure_recoveries_scheduled(employees, company, period_start):
+	"""Auto-schedule Advance Recovery installments for a payroll run — no manual
+	'Schedule Salary Recovery' click needed. For each employee's SUBMITTED advances
+	that opted into salary recovery (a Salary Recovery Plan is chosen) and still have
+	a pending balance and aren't already scheduled, create the recovery deductions so
+	the slips pick them up. Idempotent (skips already-scheduled) and defensive (one
+	bad advance never blocks the run). Returns the list of advances scheduled."""
+	scheduled = []
+	for employee in dict.fromkeys(e for e in employees if e):  # de-dup, preserve order
+		advances = frappe.get_all(
+			"Employee Advance",
+			filters={"employee": employee, "company": company, "docstatus": 1},
+			fields=["name", "salary_recovery_plan", "paid_amount", "claimed_amount",
+				"return_amount", "recovery_start_date"],
+		)
+		for adv in advances:
+			# Opt-in signal: the advance carries a recovery plan.
+			if not adv.salary_recovery_plan:
+				continue
+			pending = flt(adv.paid_amount) - flt(adv.claimed_amount) - flt(adv.return_amount)
+			if pending <= 0:
+				continue
+			# Already scheduled? leave it (don't double up the cycle).
+			if frappe.db.count(
+				"Additional Salary",
+				{"ref_doctype": "Employee Advance", "ref_docname": adv.name, "docstatus": 1},
+			):
+				continue
+			# Align the cycle to this payroll month if the advance has no explicit start.
+			if not adv.recovery_start_date:
+				frappe.db.set_value(
+					"Employee Advance", adv.name, "recovery_start_date", period_start, update_modified=False
+				)
+			try:
+				schedule_salary_recovery(adv.name, quiet=True)
+				scheduled.append(adv.name)
+			except Exception:
+				frappe.log_error(
+					title=f"Auto advance-recovery scheduling failed: {adv.name}",
+					message=frappe.get_traceback(),
+				)
+	return scheduled
 
 
 @frappe.whitelist()

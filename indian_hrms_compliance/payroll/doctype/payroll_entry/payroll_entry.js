@@ -61,6 +61,22 @@ frappe.ui.form.on("Payroll Entry", {
 			}).toggleClass("btn-primary", !(frm.doc.employees || []).length);
 		}
 
+		// Advance recovery is scheduled automatically on Create Salary Slips; this is
+		// the manual trigger to (re)schedule on demand for everyone in the run.
+		if ((frm.doc.employees || []).length && frm.doc.docstatus != 2 && !frm.is_new()) {
+			frm.add_custom_button(__("Schedule Advance Recoveries"), function () {
+				frappe.call({
+					method: "schedule_advance_recoveries",
+					doc: frm.doc,
+					freeze: true,
+					freeze_message: __("Scheduling advance recoveries…"),
+					callback: function () {
+						frm.reload_doc();
+					},
+				});
+			});
+		}
+
 		if (
 			(frm.doc.employees || []).length &&
 			!frappe.model.has_workflow(frm.doctype) &&

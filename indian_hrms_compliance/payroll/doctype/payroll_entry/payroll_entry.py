@@ -18,6 +18,7 @@ from frappe.utils import (
 	comma_and,
 	date_diff,
 	flt,
+	get_first_day,
 	get_link_to_form,
 	getdate,
 )
@@ -266,6 +267,20 @@ class PayrollEntry(Document):
 		employees = [emp.employee for emp in self.employees]
 
 		if employees:
+			# Auto-recover Employee Advances: schedule the recovery deductions BEFORE
+			# the slips are built so each slip picks up its installment — no manual
+			# "Schedule Salary Recovery" click per advance. Idempotent + defensive.
+			try:
+				from indian_hrms_compliance.hr.doctype.employee_advance.employee_advance import (
+					ensure_recoveries_scheduled,
+				)
+
+				ensure_recoveries_scheduled(employees, self.company, get_first_day(self.start_date))
+			except Exception:
+				frappe.log_error(
+					title="Auto advance-recovery scheduling failed", message=frappe.get_traceback()
+				)
+
 			args = frappe._dict(
 				{
 					"salary_slip_based_on_timesheet": self.salary_slip_based_on_timesheet,
@@ -299,6 +314,31 @@ class PayrollEntry(Document):
 				create_salary_slips_for_employees(employees, args, publish_progress=False)
 				# since this method is called via frm.call this doc needs to be updated manually
 				self.reload()
+
+	@frappe.whitelist()
+	def schedule_advance_recoveries(self):
+		"""Manual trigger (button) to schedule Advance Recovery deductions for every
+		employee in this run whose advance opted into salary recovery. Same logic that
+		runs automatically on Create Salary Slips — exposed for on-demand use. If slips
+		already exist, they must be recreated to pick up freshly-scheduled recoveries."""
+		self.check_permission("write")
+		from indian_hrms_compliance.hr.doctype.employee_advance.employee_advance import (
+			ensure_recoveries_scheduled,
+		)
+
+		employees = [emp.employee for emp in self.employees]
+		scheduled = ensure_recoveries_scheduled(employees, self.company, get_first_day(self.start_date))
+		if scheduled:
+			frappe.msgprint(
+				_("Scheduled advance recovery for {0} advance(s). Recreate the salary slips so the deductions appear.").format(
+					len(scheduled)
+				),
+				indicator="green",
+				alert=True,
+			)
+		else:
+			frappe.msgprint(_("No pending advance recoveries to schedule."), indicator="blue", alert=True)
+		return scheduled
 
 	def get_sal_slip_list(self, ss_status, as_dict=False):
 		"""
