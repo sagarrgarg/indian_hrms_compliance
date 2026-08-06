@@ -1,21 +1,59 @@
 // Copyright (c) 2016, Frappe Technologies Pvt. Ltd. and contributors
 // For license information, please see license.txt
 
+// Derive the period end (and snap the start) from the chosen payroll frequency +
+// start date — same logic Payroll Entry uses (get_start_end_dates). Guarded so the
+// programmatic set_filter_value calls don't recurse through on_change.
+let _sr_deriving = false;
+function sr_set_period_dates() {
+	if (_sr_deriving) return;
+	const frequency = frappe.query_report.get_filter_value("payroll_frequency");
+	const start_date = frappe.query_report.get_filter_value("from_date");
+	const company = frappe.query_report.get_filter_value("company");
+	if (!frequency || !start_date) return;
+	frappe.call({
+		method: "indian_hrms_compliance.payroll.doctype.payroll_entry.payroll_entry.get_start_end_dates",
+		args: { payroll_frequency: frequency, start_date: start_date, company: company },
+		callback: function (r) {
+			if (!r.message) return;
+			_sr_deriving = true;
+			frappe.query_report.set_filter_value("from_date", r.message.start_date);
+			frappe.query_report.set_filter_value("to_date", r.message.end_date);
+			_sr_deriving = false;
+		},
+	});
+}
+
 frappe.query_reports["Salary Register"] = {
 	filters: [
+		{
+			fieldname: "payroll_frequency",
+			label: __("Payroll Frequency"),
+			fieldtype: "Select",
+			options: ["Monthly", "Fortnightly", "Weekly", "Bimonthly", "Daily"],
+			default: "Monthly",
+			reqd: 1,
+			width: "100px",
+			on_change: function () {
+				sr_set_period_dates();
+			},
+		},
 		{
 			fieldname: "from_date",
 			label: __("From"),
 			fieldtype: "Date",
-			default: frappe.datetime.add_months(frappe.datetime.get_today(), -1),
+			default: frappe.datetime.month_start(),
 			reqd: 1,
 			width: "100px",
+			on_change: function () {
+				sr_set_period_dates();
+			},
 		},
 		{
 			fieldname: "to_date",
 			label: __("To"),
 			fieldtype: "Date",
-			default: frappe.datetime.get_today(),
+			default: frappe.datetime.month_end(),
 			reqd: 1,
 			width: "100px",
 		},
