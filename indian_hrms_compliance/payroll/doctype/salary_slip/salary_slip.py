@@ -2744,6 +2744,74 @@ def _payroll_payment_refs(doc):
 	return runs, emps_by_run
 
 
+def validate_payroll_payment_not_exceeding_net(doc, method=None):
+	"""Before submitting a payroll Bank/Cash Entry, refuse to pay any employee more
+	than their salary slip's net pay. Cumulative payroll-payable debits across all
+	submitted payment entries for the run + this one must not exceed the net —
+	guards split payments and hand-edited entries against over-disbursement."""
+	if doc.get("voucher_type") not in ("Bank Entry", "Cash Entry"):
+		return
+
+	# This entry's payable debit per (run, employee).
+	this_pay = {}
+	for a in doc.get("accounts") or []:
+		if (
+			a.get("reference_type") == "Payroll Entry"
+			and a.get("reference_name")
+			and a.get("party_type") == "Employee"
+			and a.get("party")
+			and flt(a.get("debit"))
+		):
+			key = (a.reference_name, a.party)
+			this_pay[key] = this_pay.get(key, 0.0) + flt(a.debit)
+
+	for (run, employee), pay in this_pay.items():
+		slip = frappe.db.get_value(
+			"Salary Slip",
+			{"payroll_entry": run, "employee": employee, "docstatus": 1},
+			["net_pay", "rounded_total", "employee_name"],
+			as_dict=True,
+		)
+		if not slip:
+			continue
+		net = flt(slip.rounded_total) or flt(slip.net_pay)
+		prior = _prior_payroll_payments(run, employee, doc.name)
+		# ₹1 tolerance absorbs rounding differences.
+		if flt(prior + pay, 2) > flt(net, 2) + 1.0:
+			frappe.throw(
+				_(
+					"Payment for {0} ({1}) would exceed the salary slip net pay ({2}). "
+					"Already paid: {3}. Cannot over-pay."
+				).format(slip.employee_name or employee, flt(prior + pay, 2), flt(net, 2), flt(prior, 2)),
+				title=_("Over-payment blocked"),
+			)
+
+
+def _prior_payroll_payments(run, employee, exclude_je):
+	"""Total payroll-payable debit already booked for (run, employee) across other
+	SUBMITTED Bank/Cash Entries."""
+	from frappe.query_builder.functions import Sum
+
+	je = frappe.qb.DocType("Journal Entry")
+	jea = frappe.qb.DocType("Journal Entry Account")
+	res = (
+		frappe.qb.from_(jea)
+		.join(je)
+		.on(jea.parent == je.name)
+		.select(Sum(jea.debit))
+		.where(
+			(je.docstatus == 1)
+			& (je.voucher_type.isin(["Bank Entry", "Cash Entry"]))
+			& (je.name != exclude_je)
+			& (jea.reference_type == "Payroll Entry")
+			& (jea.reference_name == run)
+			& (jea.party_type == "Employee")
+			& (jea.party == employee)
+		)
+	).run()
+	return flt(res[0][0]) if res and res[0] and res[0][0] else 0.0
+
+
 def generate_password_for_pdf(policy_template, employee):
 	employee = frappe.get_cached_doc("Employee", employee)
 	return policy_template.format(**employee.as_dict())

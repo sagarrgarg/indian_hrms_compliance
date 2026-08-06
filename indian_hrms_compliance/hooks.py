@@ -260,6 +260,7 @@ doc_events = {
 	},
 	"Journal Entry": {
 		"validate": "indian_hrms_compliance.hr.doctype.expense_claim.expense_claim.validate_expense_claim_in_jv",
+		"before_submit": "indian_hrms_compliance.payroll.doctype.salary_slip.salary_slip.validate_payroll_payment_not_exceeding_net",
 		"on_submit": [
 			"indian_hrms_compliance.hr.doctype.expense_claim.expense_claim.update_payment_for_expense_claim",
 			"indian_hrms_compliance.hr.doctype.full_and_final_statement.full_and_final_statement.update_full_and_final_statement_status",
