@@ -38,8 +38,19 @@ def execute(filters=None):
 	doj_map = get_employee_doj_map()
 	lwp_types = _get_lwp_leave_types()
 
+	# Optional Bank include / Exclude filters (matches the Bank Statement download).
+	only_bank = (filters.get("bank") or "").strip()
+	exclude_bank = (filters.get("exclude_bank") or "").strip()
+	emp_bank = _employee_bank_map(salary_slips) if (only_bank or exclude_bank) else {}
+
 	data = []
 	for ss in salary_slips:
+		if only_bank or exclude_bank:
+			row_bank = ss.bank_name or emp_bank.get(ss.employee) or ""
+			if only_bank and row_bank != only_bank:
+				continue
+			if exclude_bank and row_bank == exclude_bank:
+				continue
 		row = {
 			"salary_slip_id": ss.name,
 			"employee": ss.employee,
@@ -96,6 +107,17 @@ def execute(filters=None):
 		data.append(row)
 
 	return columns, data
+
+
+def _employee_bank_map(salary_slips):
+	"""employee -> bank_name, used to resolve the bank when the slip didn't cache it."""
+	emps = list({ss.employee for ss in salary_slips if ss.employee})
+	if not emps:
+		return {}
+	return {
+		r.name: r.bank_name
+		for r in frappe.get_all("Employee", filters={"name": ["in", emps]}, fields=["name", "bank_name"])
+	}
 
 
 def get_earning_and_deduction_types(salary_slips):
