@@ -54,6 +54,53 @@ frappe.ui.form.on("Employee Advance", {
 			}).addClass("btn-primary")
 		}
 
+		// Approver-side actions on the Desk form (same endpoints the PWA Advance
+		// inbox uses). Without these, a "Pending Approval" advance could only be
+		// decided from the PWA. Only the resolved approver / HR / System Manager.
+		if (frm.doc.docstatus === 0 && frm.doc.approval_status === "Pending Approval") {
+			const roles = frappe.user_roles || [];
+			const can_decide =
+				roles.includes("System Manager") ||
+				roles.includes("HR Manager") ||
+				roles.includes("HR User") ||
+				frm.doc.approver === frappe.session.user;
+
+			if (can_decide) {
+				const decide = (method, args) =>
+					frappe.call({
+						method: `indian_hrms_compliance.api.${method}`,
+						args: Object.assign({ doctype: "Employee Advance", name: frm.doc.name }, args || {}),
+						freeze: true,
+						callback: function () {
+							frm.reload_doc();
+						},
+					});
+
+				frm.add_custom_button(__("Approve"), function () {
+					frappe.confirm(
+						__("Approve this advance? It will be submitted so it can be paid."),
+						() => decide("approve_request"),
+					);
+				}).addClass("btn-success");
+
+				frm.add_custom_button(__("Reject"), function () {
+					frappe.prompt(
+						[
+							{
+								fieldname: "comment",
+								fieldtype: "Small Text",
+								label: __("Reason for rejection"),
+								reqd: 1,
+							},
+						],
+						(v) => decide("reject_request", { comment: v.comment }),
+						__("Reject Advance"),
+						__("Reject"),
+					);
+				}).addClass("btn-danger");
+			}
+		}
+
 		if (
 			frm.doc.docstatus === 1 &&
 			flt(frm.doc.paid_amount) < flt(frm.doc.advance_amount) &&
