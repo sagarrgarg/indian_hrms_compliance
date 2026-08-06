@@ -137,8 +137,18 @@ class AdditionalSalary(Document):
 					"salary_component": self.salary_component,
 				},
 			)
+			# A variable tax component (e.g. TDS) is auto-added to the slip and its
+			# slab-computed amount can be overwritten with a fixed figure WITHOUT the
+			# component being a structure row — the slip applies it via
+			# Salary Slip.handle_additional_salary_tax_component (which uses the fixed
+			# amount and skips the slab calc). So keep Overwrite enabled for a tax
+			# component even when it isn't in the structure; only NON-tax components
+			# must belong to the structure to be overwritten.
+			is_variable_tax_component = frappe.db.get_value(
+				"Salary Component", self.salary_component, "variable_based_on_taxable_salary"
+			)
 
-			if not is_structure_component:
+			if not is_structure_component and not is_variable_tax_component:
 				self.overwrite_salary_structure_amount = 0
 				frappe.msgprint(
 					_(
