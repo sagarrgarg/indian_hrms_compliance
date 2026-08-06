@@ -1122,23 +1122,16 @@ class PayrollEntry(Document):
 
 	@frappe.whitelist()
 	def has_bank_entries(self) -> dict[str, bool]:
-		je = frappe.qb.DocType("Journal Entry")
-		jea = frappe.qb.DocType("Journal Entry Account")
-
-		bank_entries = (
-			frappe.qb.from_(je)
-			.inner_join(jea)
-			.on(je.name == jea.parent)
-			.select(je.name)
-			.where(
-				((je.voucher_type == "Bank Entry") | (je.voucher_type == "Cash Entry"))
-				& (jea.reference_name == self.name)
-				& (jea.reference_type == "Payroll Entry")
-			)
-		).run(as_dict=True)
-
+		# Drives the "Make Bank Entry" button. It stays available until every
+		# payable (Submitted, not-yet-Paid) slip in the run is Paid, so a payment
+		# can be made in 2-3 parts — each Bank Entry pays only the still-unpaid
+		# slips (make_bank_entry / get_salary_slip_details exclude Paid ones).
+		remaining_to_pay = frappe.db.count(
+			"Salary Slip",
+			{"payroll_entry": self.name, "docstatus": 1, "status": "Submitted"},
+		)
 		return {
-			"has_bank_entries": bool(bank_entries),
+			"has_bank_entries": remaining_to_pay == 0,
 			"has_bank_entries_for_withheld_salaries": not any(
 				employee.is_salary_withheld for employee in self.employees
 			),
@@ -1153,7 +1146,7 @@ class PayrollEntry(Document):
 		)
 
 		salary_slip_total = 0
-		salary_details = self.get_salary_slip_details(for_withheld_salaries)
+		salary_details = self.get_salary_slip_details(for_withheld_salaries, exclude_paid=True)
 
 		for salary_detail in salary_details:
 			if salary_detail.parentfield == "earnings":
@@ -1222,7 +1215,7 @@ class PayrollEntry(Document):
 
 		return bank_entry
 
-	def get_salary_slip_details(self, for_withheld_salaries=False):
+	def get_salary_slip_details(self, for_withheld_salaries=False, exclude_paid=False):
 		SalarySlip = frappe.qb.DocType("Salary Slip")
 		SalaryDetail = frappe.qb.DocType("Salary Detail")
 
@@ -1261,6 +1254,11 @@ class PayrollEntry(Document):
 			query = query.where(SalarySlip.status == "Withheld")
 		else:
 			query = query.where(SalarySlip.status != "Withheld")
+
+		# Already-paid slips must not be re-included, else a 2nd/3rd bank entry
+		# (a split payment) would pay them again.
+		if exclude_paid:
+			query = query.where(SalarySlip.status != "Paid")
 		return query.run(as_dict=True)
 
 	@if_lending_app_installed

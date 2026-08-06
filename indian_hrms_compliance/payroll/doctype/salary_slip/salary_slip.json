@@ -176,7 +176,7 @@
    "fieldname": "status",
    "fieldtype": "Select",
    "label": "Status",
-   "options": "Draft\nSubmitted\nCancelled\nWithheld",
+   "options": "Draft\nSubmitted\nCancelled\nWithheld\nPaid",
    "read_only": 1
   },
   {

@@ -263,14 +263,17 @@ doc_events = {
 			"indian_hrms_compliance.hr.doctype.expense_claim.expense_claim.update_payment_for_expense_claim",
 			"indian_hrms_compliance.hr.doctype.full_and_final_statement.full_and_final_statement.update_full_and_final_statement_status",
 			"indian_hrms_compliance.payroll.doctype.salary_withholding.salary_withholding.update_salary_withholding_payment_status",
+			"indian_hrms_compliance.payroll.doctype.salary_slip.salary_slip.mark_salary_slips_paid_on_payment",
 		],
 		"on_update_after_submit": "indian_hrms_compliance.hr.doctype.expense_claim.expense_claim.update_payment_for_expense_claim",
 		"on_cancel": [
+			"indian_hrms_compliance.payroll.doctype.salary_slip.salary_slip.revert_salary_slips_on_payment_cancel",
 			"indian_hrms_compliance.hr.doctype.expense_claim.expense_claim.update_payment_for_expense_claim",
 			"indian_hrms_compliance.payroll.doctype.salary_slip.salary_slip.unlink_ref_doc_from_salary_slip",
 			"indian_hrms_compliance.hr.doctype.full_and_final_statement.full_and_final_statement.update_full_and_final_statement_status",
 			"indian_hrms_compliance.payroll.doctype.salary_withholding.salary_withholding.update_salary_withholding_payment_status",
 		],
+		"on_trash": "indian_hrms_compliance.payroll.doctype.salary_slip.salary_slip.revert_salary_slips_on_payment_cancel",
 	},
 	"Loan": {"validate": "indian_hrms_compliance.hr.utils.validate_loan_repay_from_salary"},
 	"Department": {

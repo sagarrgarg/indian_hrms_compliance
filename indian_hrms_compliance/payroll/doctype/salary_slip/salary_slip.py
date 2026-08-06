@@ -590,7 +590,10 @@ class SalarySlip(AccountsController):
 			elif self.docstatus == 0:
 				return "Draft"
 			elif self.docstatus == 1:
-				return "Submitted"
+				# Preserve "Paid" (set by the payment Journal Entry) across any
+				# re-validation of a submitted slip; a bank/cash payment marks it
+				# Paid and its cancellation reverts it to Submitted.
+				return "Paid" if self.status == "Paid" else "Submitted"
 
 	def validate_dates(self):
 		self.validate_from_to_dates("start_date", "end_date")
@@ -2692,6 +2695,53 @@ def unlink_ref_doc_from_salary_slip(doc, method=None):
 		for ss in linked_ss:
 			ss_doc = frappe.get_doc("Salary Slip", ss)
 			frappe.db.set_value("Salary Slip", ss_doc.name, "journal_entry", "")
+
+
+def mark_salary_slips_paid_on_payment(doc, method=None):
+	"""On submit of a payroll Bank/Cash payment Journal Entry, mark the Salary
+	Slips it pays as Paid. Slips paid = the employees whose payable line (party =
+	Employee, a positive debit referencing a Payroll Entry) is actually present in
+	THIS entry — so a partial/split payment marks only those employees. A
+	non-employee-wise entry (single aggregate payable line, no party) marks the
+	whole referenced run. Only Bank/Cash Entries qualify — never the accrual JV."""
+	if doc.get("voucher_type") not in ("Bank Entry", "Cash Entry"):
+		return
+	runs, emps_by_run = _payroll_payment_refs(doc)
+	for run in runs:
+		filters = {"payroll_entry": run, "docstatus": 1, "status": "Submitted"}
+		emps = emps_by_run.get(run)
+		if emps:
+			filters["employee"] = ["in", list(emps)]
+		for name in frappe.get_all("Salary Slip", filters=filters, pluck="name"):
+			frappe.db.set_value(
+				"Salary Slip", name, {"status": "Paid", "journal_entry": doc.name}, update_modified=False
+			)
+
+
+def revert_salary_slips_on_payment_cancel(doc, method=None):
+	"""Revert the slips a payment JE marked Paid back to Submitted when it is
+	cancelled or deleted. Registered BEFORE unlink_ref_doc_from_salary_slip in
+	on_cancel so the journal_entry link still exists to find them by."""
+	for name in frappe.get_all(
+		"Salary Slip",
+		filters={"journal_entry": doc.name, "status": "Paid", "docstatus": 1},
+		pluck="name",
+	):
+		frappe.db.set_value(
+			"Salary Slip", name, {"status": "Submitted", "journal_entry": None}, update_modified=False
+		)
+
+
+def _payroll_payment_refs(doc):
+	"""From a payment JE's account rows return (set of Payroll Entry names,
+	{payroll_entry: {employees actually paid}})."""
+	runs, emps_by_run = set(), {}
+	for a in doc.get("accounts") or []:
+		if a.get("reference_type") == "Payroll Entry" and a.get("reference_name"):
+			runs.add(a.reference_name)
+			if a.get("party_type") == "Employee" and a.get("party") and flt(a.get("debit")):
+				emps_by_run.setdefault(a.reference_name, set()).add(a.party)
+	return runs, emps_by_run
 
 
 def generate_password_for_pdf(policy_template, employee):
