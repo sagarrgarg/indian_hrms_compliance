@@ -64,6 +64,18 @@ frappe.query_reports["Salary Bank Statement"] = {
 			reqd: 1,
 		},
 		{
+			fieldname: "bank",
+			label: __("Bank (only this)"),
+			fieldtype: "Link",
+			options: "Bank",
+		},
+		{
+			fieldname: "exclude_bank",
+			label: __("Exclude Bank"),
+			fieldtype: "Link",
+			options: "Bank",
+		},
+		{
 			fieldname: "use_father_husband_name",
 			label: __("Use Father/Husband Name (instead of Designation)"),
 			fieldtype: "Check",
@@ -83,6 +95,8 @@ frappe.query_reports["Salary Bank Statement"] = {
 				from_date: f.from_date || "",
 				to_date: f.to_date || "",
 				use_father_husband_name: f.use_father_husband_name ? 1 : 0,
+				bank: f.bank || "",
+				exclude_bank: f.exclude_bank || "",
 			});
 			window.open(
 				"/api/method/indian_hrms_compliance.payroll.report.salary_bank_statement.salary_bank_statement.download_salary_bank_statement?" +
