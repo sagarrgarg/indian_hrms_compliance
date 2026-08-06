@@ -64,13 +64,14 @@
   },
   {
    "fieldname": "bank_name",
-   "fieldtype": "Data",
-   "label": "Bank Name"
+   "fieldtype": "Link",
+   "label": "Bank Name",
+   "options": "Bank"
   }
  ],
  "istable": 1,
  "links": [],
- "modified": "2026-05-30 18:00:00.000000",
+ "modified": "2026-08-06 21:00:00.000000",
  "modified_by": "Administrator",
  "module": "Payroll",
  "name": "Form 24Q Challan",

@@ -575,6 +575,8 @@ override_doctype_dashboards = {
 	"Project": "indian_hrms_compliance.overrides.dashboard_overrides.get_dashboard_for_project",
 	"Timesheet": "indian_hrms_compliance.overrides.dashboard_overrides.get_dashboard_for_timesheet",
 	"Bank Account": "indian_hrms_compliance.overrides.dashboard_overrides.get_dashboard_for_bank_account",
+	"Bank": "indian_hrms_compliance.overrides.dashboard_overrides.get_dashboard_for_bank",
+	"Salary Structure": "indian_hrms_compliance.overrides.dashboard_overrides.get_dashboard_for_salary_structure",
 }
 
 # exempt linked doctypes from being automatically cancelled

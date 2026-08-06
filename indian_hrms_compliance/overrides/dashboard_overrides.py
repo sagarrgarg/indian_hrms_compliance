@@ -94,3 +94,32 @@ def get_dashboard_for_bank_account(data):
 			break
 
 	return data
+
+
+def get_dashboard_for_bank(data):
+	"""Connections on the Bank master: everything that now links to it via a
+	`bank_name` Link (Employee, onboarding, statutory challans)."""
+	data.setdefault("non_standard_fieldnames", {}).update(
+		{
+			"Employee": "bank_name",
+			"Employee Onboarding Application": "bank_name",
+			"Form 24Q Challan": "bank_name",
+			"TDS Challan": "bank_name",
+		}
+	)
+	data.setdefault("transactions", []).append(
+		{"label": _("HR"), "items": ["Employee", "Employee Onboarding Application"]}
+	)
+	data["transactions"].append(
+		{"label": _("Statutory Challans"), "items": ["Form 24Q Challan", "TDS Challan"]}
+	)
+	return data
+
+
+def get_dashboard_for_salary_structure(data):
+	"""Show the validation history for a Salary Structure (links via
+	`salary_structure`, the dashboard's default fieldname)."""
+	data.setdefault("transactions", []).append(
+		{"label": _("Validation"), "items": ["Salary Structure Validation Log"]}
+	)
+	return data
