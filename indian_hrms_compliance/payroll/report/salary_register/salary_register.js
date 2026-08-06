@@ -151,5 +151,26 @@ frappe.query_reports["Salary Register"] = {
 		report.page.add_inner_button(__("Grand Total Summary (PDF)"), function () {
 			open_pdf("get_payroll_summary_html", __("Building Payroll Summary…"));
 		});
+
+		// Bank disbursement statement (the firm's exact bank-transfer format) —
+		// same download as the standalone Salary Bank Statement report, offered
+		// here too so the whole register + bank file are in one place.
+		report.page.add_inner_button(__("Bank Statement (Excel)"), function () {
+			const filters = report.get_values();
+			if (!filters.company) {
+				frappe.msgprint(__("Please select a Company."));
+				return;
+			}
+			const params = new URLSearchParams({
+				company: filters.company,
+				from_date: filters.from_date || "",
+				to_date: filters.to_date || "",
+				use_father_husband_name: 0,
+			});
+			window.open(
+				"/api/method/indian_hrms_compliance.payroll.report.salary_bank_statement.salary_bank_statement.download_salary_bank_statement?" +
+					params.toString(),
+			);
+		});
 	},
 };
