@@ -56,6 +56,11 @@
   "duplicate_checkin_window_minutes",
   "backdated_attendance_approval_months",
   "role_allowed_to_approve_backdated_attendance",
+  "overtime_section",
+  "ot_lunch_break_minutes",
+  "ot_daily_threshold_hours",
+  "ot_weekly_threshold_hours",
+  "ot_rate_multiplier",
   "unlink_payment_section",
   "unlink_payment_on_cancellation_of_employee_advance",
   "performance_tab",
@@ -1467,13 +1472,46 @@
    "depends_on": "enable_org_integrity_check",
    "label": "Org Integrity Escalation Role",
    "description": "Findings with no specific manager (or with no manager on record) escalate to holders of this role, scoped to the finding's Company. Default: HR Manager."
+  },
+  {
+   "fieldname": "overtime_section",
+   "fieldtype": "Section Break",
+   "label": "Overtime (OT)"
+  },
+  {
+   "fieldname": "ot_lunch_break_minutes",
+   "fieldtype": "Int",
+   "label": "Lunch / Break Minutes (excluded from work hours)",
+   "default": "60",
+   "description": "Minutes deducted from each day's presence to get net working hours. E.g. 10-7 with a 1-hour break = 8 net hours."
+  },
+  {
+   "fieldname": "ot_daily_threshold_hours",
+   "fieldtype": "Float",
+   "label": "Daily OT After (net hours)",
+   "default": "9",
+   "description": "Overtime starts once net hours in a day exceed this. Statutory cap is 9."
+  },
+  {
+   "fieldname": "ot_weekly_threshold_hours",
+   "fieldtype": "Float",
+   "label": "Weekly OT After (net hours)",
+   "default": "48",
+   "description": "Overtime starts once net hours in a week exceed this. Statutory cap is 48. Per-week OT = the greater of the daily and weekly excess (no double counting)."
+  },
+  {
+   "fieldname": "ot_rate_multiplier",
+   "fieldtype": "Float",
+   "label": "OT Rate Multiplier",
+   "default": "2",
+   "description": "Overtime pay multiplier on the ordinary (Basic+DA) hourly rate. Statutory default is 2x."
   }
  ],
  "icon": "fa fa-cog",
  "idx": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-08-06 22:00:00.000000",
+ "modified": "2026-08-07 10:00:00.000000",
  "modified_by": "Administrator",
  "module": "HR",
  "name": "HR Settings",
