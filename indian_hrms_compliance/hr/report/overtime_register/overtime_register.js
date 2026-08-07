@@ -38,5 +38,10 @@ frappe.query_reports["Overtime Register"] = {
 			fieldtype: "Link",
 			options: "Department",
 		},
+		{
+			fieldname: "weekly_breakdown",
+			label: __("Weekly breakdown (one row per week)"),
+			fieldtype: "Check",
+		},
 	],
 };

@@ -28,21 +28,27 @@ def execute(filters=None):
 	filters = frappe._dict(filters or {})
 	if not filters.get("company"):
 		frappe.throw(_("Please select a Company."))
-	settings = _ot_settings()
-	return get_columns(), _compute(_attendance_rows(filters), settings)
+	weekly = bool(filters.get("weekly_breakdown"))
+	return get_columns(weekly), _compute(_attendance_rows(filters), _ot_settings(), weekly)
 
 
-def get_columns():
-	return [
+def get_columns(weekly=False):
+	cols = [
 		{"label": _("Employee"), "fieldname": "employee", "fieldtype": "Link", "options": "Employee", "width": 120},
-		{"label": _("Employee Name"), "fieldname": "employee_name", "fieldtype": "Data", "width": 180},
-		{"label": _("Department"), "fieldname": "department", "fieldtype": "Data", "width": 150},
-		{"label": _("Days"), "fieldname": "days", "fieldtype": "Int", "width": 70},
-		{"label": _("Net Hours"), "fieldname": "net_hours", "fieldtype": "Float", "width": 100},
-		{"label": _("Daily-basis OT"), "fieldname": "daily_ot", "fieldtype": "Float", "width": 120},
-		{"label": _("Weekly-basis OT"), "fieldname": "weekly_ot", "fieldtype": "Float", "width": 130},
-		{"label": _("OT Hours (payable)"), "fieldname": "ot_hours", "fieldtype": "Float", "width": 140},
+		{"label": _("Employee Name"), "fieldname": "employee_name", "fieldtype": "Data", "width": 170},
+		{"label": _("Department"), "fieldname": "department", "fieldtype": "Data", "width": 140},
 	]
+	if weekly:
+		cols.append({"label": _("Week Starting"), "fieldname": "week", "fieldtype": "Date", "width": 110})
+	cols += [
+		{"label": _("Days"), "fieldname": "days", "fieldtype": "Int", "width": 60},
+		{"label": _("Net Hours"), "fieldname": "net_hours", "fieldtype": "Float", "width": 95},
+		{"label": _("Permitted Hours"), "fieldname": "permitted_hours", "fieldtype": "Float", "width": 120},
+		{"label": _("Daily-basis OT"), "fieldname": "daily_ot", "fieldtype": "Float", "width": 110},
+		{"label": _("Weekly-basis OT"), "fieldname": "weekly_ot", "fieldtype": "Float", "width": 120},
+		{"label": _("OT Hours (payable)"), "fieldname": "ot_hours", "fieldtype": "Float", "width": 130},
+	]
+	return cols
 
 
 def _ot_settings():
@@ -84,38 +90,73 @@ def _attendance_rows(filters):
 	)
 
 
-def _compute(rows, s):
-	per_emp = {}
+def _compute(rows, s, weekly=False):
+	from datetime import date
+
+	# Aggregate net hours + day-basis OT per (employee, iso-week).
+	emp_meta = {}
+	wk_data = defaultdict(lambda: {"net": 0.0, "dot": 0.0, "days": 0})
 	for r in rows:
-		e = per_emp.setdefault(
-			r.employee,
-			{"name": r.employee_name, "dept": r.department, "days": 0, "net": 0.0, "weeks": defaultdict(lambda: {"net": 0.0, "dot": 0.0})},
-		)
+		emp_meta[r.employee] = (r.employee_name, r.department)
 		net = max(0.0, flt(r.working_hours) - s.lunch_hours)
-		e["days"] += 1
-		e["net"] += net
-		wk = getdate(r.attendance_date).isocalendar()[:2]  # (iso year, iso week)
-		e["weeks"][wk]["net"] += net
-		e["weeks"][wk]["dot"] += max(0.0, net - s.daily)
+		iso = getdate(r.attendance_date).isocalendar()
+		wk = (iso[0], iso[1])
+		d = wk_data[(r.employee, wk)]
+		d["net"] += net
+		d["dot"] += max(0.0, net - s.daily)
+		d["days"] += 1
+
+	def week_split(d):
+		"""(ot payable, day-basis ot, week-basis ot) for one employee-week."""
+		wot = max(0.0, d["net"] - s.weekly)
+		return max(d["dot"], wot), d["dot"], wot
+
+	if weekly:
+		data = []
+		for (emp, wk), d in sorted(wk_data.items(), key=lambda kv: (kv[0][0], kv[0][1])):
+			ot, dot, wot = week_split(d)
+			name, dept = emp_meta[emp]
+			data.append(
+				{
+					"employee": emp,
+					"employee_name": name,
+					"department": dept,
+					"week": date.fromisocalendar(wk[0], wk[1], 1),  # Monday of the ISO week
+					"days": d["days"],
+					"net_hours": round(d["net"], 2),
+					"permitted_hours": round(d["net"] - ot, 2),
+					"daily_ot": round(dot, 2),
+					"weekly_ot": round(wot, 2),
+					"ot_hours": round(ot, 2),
+				}
+			)
+		return data
+
+	# Employee summary across the period.
+	agg = defaultdict(lambda: {"days": 0, "net": 0.0, "dot": 0.0, "wot": 0.0, "ot": 0.0})
+	for (emp, wk), d in wk_data.items():
+		ot, dot, wot = week_split(d)
+		a = agg[emp]
+		a["days"] += d["days"]
+		a["net"] += d["net"]
+		a["dot"] += dot
+		a["wot"] += wot
+		a["ot"] += ot
 
 	data = []
-	for emp, e in per_emp.items():
-		daily_ot = weekly_ot = ot = 0.0
-		for wk in e["weeks"].values():
-			w_ot = max(0.0, wk["net"] - s.weekly)
-			daily_ot += wk["dot"]
-			weekly_ot += w_ot
-			ot += max(wk["dot"], w_ot)  # greater of the two — never both
+	for emp, a in agg.items():
+		name, dept = emp_meta[emp]
 		data.append(
 			{
 				"employee": emp,
-				"employee_name": e["name"],
-				"department": e["dept"],
-				"days": e["days"],
-				"net_hours": round(e["net"], 2),
-				"daily_ot": round(daily_ot, 2),
-				"weekly_ot": round(weekly_ot, 2),
-				"ot_hours": round(ot, 2),
+				"employee_name": name,
+				"department": dept,
+				"days": a["days"],
+				"net_hours": round(a["net"], 2),
+				"permitted_hours": round(a["net"] - a["ot"], 2),
+				"daily_ot": round(a["dot"], 2),
+				"weekly_ot": round(a["wot"], 2),
+				"ot_hours": round(a["ot"], 2),
 			}
 		)
 	data.sort(key=lambda x: -x["ot_hours"])
