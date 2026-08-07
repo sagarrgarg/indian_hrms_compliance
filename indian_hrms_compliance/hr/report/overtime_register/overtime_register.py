@@ -21,7 +21,7 @@ from collections import defaultdict
 
 import frappe
 from frappe import _
-from frappe.utils import flt, getdate
+from frappe.utils import add_days, flt, getdate
 
 
 def execute(filters=None):
@@ -29,7 +29,13 @@ def execute(filters=None):
 	if not filters.get("company"):
 		frappe.throw(_("Please select a Company."))
 	weekly = bool(filters.get("weekly_breakdown"))
-	return get_columns(weekly), _compute(_attendance_rows(filters), _ot_settings(), weekly)
+
+	# Days already compensated by a comp-off (Compensatory Leave Request) are NOT
+	# overtime — the substitute holiday IS the compensation, so never pay OT on the
+	# same work too. Drop those attendance days before computing OT.
+	compoff = _compoff_dates(filters)
+	rows = [r for r in _attendance_rows(filters) if (r.employee, str(r.attendance_date)) not in compoff]
+	return get_columns(weekly), _compute(rows, _ot_settings(), weekly)
 
 
 def get_columns(weekly=False):
@@ -66,6 +72,32 @@ def _ot_settings():
 		weekly=g("ot_weekly_threshold_hours", 48) or 48,
 		multiplier=g("ot_rate_multiplier", 2) or 2,
 	)
+
+
+def _compoff_dates(filters):
+	"""set of (employee, 'YYYY-MM-DD') already compensated by a submitted
+	Compensatory Leave Request — those work days are excluded from OT."""
+	conds = [["docstatus", "=", 1]]
+	if filters.get("employee"):
+		conds.append(["employee", "=", filters.employee])
+	if filters.get("from_date"):
+		conds.append(["work_end_date", ">=", filters.from_date])
+	if filters.get("to_date"):
+		conds.append(["work_from_date", "<=", filters.to_date])
+
+	out = set()
+	for r in frappe.get_all(
+		"Compensatory Leave Request",
+		filters=conds,
+		fields=["employee", "work_from_date", "work_end_date"],
+	):
+		if not r.work_from_date:
+			continue
+		d, end = getdate(r.work_from_date), getdate(r.work_end_date or r.work_from_date)
+		while d <= end:
+			out.add((r.employee, d.isoformat()))
+			d = add_days(d, 1)
+	return out
 
 
 def _attendance_rows(filters):
