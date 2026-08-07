@@ -13,11 +13,11 @@
  "modified": "2026-08-07 10:00:00.000000",
  "modified_by": "Administrator",
  "module": "HR",
- "name": "Overtime Register",
+ "name": "Time & Overtime Register",
  "owner": "Administrator",
  "prepared_report": 0,
  "ref_doctype": "Attendance",
- "report_name": "Overtime Register",
+ "report_name": "Time & Overtime Register",
  "report_type": "Script Report",
  "roles": [
   {

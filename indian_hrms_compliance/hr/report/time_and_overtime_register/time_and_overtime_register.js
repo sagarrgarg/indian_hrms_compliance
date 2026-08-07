@@ -2,7 +2,7 @@
 // License: GNU General Public License v3. See license.txt
 /* eslint-disable */
 
-frappe.query_reports["Overtime Register"] = {
+frappe.query_reports["Time & Overtime Register"] = {
 	filters: [
 		{
 			fieldname: "company",
