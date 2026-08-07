@@ -124,12 +124,11 @@ def _get_eligible_salary_slips(company, wage_month):
 	month_end = get_last_day(wage_month)
 	return frappe.get_all(
 		"Salary Slip",
-		filters={
-			"company": company,
-			"docstatus": 1,
-			"start_date": (">=", month_start),
-			"start_date": ("<=", month_end),
-		},
+		filters=[
+			["company", "=", company],
+			["docstatus", "=", 1],
+			["start_date", "between", [month_start, month_end]],
+		],
 		fields=["name", "employee", "employee_name", "start_date", "end_date"],
 		order_by="employee",
 	)
@@ -225,12 +224,22 @@ def _compute_pf_row(slip, mapping, settings):
 		_earnings_amount(slip, pf_employer_comp) if pf_employer_comp else 0
 	)
 
-	# Substring fallback when no mapping exists.
-	if not pf_emp_amount and not mapping:
+	# Substring fallback whenever no PF employee component was configured (mapping
+	# absent OR its pf_employee_component blank) — not just when the whole mapping
+	# is None. Otherwise an empty mapping row silently zeroes every PF employee.
+	if not pf_emp_amount and not pf_employee_comp:
 		for row in slip.deductions or []:
 			lower = (row.salary_component or "").lower()
 			if ("provident fund" in lower or lower == "pf" or "epf" in lower) and "loan" not in lower:
 				pf_emp_amount = flt(row.amount)
+				break
+
+	# Same fallback for the employer share (an earning or deduction row).
+	if not pf_employer_amount and not pf_employer_comp:
+		for row in (slip.earnings or []) + (slip.deductions or []):
+			lower = (row.salary_component or "").lower()
+			if "employer" in lower and ("provident fund" in lower or "pf" in lower or "epf" in lower):
+				pf_employer_amount = flt(row.amount)
 				break
 
 	# If the slip has neither PF employee nor employer component, this
