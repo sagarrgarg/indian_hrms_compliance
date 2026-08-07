@@ -136,12 +136,11 @@ def _get_eligible_salary_slips(company, wage_month):
 	month_end = get_last_day(wm)
 	return frappe.get_all(
 		"Salary Slip",
-		filters={
-			"company": company,
-			"docstatus": 1,
-			"start_date": (">=", month_start),
-			"start_date": ("<=", month_end),
-		},
+		filters=[
+			["company", "=", company],
+			["docstatus", "=", 1],
+			["start_date", "between", [month_start, month_end]],
+		],
 		fields=["name", "employee", "employee_name"],
 		order_by="employee",
 	)
@@ -167,6 +166,25 @@ def _slip_gross_wages(slip):
 def _slip_no_of_days(slip):
 	"""ESI 'No of Days' = paid days in the month."""
 	return int(flt(slip.payment_days))
+
+
+def _slip_has_esi_component(slip, mapping):
+	"""True if the slip carries an employee ESI deduction — i.e. payroll already
+	determined this person is an insured person under the ceiling. This is the
+	authoritative coverage signal; without it we must NOT charge ESI."""
+	mapped = set()
+	if mapping:
+		val = mapping.get("esi_employee_component") if hasattr(mapping, "get") else getattr(mapping, "esi_employee_component", None)
+		if val:
+			mapped.add(val)
+	for r in slip.deductions or []:
+		comp = r.salary_component or ""
+		if comp in mapped:
+			return True
+		low = comp.lower()
+		if "state insurance" in low or low == "esi" or "employee esi" in low:
+			return True
+	return False
 
 
 def _compute_esi_row(slip, mapping, settings, prior_contributing):
@@ -196,14 +214,20 @@ def _compute_esi_row(slip, mapping, settings, prior_contributing):
 			ceiling = flt(settings["esi_wage_ceiling_disabled"])
 
 	above_ceiling = gross > ceiling
+
+	# Coverage is decided by whether payroll actually deducted ESI (the slip
+	# carries an employee ESI component) — NOT by gross alone. Otherwise the file
+	# would charge ESI to every sub-ceiling employee whether or not they are an
+	# insured person. The mid-period continuation rule (prior_contributing) keeps
+	# someone in even after they cross the ceiling.
+	if not _slip_has_esi_component(slip, mapping) and not prior_contributing:
+		return None
+
 	if above_ceiling and not prior_contributing:
 		# Not subject to ESI this month and not under continuation rule.
 		return None
 
-	# Check whether the slip carries explicit ESI deductions (proves ESI
-	# applies). If neither the mapping nor a substring match finds an ESI
-	# component AND the employee is above ceiling without continuation,
-	# we already returned None above. Here we proceed to compute.
+	# Proceed to compute the contribution.
 	emp_rate = flt(settings["esi_employee_rate_pct"]) / 100.0
 	er_rate = flt(settings["esi_employer_rate_pct"]) / 100.0
 
