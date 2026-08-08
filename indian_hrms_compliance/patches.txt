@@ -108,3 +108,4 @@ indian_hrms_compliance.patches.v15_0.additional_salary_approval_backfill #2026-0
 indian_hrms_compliance.patches.v15_0.employee_advance_approval_backfill #2026-08-05
 indian_hrms_compliance.patches.v15_0.link_bank_fields_to_bank_master #2026-08-06
 indian_hrms_compliance.patches.v15_0.cleanup_renamed_time_overtime_report #2026-08-08
+indian_hrms_compliance.patches.v15_0.remove_orphaned_kaam_doctypes #2026-08-08
