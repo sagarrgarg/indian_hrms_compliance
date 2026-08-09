@@ -23,6 +23,12 @@ Comp-off suggestion:
     Comp-Off Given = comp-offs already raised (Compensatory Leave Request)
     Comp-Off Owed  = max(0, WO/Holiday Worked - Comp-Off Given)  <- HR's to-do
 
+Missing check-ins:
+    When a day is marked present but carries NO working_hours (no punches), we
+    impute a modest full day (default 7h net, halved for Half Day) so the person
+    is not shown as having worked zero. It is deliberately BELOW the daily OT
+    threshold, so an imputed day never manufactures overtime.
+
 Hours only for now — valuing OT (x multiplier on Basic+DA hourly) comes later.
 Reads Attendance.working_hours (from check-ins).
 """
@@ -81,6 +87,9 @@ def _ot_settings():
 		daily=g("ot_daily_threshold_hours", 9) or 9,
 		weekly=g("ot_weekly_threshold_hours", 48) or 48,
 		multiplier=g("ot_rate_multiplier", 2) or 2,
+		# Imputed net hours for a present day that has NO check-ins. Generous but
+		# below the daily OT threshold so it never fabricates overtime.
+		assumed_hours=g("ot_assumed_hours_no_checkin", 7) or 7,
 	)
 
 
@@ -157,7 +166,7 @@ def _attendance_rows(filters):
 	return frappe.get_all(
 		"Attendance",
 		filters=conds,
-		fields=["employee", "employee_name", "department", "attendance_date", "working_hours"],
+		fields=["employee", "employee_name", "department", "attendance_date", "working_hours", "status"],
 		order_by="employee asc, attendance_date asc",
 	)
 
@@ -184,7 +193,15 @@ def _compute(rows, s, holidays, compoff, weekly=False):
 		if dstr in holidays.get(r.employee, ()) or (r.employee, dstr) in compoff:
 			bucket["wo"] += 1
 			continue
-		net = max(0.0, flt(r.working_hours) - s.lunch_hours)
+		wh = flt(r.working_hours)
+		if wh > 0:
+			net = max(0.0, wh - s.lunch_hours)
+		else:
+			# No check-ins captured — impute a modest full day (half for Half Day)
+			# so the person is not shown as zero. Already a net figure, so no
+			# further lunch deduction, and below the OT threshold by design.
+			net = s.assumed_hours / 2.0 if r.status == "Half Day" else s.assumed_hours
+		bucket["net"] += net
 		bucket["net"] += net
 		bucket["dot"] += max(0.0, net - s.daily)
 		bucket["days"] += 1
