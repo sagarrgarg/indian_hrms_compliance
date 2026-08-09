@@ -56,7 +56,7 @@ class PayrollEntry(Document):
 			from indian_hrms_compliance.utils.naming import fy_short
 
 			d = getdate(self.start_date or self.posting_date)
-			self.name = make_autoname(f"{abbr}/{fy_short(d)}/{d.strftime('%m')}/.#####.")
+			self.name = make_autoname(f"{abbr}/{fy_short(d)}/{d.strftime('%m')}/.#.")
 		except Exception:
 			frappe.log_error(title="Payroll Entry autoname fallback", message=frappe.get_traceback())
 			self.name = make_autoname(f"PE-{abbr}-.FY.-.####.", doc=self)

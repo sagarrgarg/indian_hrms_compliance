@@ -106,7 +106,7 @@ class SalarySlip(AccountsController):
 			from indian_hrms_compliance.utils.naming import fy_short
 
 			d = getdate(self.start_date)
-			self.default_series = f"{fy_short(d)}/{self.employee}/{d.strftime('%m')}/.#####."
+			self.default_series = f"{fy_short(d)}/{self.employee}/{d.strftime('%m')}/.#."
 		except Exception:
 			frappe.log_error(title="Salary Slip autoname fallback", message=frappe.get_traceback())
 		self.name = make_autoname(self.default_series)

@@ -64,4 +64,4 @@ def employee_series_name(doc, date_field):
 
 	d = _doc_date(doc, preferred=date_field)
 	emp = (doc.get("employee") if hasattr(doc, "get") else None) or "NA"
-	return make_autoname(f"{fy_short(d)}/{emp}/{d.strftime('%m')}/.#####.")
+	return make_autoname(f"{fy_short(d)}/{emp}/{d.strftime('%m')}/.#.")
