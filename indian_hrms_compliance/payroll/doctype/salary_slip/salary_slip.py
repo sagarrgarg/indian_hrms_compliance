@@ -97,8 +97,19 @@ class SalarySlip(AccountsController):
 		}
 
 	def autoname(self):
-		if not self.has_custom_naming_series:
-			self.name = make_autoname(self.default_series)
+		if self.has_custom_naming_series:
+			return
+		# Name as {FY2}/{employee}/{MM}/#### based on the pay period (start_date),
+		# not the creation date. Any failure keeps the __init__ default series so a
+		# slip can always be named.
+		try:
+			from indian_hrms_compliance.utils.naming import fy_short
+
+			d = getdate(self.start_date)
+			self.default_series = f"{fy_short(d)}/{self.employee}/{d.strftime('%m')}/.#####."
+		except Exception:
+			frappe.log_error(title="Salary Slip autoname fallback", message=frappe.get_traceback())
+		self.name = make_autoname(self.default_series)
 
 	@property
 	def has_custom_naming_series(self):

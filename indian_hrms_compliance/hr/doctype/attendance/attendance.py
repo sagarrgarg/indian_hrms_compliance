@@ -37,6 +37,16 @@ class OverlappingShiftAttendanceError(frappe.ValidationError):
 
 
 class Attendance(Document):
+	def autoname(self):
+		# {FY2}/{employee}/{MM}/#### by attendance date; any failure falls back to
+		# the doctype's naming_series so a record can always be created.
+		try:
+			from indian_hrms_compliance.utils.naming import employee_series_name
+
+			self.name = employee_series_name(self, "attendance_date")
+		except Exception:
+			frappe.log_error(title="Attendance autoname fallback", message=frappe.get_traceback())
+
 	def before_insert(self):
 		if self.half_day_status == "":
 			self.half_day_status = None

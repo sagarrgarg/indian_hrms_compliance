@@ -22,6 +22,16 @@ class CheckinRadiusExceededError(frappe.ValidationError):
 
 
 class EmployeeCheckin(Document):
+	def autoname(self):
+		# {FY2}/{employee}/{MM}/#### by check-in time; falls back to the doctype's
+		# format naming so a punch can always be recorded.
+		try:
+			from indian_hrms_compliance.utils.naming import employee_series_name
+
+			self.name = employee_series_name(self, "time")
+		except Exception:
+			frappe.log_error(title="Employee Checkin autoname fallback", message=frappe.get_traceback())
+
 	def before_validate(self):
 		self.time = get_datetime(self.time).replace(microsecond=0)
 

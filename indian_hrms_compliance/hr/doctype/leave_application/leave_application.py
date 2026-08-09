@@ -67,6 +67,15 @@ from frappe.model.document import Document
 
 
 class LeaveApplication(Document, PWANotificationsMixin):
+	def autoname(self):
+		# {FY2}/{employee}/{MM}/#### by from_date; falls back to naming_series.
+		try:
+			from indian_hrms_compliance.utils.naming import employee_series_name
+
+			self.name = employee_series_name(self, "from_date")
+		except Exception:
+			frappe.log_error(title="Leave Application autoname fallback", message=frappe.get_traceback())
+
 	def get_feed(self):
 		return _("{0}: From {0} of type {1}").format(self.employee_name, self.leave_type)
 

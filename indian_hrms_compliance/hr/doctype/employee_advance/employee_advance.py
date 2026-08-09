@@ -20,6 +20,15 @@ class EmployeeAdvanceOverPayment(frappe.ValidationError):
 
 
 class EmployeeAdvance(Document):
+	def autoname(self):
+		# {FY2}/{employee}/{MM}/#### by posting date; falls back to naming_series.
+		try:
+			from indian_hrms_compliance.utils.naming import employee_series_name
+
+			self.name = employee_series_name(self, "posting_date")
+		except Exception:
+			frappe.log_error(title="Employee Advance autoname fallback", message=frappe.get_traceback())
+
 	def onload(self):
 		self.get("__onload").make_payment_via_journal_entry = frappe.db.get_single_value(
 			"Accounts Settings", "make_payment_via_journal_entry"

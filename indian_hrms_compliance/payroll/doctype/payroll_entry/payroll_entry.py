@@ -49,7 +49,17 @@ class PayrollEntry(Document):
 		abbr = (frappe.get_cached_value("Company", self.company, "abbr") if self.company else None) or (
 			self.company or ""
 		)
-		self.name = make_autoname(f"PE-{abbr}-.FY.-.####.", doc=self)
+		# Name as {company abbr}/{FY2}/{MM}/#### based on the run's period. Any
+		# failure falls back to the previous PE-{abbr}-{FY}-#### scheme so the run
+		# can always be named.
+		try:
+			from indian_hrms_compliance.utils.naming import fy_short
+
+			d = getdate(self.start_date or self.posting_date)
+			self.name = make_autoname(f"{abbr}/{fy_short(d)}/{d.strftime('%m')}/.#####.")
+		except Exception:
+			frappe.log_error(title="Payroll Entry autoname fallback", message=frappe.get_traceback())
+			self.name = make_autoname(f"PE-{abbr}-.FY.-.####.", doc=self)
 
 	def onload(self):
 		if not self.docstatus == 1 or self.salary_slips_submitted:
