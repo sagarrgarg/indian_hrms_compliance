@@ -202,7 +202,6 @@ def _compute(rows, s, holidays, compoff, weekly=False):
 			# further lunch deduction, and below the OT threshold by design.
 			net = s.assumed_hours / 2.0 if r.status == "Half Day" else s.assumed_hours
 		bucket["net"] += net
-		bucket["net"] += net
 		bucket["dot"] += max(0.0, net - s.daily)
 		bucket["days"] += 1
 
