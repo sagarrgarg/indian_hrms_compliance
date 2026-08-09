@@ -26,8 +26,9 @@ Comp-off suggestion:
 Missing check-ins:
     When a day is marked present but carries NO working_hours (no punches), we
     impute a modest full day (default 7h net, halved for Half Day) so the person
-    is not shown as having worked zero. It is deliberately BELOW the daily OT
-    threshold, so an imputed day never manufactures overtime.
+    is not shown as having worked zero. Imputed hours count towards Net / Permitted
+    / Days, but are EXCLUDED from the OT base entirely (both the daily 9h test and
+    the weekly 48h test) — a day nobody clocked must never generate overtime pay.
 
 Hours only for now — valuing OT (x multiplier on Basic+DA hourly) comes later.
 Reads Attendance.working_hours (from check-ins).
@@ -183,7 +184,7 @@ def _compute(rows, s, holidays, compoff, weekly=False):
 		comp_emp_week[(emp, (iso[0], iso[1]))] += 1
 
 	emp_meta = {}
-	wk = defaultdict(lambda: {"net": 0.0, "dot": 0.0, "days": 0, "wo": 0})
+	wk = defaultdict(lambda: {"net": 0.0, "ot_net": 0.0, "dot": 0.0, "days": 0, "wo": 0})
 	for r in rows:
 		emp_meta[r.employee] = (r.employee_name, r.department)
 		dstr = str(r.attendance_date)
@@ -196,17 +197,21 @@ def _compute(rows, s, holidays, compoff, weekly=False):
 		wh = flt(r.working_hours)
 		if wh > 0:
 			net = max(0.0, wh - s.lunch_hours)
+			# Only measured (clocked) hours feed the OT base, daily and weekly.
+			bucket["ot_net"] += net
+			bucket["dot"] += max(0.0, net - s.daily)
 		else:
 			# No check-ins captured — impute a modest full day (half for Half Day)
 			# so the person is not shown as zero. Already a net figure, so no
-			# further lunch deduction, and below the OT threshold by design.
+			# further lunch deduction. Deliberately kept OUT of the OT base: an
+			# imputed day counts for net/days but can never generate overtime.
 			net = s.assumed_hours / 2.0 if r.status == "Half Day" else s.assumed_hours
 		bucket["net"] += net
-		bucket["dot"] += max(0.0, net - s.daily)
 		bucket["days"] += 1
 
 	def split(b):
-		w_ot = max(0.0, b["net"] - s.weekly)
+		# Weekly OT is measured against clocked hours only (ot_net), never imputed.
+		w_ot = max(0.0, b["ot_net"] - s.weekly)
 		return max(b["dot"], w_ot), b["dot"], w_ot
 
 	def row(emp, days, net, dot, wot, ot, wo, given, week=None):
