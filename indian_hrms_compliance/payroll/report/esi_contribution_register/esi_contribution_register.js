@@ -25,11 +25,5 @@ frappe.query_reports["ESI Contribution Register"] = {
 			fieldtype: "Link",
 			options: "Department",
 		},
-		{
-			fieldname: "filing_status",
-			label: __("Filing Status"),
-			fieldtype: "Select",
-			options: ["", "Draft", "Generated", "Filed"].join("\n"),
-		},
 	],
 };

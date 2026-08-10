@@ -346,6 +346,54 @@ def _attach_csv_file(doc, csv_content):
 # ---------------------------------------------------------------------------
 
 
+def build_esi_rows(company, wage_month, settings=None, mapping=None):
+	"""Compute the final per-employee ESI rows for a (Company x wage month)
+	straight from *submitted* Salary Slips — the same logic the ESIC upload is
+	built from (wage ceiling, low-wage employee-share waiver, Reg-26 mid-period
+	continuation). Shared by ``generate_esi_monthly`` (writes them into the filing)
+	and the ESI Contribution Register report (reads them live), so the two can
+	never diverge. Returns ``(rows, exceptions, stats)``. Pure read — never writes.
+	"""
+	if mapping is None:
+		mapping = get_mapping_for_company(company)
+	if settings is None:
+		settings = {k: _hr_setting(k) for k in HR_SETTINGS_DEFAULTS.keys()}
+
+	slips = _get_eligible_salary_slips(company, wage_month)
+	exceptions = []
+	rows = []
+	excluded_count = 0
+	processed_employees = set()
+
+	for slip_meta in slips:
+		if slip_meta.employee in processed_employees:
+			continue
+		processed_employees.add(slip_meta.employee)
+
+		slip = _load_slip(slip_meta.name)
+		prior_contributing = _employee_contributing_prior_in_period(
+			slip.employee, company, wage_month
+		)
+		row = _compute_esi_row(slip, mapping, settings, prior_contributing)
+		if not row:
+			excluded_count += 1
+			# Wage-cap-excluded / non-covered employees — purely informational.
+			continue
+
+		if not row["ip_number"]:
+			exceptions.append(
+				f"- {slip.employee} ({slip.employee_name}): no ESIC IP number on Employee master — "
+				f"row generated but the upload will be rejected by the portal."
+			)
+
+		rows.append(row)
+
+	# Sort by IP number for stable output.
+	rows.sort(key=lambda r: (r["ip_number"] or "", r["employee"]))
+	stats = {"excluded_count": excluded_count}
+	return rows, exceptions, stats
+
+
 @frappe.whitelist()
 def generate_esi_monthly(esi_monthly_name):
 	"""Generate the ESI monthly contribution CSV + populate rows + totals."""
@@ -365,41 +413,9 @@ def generate_esi_monthly(esi_monthly_name):
 	# Reset rows.
 	doc.set("rows", [])
 
-	slips = _get_eligible_salary_slips(doc.company, doc.wage_month)
-	exceptions = []
-	rows = []
-	excluded_count = 0
-	processed_employees = set()
-
-	for slip_meta in slips:
-		if slip_meta.employee in processed_employees:
-			continue
-		processed_employees.add(slip_meta.employee)
-
-		slip = _load_slip(slip_meta.name)
-		gross = _slip_gross_wages(slip)
-		ceiling = flt(settings["esi_wage_ceiling"])
-
-		prior_contributing = _employee_contributing_prior_in_period(
-			slip.employee, doc.company, doc.wage_month
-		)
-		row = _compute_esi_row(slip, mapping, settings, prior_contributing)
-		if not row:
-			excluded_count += 1
-			# Note exclusions of wage-cap-excluded employees in exceptions
-			# only when there's no IP number either (purely informational).
-			continue
-
-		if not row["ip_number"]:
-			exceptions.append(
-				f"- {slip.employee} ({slip.employee_name}): no ESIC IP number on Employee master — "
-				f"row generated but the upload will be rejected by the portal."
-			)
-
-		rows.append(row)
-
-	# Sort by IP number for stable output.
-	rows.sort(key=lambda r: (r["ip_number"] or "", r["employee"]))
+	# Compute the rows straight from submitted slips (shared with the register).
+	rows, exceptions, stats = build_esi_rows(doc.company, doc.wage_month, settings, mapping)
+	excluded_count = stats["excluded_count"]
 
 	for r in rows:
 		doc.append("rows", r)
