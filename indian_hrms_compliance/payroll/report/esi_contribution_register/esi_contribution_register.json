@@ -13,7 +13,7 @@
  "name": "ESI Contribution Register",
  "owner": "Administrator",
  "prepared_report": 0,
- "ref_doctype": "ESI Monthly Contribution",
+ "ref_doctype": "Salary Slip",
  "report_name": "ESI Contribution Register",
  "report_type": "Script Report",
  "roles": [

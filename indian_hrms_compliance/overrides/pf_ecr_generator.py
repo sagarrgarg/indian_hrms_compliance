@@ -366,38 +366,29 @@ def _attach_ecr_file(doc, txt_content):
 # ---------------------------------------------------------------------------
 
 
-@frappe.whitelist()
-def generate_pf_ecr(pf_ecr_filing_name):
-	"""Generate the ECR for a PF ECR Filing draft.
+def build_pf_ecr_rows(company, wage_month, settings=None, mapping=None):
+	"""Compute the final per-employee PF ECR rows for a (Company x wage month)
+	straight from *submitted* Salary Slips — the same logic the ECR file is built
+	from. Shared by ``generate_pf_ecr`` (writes them into the filing) and the PF
+	Contribution Register report (reads them live), so the two can never diverge.
 
-	Idempotent — re-running on an already-Generated doc clears prior
-	rows and regenerates from scratch (HR may have submitted a missed
-	Salary Slip mid-cycle)."""
-	doc = frappe.get_doc("PF ECR Filing", pf_ecr_filing_name)
-	if doc.filing_status == "Filed":
-		frappe.throw(
-			_(
-				"PF ECR Filing {0} is already Filed — cannot regenerate. Cancel it first if you need to refile."
-			).format(doc.name)
-		)
-	if doc.filing_status == "Cancelled":
-		frappe.throw(_("PF ECR Filing {0} is Cancelled.").format(doc.name))
+	Returns ``(rows, exceptions, stats)`` where ``stats`` carries the skip counts
+	the filing surfaces in its notes. Pure read — never writes a doc.
+	"""
+	if mapping is None:
+		mapping = get_mapping_for_company(company)
+	if settings is None:
+		settings = {k: _hr_setting(k) for k in HR_SETTINGS_DEFAULTS.keys()}
 
-	mapping = get_mapping_for_company(doc.company)
-	settings = {k: _hr_setting(k) for k in HR_SETTINGS_DEFAULTS.keys()}
-
-	# Clear existing rows for idempotency.
-	doc.set("rows", [])
-
-	# Load eligible Salary Slips.
-	slips = _get_eligible_salary_slips(doc.company, doc.wage_month)
-	exceptions = []
-	rows = []
 	exclude_no_uan = int(settings.get("pf_ecr_exclude_employees_with_no_uan") or 1)
-	skipped_no_uan = 0
 	epf_rate = flt(settings["pf_employee_rate_pct"]) / 100.0
 	eps_rate = flt(settings["pf_eps_rate_pct"]) / 100.0
 	pf_ceiling = flt(settings["pf_wage_ceiling"])
+
+	slips = _get_eligible_salary_slips(company, wage_month)
+	exceptions = []
+	rows = []
+	skipped_no_uan = 0
 
 	# EPFO requires ONE line per UAN per wage month. If an employee has more than
 	# one slip in the month (e.g. a supplementary/arrear run), aggregate the wage
@@ -449,6 +440,37 @@ def generate_pf_ecr(pf_ecr_filing_name):
 
 	# Sort by UAN for stable output.
 	rows.sort(key=lambda r: r["uan"])
+	stats = {"skipped_not_pf_member": skipped_not_pf_member, "skipped_no_uan": skipped_no_uan}
+	return rows, exceptions, stats
+
+
+@frappe.whitelist()
+def generate_pf_ecr(pf_ecr_filing_name):
+	"""Generate the ECR for a PF ECR Filing draft.
+
+	Idempotent — re-running on an already-Generated doc clears prior
+	rows and regenerates from scratch (HR may have submitted a missed
+	Salary Slip mid-cycle)."""
+	doc = frappe.get_doc("PF ECR Filing", pf_ecr_filing_name)
+	if doc.filing_status == "Filed":
+		frappe.throw(
+			_(
+				"PF ECR Filing {0} is already Filed — cannot regenerate. Cancel it first if you need to refile."
+			).format(doc.name)
+		)
+	if doc.filing_status == "Cancelled":
+		frappe.throw(_("PF ECR Filing {0} is Cancelled.").format(doc.name))
+
+	mapping = get_mapping_for_company(doc.company)
+	settings = {k: _hr_setting(k) for k in HR_SETTINGS_DEFAULTS.keys()}
+
+	# Clear existing rows for idempotency.
+	doc.set("rows", [])
+
+	# Compute the rows straight from submitted slips (shared with the register).
+	rows, exceptions, stats = build_pf_ecr_rows(doc.company, doc.wage_month, settings, mapping)
+	skipped_not_pf_member = stats["skipped_not_pf_member"]
+	skipped_no_uan = stats["skipped_no_uan"]
 
 	# Append rows to the doc.
 	for r in rows:
