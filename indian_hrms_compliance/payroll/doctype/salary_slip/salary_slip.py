@@ -66,6 +66,7 @@ from indian_hrms_compliance.utils.holiday_list import (
 	get_holiday_dates_between,
 	get_holiday_list_ranges_for_employee,
 	get_holidays_in_ranges_map,
+	get_holiday_weekly_off_map,
 )
 
 # cache keys
@@ -75,6 +76,11 @@ TAX_COMPONENTS_BY_COMPANY = "tax_components_by_company"
 
 # fraction of a working day contributed by a holiday marked as half day
 HALF_DAY_HOLIDAY_FRACTION = 0.5
+
+# Days to look outside the payroll period when hunting for the absence that flanks a
+# sandwiched holiday block: the block itself can straddle a month boundary, so the
+# flanking working day may sit in the previous/next period.
+SANDWICH_LOOKAROUND_DAYS = 10
 
 
 class SalarySlip(AccountsController):
@@ -789,6 +795,11 @@ class SalarySlip(AccountsController):
 				"consider_marked_attendance_on_holidays",
 				"daily_wages_fraction_for_half_day",
 				"consider_unmarked_attendance_as",
+				"apply_sandwich_rule",
+				"sandwich_rule_trigger",
+				"sandwich_rule_flanks",
+				"sandwich_rule_applies_to",
+				"max_sandwiched_days",
 			),
 			as_dict=1,
 		)
@@ -801,6 +812,7 @@ class SalarySlip(AccountsController):
 		daily_wages_fraction_for_half_day = flt(payroll_settings.daily_wages_fraction_for_half_day) or 0.5
 
 		working_days = date_diff(self.end_date, self.start_date) + 1
+		self.sandwich_days = 0.0
 		if for_preview:
 			self.total_working_days = working_days
 			self.payment_days = working_days
@@ -902,6 +914,14 @@ class SalarySlip(AccountsController):
 			if verify_lwp_days_corrected(self.employee, self.start_date, self.end_date, lwp_days_corrected):
 				self.payment_days += lwp_days_corrected
 
+		# Sandwich rule: a holiday (or weekly off) block flanked by unpaid absence is
+		# itself unpaid. Docked separately from LWP/Absent so the slip still explains
+		# itself, and floored at 0 like every other deduction above.
+		if flt(self.payment_days) > 0:
+			self.sandwich_days = self._get_sandwiched_holiday_days(holidays, payroll_settings)
+			if self.sandwich_days:
+				self.payment_days = max(flt(self.payment_days) - flt(self.sandwich_days), 0.0)
+
 		# Company grace / full-day increment: extra paid days granted via Additional
 		# Salary (Grace Days) for this employee this period, added on top of the
 		# computed payment days. total_working_days is left untouched, so each grace
@@ -970,6 +990,237 @@ class SalarySlip(AccountsController):
 			.run(as_dict=True)
 		)
 		return sum(flt(r.grace_days) for r in rows)
+
+	def get_holiday_weekly_offs(self, start_date, end_date) -> dict:
+		"""{holiday_date: is_weekly_off} — shares the holiday cache bucket (and so its
+		invalidation) with get_holidays_for_employee, under its own key prefix.
+
+		v16: an employee's holiday list can change inside the window (Holiday List
+		Assignments), so resolve it per date range exactly like get_holidays_for_employee."""
+		holiday_map = {}
+		for holiday_list_range in get_holiday_list_ranges_for_employee(
+			self.employee, start_date, end_date, raise_exception=False
+		):
+			key = "weekly_off_map:{holiday_list}:{from_date}:{to_date}".format(**holiday_list_range)
+			range_map = frappe.cache().hget(HOLIDAYS_BETWEEN_DATES, key)
+			if range_map is None:
+				range_map = get_holiday_weekly_off_map(
+					holiday_list_range["holiday_list"],
+					holiday_list_range["from_date"],
+					holiday_list_range["to_date"],
+				)
+				frappe.cache().hset(HOLIDAYS_BETWEEN_DATES, key, range_map)
+			holiday_map.update(range_map)
+
+		return holiday_map
+
+	def _get_sandwiched_holiday_days(self, holidays: list | None, payroll_settings) -> float:
+		"""Sandwich rule — a holiday flanked by unpaid absence is itself unpaid.
+
+		Classic Indian shop-floor policy: take Friday and Monday off and you lose the
+		Saturday/Sunday in between too. It is company policy, not statute, so every
+		knob lives in Payroll Settings and the whole thing is off by default.
+
+		Contiguous holidays are treated as one block, so the flanks are the working
+		days immediately before and after the *run* (Fri/Mon around a Sat+Sun weekend),
+		and the flank hunt reaches outside the payroll period — a block can straddle a
+		month boundary. Only holidays that fall inside this slip's period are docked,
+		and only if the existing LWP/absent calculation has not already docked them.
+
+		Returns the day-equivalents to subtract from payment days.
+		"""
+		if not cint(payroll_settings.get("apply_sandwich_rule")):
+			return 0.0
+
+		period_start, period_end = getdate(self.actual_start_date), getdate(self.actual_end_date)
+		if period_end < period_start:
+			return 0.0
+
+		window_start = add_days(period_start, -SANDWICH_LOOKAROUND_DAYS)
+		window_end = add_days(period_end, SANDWICH_LOOKAROUND_DAYS)
+		# v16: holiday list(s) resolved per date range from Holiday List Assignments
+		holiday_map = self.get_holiday_weekly_offs(window_start, window_end)
+		if not holiday_map:
+			return 0.0
+
+		weekly_offs_only = (
+			payroll_settings.get("sandwich_rule_applies_to") or "Weekly Offs Only"
+		) == "Weekly Offs Only"
+		both_sides = (payroll_settings.get("sandwich_rule_flanks") or "Both Sides") == "Both Sides"
+		max_per_block = cint(payroll_settings.get("max_sandwiched_days"))
+
+		unpaid_dates = self._get_unpaid_absence_dates(window_start, window_end, holiday_map, payroll_settings)
+		if not unpaid_dates:
+			return 0.0
+
+		already_docked = self._get_holiday_dates_already_docked(holidays, payroll_settings)
+
+		sandwiched = 0
+		for block in _group_consecutive_dates(sorted(holiday_map)):
+			flank_before = add_days(block[0], -1) in unpaid_dates
+			flank_after = add_days(block[-1], 1) in unpaid_dates
+
+			if both_sides:
+				if not (flank_before and flank_after):
+					continue
+			elif not (flank_before or flank_after):
+				continue
+
+			eligible = [
+				day
+				for day in block
+				if period_start <= day <= period_end
+				and day not in already_docked
+				and (not weekly_offs_only or holiday_map[day])
+			]
+			if not eligible:
+				continue
+
+			# The cap is per contiguous holiday block, applied to the days this slip
+			# can actually dock — a block split across two months is capped in each.
+			sandwiched += min(len(eligible), max_per_block) if max_per_block > 0 else len(eligible)
+
+		return flt(sandwiched)
+
+	def _get_unpaid_absence_dates(self, window_start, window_end, holiday_map: dict, payroll_settings) -> set:
+		"""Dates in the window on which the employee counts as absent for the sandwich
+		rule. Half days are a part-presence and never flank a sandwich. Days outside
+		employment (before joining / after relieving) are non-employment, not absence.
+		"""
+		any_leave = (
+			payroll_settings.get("sandwich_rule_trigger") or "Unpaid Absence Only"
+		) == "Any Leave or Absence"
+
+		employed_from = getdate(self.joining_date) if self.joining_date else getdate(window_start)
+		employed_till = getdate(self.relieving_date) if self.relieving_date else getdate(window_end)
+
+		def in_employment(day) -> bool:
+			return employed_from <= day <= employed_till
+
+		absent_dates = set()
+
+		# 1. Leave applications — unpaid (LWP/PPL) only, unless the policy triggers on any leave
+		LeaveApplication = frappe.qb.DocType("Leave Application")
+		LeaveType = frappe.qb.DocType("Leave Type")
+		leave_query = (
+			frappe.qb.from_(LeaveApplication)
+			.inner_join(LeaveType)
+			.on(LeaveType.name == LeaveApplication.leave_type)
+			.select(
+				LeaveApplication.from_date,
+				LeaveApplication.to_date,
+				LeaveApplication.half_day,
+				LeaveApplication.half_day_date,
+			)
+			.where(
+				(LeaveApplication.docstatus == 1)
+				& (LeaveApplication.status == "Approved")
+				& (LeaveApplication.employee == self.employee)
+				& (LeaveApplication.from_date <= window_end)
+				& (LeaveApplication.to_date >= window_start)
+			)
+		)
+		if not any_leave:
+			leave_query = leave_query.where((LeaveType.is_lwp == 1) | (LeaveType.is_ppl == 1))
+
+		for leave in leave_query.run(as_dict=True):
+			from_date, to_date = getdate(leave.from_date), getdate(leave.to_date)
+			half_day_date = getdate(leave.half_day_date) if leave.half_day_date else None
+			for i in range(date_diff(to_date, from_date) + 1):
+				day = add_days(from_date, i)
+				if cint(leave.half_day) and (half_day_date == day or from_date == to_date):
+					continue
+				if in_employment(day):
+					absent_dates.add(day)
+
+		# 2. Marked attendance
+		leave_type_map = self.get_leave_type_map()
+		Attendance = frappe.qb.DocType("Attendance")
+		attendance = (
+			frappe.qb.from_(Attendance)
+			.select(Attendance.attendance_date, Attendance.status, Attendance.leave_type)
+			.where(
+				(Attendance.employee == self.employee)
+				& (Attendance.docstatus == 1)
+				& (Attendance.status.isin(["Absent", "On Leave"]))
+				& (Attendance.attendance_date.between(window_start, window_end))
+			)
+			.run(as_dict=True)
+		)
+		for row in attendance:
+			if (
+				row.status == "On Leave"
+				and not any_leave
+				and (not row.leave_type or row.leave_type not in leave_type_map)
+			):
+				continue
+			day = getdate(row.attendance_date)
+			if in_employment(day):
+				absent_dates.add(day)
+
+		# 3. Unmarked days, when the company reads silence as absence. Capped at today:
+		# a day that has not happened yet is not an absence, it is just unrecorded.
+		if payroll_settings.get("payroll_based_on") == "Attendance" and (
+			payroll_settings.get("consider_unmarked_attendance_as") or "Present"
+		) == "Absent":
+			marked = set(
+				frappe.qb.from_(Attendance)
+				.select(Attendance.attendance_date)
+				.where(
+					(Attendance.employee == self.employee)
+					& (Attendance.docstatus == 1)
+					& (Attendance.attendance_date.between(window_start, window_end))
+				)
+				.run(pluck=True)
+			)
+			marked = {getdate(day) for day in marked}
+
+			today = getdate()
+			window_start_date = getdate(window_start)
+			for i in range(date_diff(window_end, window_start) + 1):
+				day = add_days(window_start_date, i)
+				if day > today or day in holiday_map or day in marked or not in_employment(day):
+					continue
+				absent_dates.add(day)
+
+		return absent_dates
+
+	def _get_holiday_dates_already_docked(self, holidays: list | None, payroll_settings) -> set:
+		"""Holidays this slip already docks through the normal LWP/absent path, so the
+		sandwich rule does not charge for them a second time."""
+		if not holidays:
+			return set()
+
+		holiday_dates = {getdate(day) for day in holidays}
+
+		if payroll_settings.get("payroll_based_on") == "Attendance":
+			if not (
+				cint(payroll_settings.get("include_holidays_in_total_working_days"))
+				and cint(payroll_settings.get("consider_marked_attendance_on_holidays"))
+			):
+				return set()
+
+			Attendance = frappe.qb.DocType("Attendance")
+			marked = (
+				frappe.qb.from_(Attendance)
+				.select(Attendance.attendance_date)
+				.where(
+					(Attendance.employee == self.employee)
+					& (Attendance.docstatus == 1)
+					& (Attendance.status.isin(["Absent", "Half Day", "On Leave"]))
+					& (Attendance.attendance_date.between(self.actual_start_date, self.actual_end_date))
+				)
+				.run(pluck=True)
+			)
+			return {getdate(day) for day in marked} & holiday_dates
+
+		# Leave-based payroll: only a leave type that includes holidays reaches them
+		leaves = get_lwp_or_ppl_for_date_range(self.employee, self.start_date, self.end_date)
+		return {
+			getdate(day)
+			for day, leave in leaves.items()
+			if cint(leave.include_holiday) and getdate(day) in holiday_dates
+		}
 
 	def get_unmarked_days(
 		self,
@@ -3234,6 +3485,18 @@ def get_payroll_payable_account(company, payroll_entry):
 		)
 
 	return payroll_payable_account
+
+
+def _group_consecutive_dates(dates: list) -> list:
+	"""Split a sorted date list into runs of consecutive calendar days."""
+	blocks = []
+	for day in dates:
+		day = getdate(day)
+		if blocks and add_days(blocks[-1][-1], 1) == day:
+			blocks[-1].append(day)
+		else:
+			blocks.append([day])
+	return blocks
 
 
 def get_lwp_or_ppl_for_date_range(employee, start_date, end_date):

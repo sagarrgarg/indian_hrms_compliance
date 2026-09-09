@@ -291,7 +291,22 @@ frappe.ui.form.on("Salary Slip", {
 				consider_unmarked_attendance_as,
 				include_holidays_in_total_working_days,
 				consider_marked_attendance_on_holidays,
+				apply_sandwich_rule,
+				sandwich_rule_trigger,
+				sandwich_rule_flanks,
+				sandwich_rule_applies_to,
 			} = r.message;
+
+			const sandwich_rule_detail = [
+				sandwich_rule_applies_to || "Weekly Offs Only",
+				sandwich_rule_flanks || "Both Sides",
+				sandwich_rule_trigger || "Unpaid Absence Only",
+			]
+				.map((setting) => __(setting))
+				.join(", ");
+			const sandwich_rule = cint(apply_sandwich_rule)
+				? `${__("Enabled")} (${sandwich_rule_detail})`.bold()
+				: __("Disabled").bold();
 
 			const message = `
 				<div class="small text-muted pb-3">
@@ -305,6 +320,7 @@ frappe.ui.form.on("Salary Slip", {
 							? __("Enabled").bold()
 							: __("Disabled").bold()
 					}
+					<br>${__("Sandwich Rule")}: ${sandwich_rule}
 					<br><br>
 					${__("Click {0} to change the configuration and then resave salary slip", [
 						frappe.utils.get_form_link(
