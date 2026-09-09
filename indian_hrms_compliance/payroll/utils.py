@@ -36,6 +36,10 @@ def get_payroll_settings_for_payment_days() -> dict:
 			"consider_unmarked_attendance_as",
 			"include_holidays_in_total_working_days",
 			"consider_marked_attendance_on_holidays",
+			"apply_sandwich_rule",
+			"sandwich_rule_trigger",
+			"sandwich_rule_flanks",
+			"sandwich_rule_applies_to",
 		],
 		as_dict=True,
 	)

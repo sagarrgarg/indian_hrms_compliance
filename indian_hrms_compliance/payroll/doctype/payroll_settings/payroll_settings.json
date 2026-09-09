@@ -14,6 +14,13 @@
   "column_break_6",
   "max_working_hours_against_timesheet",
   "daily_wages_fraction_for_half_day",
+  "sandwich_rule_section",
+  "apply_sandwich_rule",
+  "sandwich_rule_trigger",
+  "sandwich_rule_flanks",
+  "sandwich_rule_column_break",
+  "sandwich_rule_applies_to",
+  "max_sandwiched_days",
   "column_break_rnoq",
   "disable_rounded_total",
   "column_break_gzpl",
@@ -172,13 +179,65 @@
    "fieldtype": "Link",
    "label": "Email Template",
    "options": "Email Template"
+  },
+  {
+   "fieldname": "sandwich_rule_section",
+   "fieldtype": "Section Break",
+   "label": "Sandwich Rule"
+  },
+  {
+   "default": "0",
+   "description": "If enabled, a holiday or weekly off that is <b>surrounded by absence</b> is itself treated as unpaid and deducted from Payment Days (shown on the Salary Slip as Sandwich Days). Company policy, not statute — keep it documented in your leave policy before switching it on. Leave balances are not affected, only pay.",
+   "fieldname": "apply_sandwich_rule",
+   "fieldtype": "Check",
+   "label": "Apply Sandwich Rule"
+  },
+  {
+   "default": "Unpaid Absence Only",
+   "depends_on": "apply_sandwich_rule",
+   "description": "What counts as the absence on either side. <b>Unpaid Absence Only</b> — marked Absent, unmarked-as-Absent, or leave without pay / partially paid leave. <b>Any Leave or Absence</b> — approved paid leave counts too (the stricter reading; check it against your standing orders).",
+   "fieldname": "sandwich_rule_trigger",
+   "fieldtype": "Select",
+   "label": "Absence That Triggers It",
+   "options": "Unpaid Absence Only\nAny Leave or Absence"
+  },
+  {
+   "default": "Both Sides",
+   "depends_on": "apply_sandwich_rule",
+   "description": "<b>Both Sides</b> — the holiday is unpaid only if the employee was absent both before and after it (the usual rule). <b>Either Side</b> — absence on one side is enough.",
+   "fieldname": "sandwich_rule_flanks",
+   "fieldtype": "Select",
+   "label": "Absence Required On",
+   "options": "Both Sides\nEither Side"
+  },
+  {
+   "fieldname": "sandwich_rule_column_break",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Weekly Offs Only",
+   "depends_on": "apply_sandwich_rule",
+   "description": "Which holidays can be sandwiched. <b>Weekly Offs Only</b> spares festival and national holidays — the safer default, since National &amp; Festival Holidays Acts require those to be paid. Relies on the <b>Weekly Off</b> checkbox in the employee's Holiday List — a list whose Sundays were added by hand, without that flag, will be treated as ordinary holidays.",
+   "fieldname": "sandwich_rule_applies_to",
+   "fieldtype": "Select",
+   "label": "Apply To",
+   "options": "Weekly Offs Only\nWeekly Offs and Holidays"
+  },
+  {
+   "default": "0",
+   "depends_on": "apply_sandwich_rule",
+   "description": "Caps how many days a single run of back-to-back holidays can cost. 0 means no cap. Set 2 to dock at most a weekend even when a long festival block is sandwiched.",
+   "fieldname": "max_sandwiched_days",
+   "fieldtype": "Int",
+   "label": "Max Sandwiched Days per Block",
+   "non_negative": 1
   }
  ],
  "icon": "fa fa-cog",
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2024-10-18 17:12:02.044020",
+ "modified": "2026-09-09 00:00:00.000000",
  "modified_by": "Administrator",
  "module": "Payroll",
  "name": "Payroll Settings",

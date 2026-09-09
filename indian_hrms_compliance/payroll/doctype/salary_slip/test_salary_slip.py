@@ -866,6 +866,171 @@ class TestSalarySlip(FrappeTestCase):
 			},
 		)
 
+	# ---------------------------------------------------------------- sandwich rule
+
+	def _setup_sandwich_employee(self, email: str):
+		"""Employee + the Sunday to sandwich: one with both its Saturday and its Monday
+		inside the payroll month, so the flanks are markable."""
+		emp_id = make_employee(email, relieving_date=None, status="Active")
+
+		month_start, month_end = get_first_day(nowdate()), get_last_day(nowdate())
+		sunday = get_first_sunday()
+		while add_days(sunday, -1) < month_start or add_days(sunday, 1) > month_end:
+			sunday = add_days(sunday, 7)
+
+		return emp_id, getdate(sunday)
+
+	@change_settings(
+		"Payroll Settings",
+		{
+			"payroll_based_on": "Attendance",
+			"consider_unmarked_attendance_as": "Present",
+			"include_holidays_in_total_working_days": 0,
+			"apply_sandwich_rule": 1,
+			"sandwich_rule_trigger": "Unpaid Absence Only",
+			"sandwich_rule_flanks": "Both Sides",
+			"sandwich_rule_applies_to": "Weekly Offs Only",
+			"max_sandwiched_days": 0,
+		},
+	)
+	def test_sandwich_rule_docks_weekly_off_between_two_absences(self):
+		no_of_days = get_no_of_days()
+		emp_id, sunday = self._setup_sandwich_employee("test_sandwich_both_sides@salary.com")
+
+		mark_attendance(emp_id, add_days(sunday, -1), "Absent", ignore_validate=True)
+		mark_attendance(emp_id, add_days(sunday, 1), "Absent", ignore_validate=True)
+
+		ss = make_employee_salary_slip(emp_id, "Monthly", "Test Sandwich Rule Salary Structure")
+
+		working_days = no_of_days[0] - no_of_days[1]
+		self.assertEqual(ss.total_working_days, working_days)
+		self.assertEqual(ss.absent_days, 2)
+		self.assertEqual(ss.sandwich_days, 1)
+		# 2 absent days + the Sunday they sandwich
+		self.assertEqual(ss.payment_days, working_days - 3)
+
+	@change_settings(
+		"Payroll Settings",
+		{
+			"payroll_based_on": "Attendance",
+			"consider_unmarked_attendance_as": "Present",
+			"include_holidays_in_total_working_days": 0,
+			"apply_sandwich_rule": 1,
+			"sandwich_rule_flanks": "Both Sides",
+			"sandwich_rule_applies_to": "Weekly Offs Only",
+		},
+	)
+	def test_sandwich_rule_ignores_absence_on_one_side_only(self):
+		no_of_days = get_no_of_days()
+		emp_id, sunday = self._setup_sandwich_employee("test_sandwich_one_side@salary.com")
+
+		mark_attendance(emp_id, add_days(sunday, -1), "Absent", ignore_validate=True)
+
+		ss = make_employee_salary_slip(emp_id, "Monthly", "Test Sandwich Rule Salary Structure")
+
+		working_days = no_of_days[0] - no_of_days[1]
+		self.assertEqual(ss.sandwich_days, 0)
+		self.assertEqual(ss.payment_days, working_days - 1)
+
+	@change_settings(
+		"Payroll Settings",
+		{
+			"payroll_based_on": "Attendance",
+			"consider_unmarked_attendance_as": "Present",
+			"include_holidays_in_total_working_days": 0,
+			"apply_sandwich_rule": 1,
+			"sandwich_rule_flanks": "Either Side",
+			"sandwich_rule_applies_to": "Weekly Offs Only",
+		},
+	)
+	def test_sandwich_rule_either_side(self):
+		no_of_days = get_no_of_days()
+		emp_id, sunday = self._setup_sandwich_employee("test_sandwich_either_side@salary.com")
+
+		mark_attendance(emp_id, add_days(sunday, -1), "Absent", ignore_validate=True)
+
+		ss = make_employee_salary_slip(emp_id, "Monthly", "Test Sandwich Rule Salary Structure")
+
+		working_days = no_of_days[0] - no_of_days[1]
+		self.assertEqual(ss.sandwich_days, 1)
+		self.assertEqual(ss.payment_days, working_days - 2)
+
+	@change_settings(
+		"Payroll Settings",
+		{
+			"payroll_based_on": "Attendance",
+			"consider_unmarked_attendance_as": "Present",
+			"include_holidays_in_total_working_days": 0,
+			"apply_sandwich_rule": 0,
+		},
+	)
+	def test_sandwich_rule_disabled_by_default(self):
+		no_of_days = get_no_of_days()
+		emp_id, sunday = self._setup_sandwich_employee("test_sandwich_disabled@salary.com")
+
+		mark_attendance(emp_id, add_days(sunday, -1), "Absent", ignore_validate=True)
+		mark_attendance(emp_id, add_days(sunday, 1), "Absent", ignore_validate=True)
+
+		ss = make_employee_salary_slip(emp_id, "Monthly", "Test Sandwich Rule Salary Structure")
+
+		working_days = no_of_days[0] - no_of_days[1]
+		self.assertEqual(ss.sandwich_days, 0)
+		self.assertEqual(ss.payment_days, working_days - 2)
+
+	@change_settings(
+		"Payroll Settings",
+		{
+			"payroll_based_on": "Attendance",
+			"consider_unmarked_attendance_as": "Present",
+			"include_holidays_in_total_working_days": 1,
+			"consider_marked_attendance_on_holidays": 1,
+			"apply_sandwich_rule": 1,
+			"sandwich_rule_flanks": "Both Sides",
+			"sandwich_rule_applies_to": "Weekly Offs Only",
+		},
+	)
+	def test_sandwich_rule_does_not_double_dock_an_already_docked_holiday(self):
+		no_of_days = get_no_of_days()
+		emp_id, sunday = self._setup_sandwich_employee("test_sandwich_no_double_dock@salary.com")
+
+		mark_attendance(emp_id, add_days(sunday, -1), "Absent", ignore_validate=True)
+		mark_attendance(emp_id, sunday, "Absent", ignore_validate=True)
+		mark_attendance(emp_id, add_days(sunday, 1), "Absent", ignore_validate=True)
+
+		ss = make_employee_salary_slip(emp_id, "Monthly", "Test Sandwich Rule Salary Structure")
+
+		self.assertEqual(ss.total_working_days, no_of_days[0])
+		# the Sunday is already docked as marked-absent-on-holiday, so it isn't
+		# charged again as a sandwich day
+		self.assertEqual(ss.sandwich_days, 0)
+		self.assertEqual(ss.payment_days, no_of_days[0] - 3)
+
+	@change_settings(
+		"Payroll Settings",
+		{
+			"payroll_based_on": "Leave",
+			"include_holidays_in_total_working_days": 0,
+			"apply_sandwich_rule": 1,
+			"sandwich_rule_trigger": "Unpaid Absence Only",
+			"sandwich_rule_flanks": "Both Sides",
+			"sandwich_rule_applies_to": "Weekly Offs Only",
+		},
+	)
+	def test_sandwich_rule_based_on_leave_application(self):
+		no_of_days = get_no_of_days()
+		emp_id, sunday = self._setup_sandwich_employee("test_sandwich_leave_based@salary.com")
+
+		frappe.db.set_value("Leave Type", "Leave Without Pay", "include_holiday", 0)
+		make_leave_application(emp_id, add_days(sunday, -1), add_days(sunday, -1), "Leave Without Pay")
+		make_leave_application(emp_id, add_days(sunday, 1), add_days(sunday, 1), "Leave Without Pay")
+
+		ss = make_employee_salary_slip(emp_id, "Monthly", "Test Sandwich Rule Salary Structure")
+
+		working_days = no_of_days[0] - no_of_days[1]
+		self.assertEqual(ss.leave_without_pay, 2)
+		self.assertEqual(ss.sandwich_days, 1)
+		self.assertEqual(ss.payment_days, working_days - 3)
+
 	def test_employee_salary_slip_read_permission(self):
 		emp_id = make_employee("test_employee_salary_slip_read_permission@salary.com")
 

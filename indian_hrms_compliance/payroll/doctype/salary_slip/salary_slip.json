@@ -44,6 +44,7 @@
   "absent_days",
   "grace_days",
   "absence_penalty_days",
+  "sandwich_days",
   "payment_days",
   "help_section",
   "payment_days_calculation_help",
@@ -279,6 +280,15 @@
    "fieldname": "absence_penalty_days",
    "fieldtype": "Float",
    "label": "Absence Penalty Days",
+   "non_negative": 1,
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "description": "Holidays/weekly offs docked under the Sandwich Rule because they were surrounded by absence. Reconciles as Working Days - LWP - Absent Days - Absence Penalty Days - Sandwich Days + Grace Days = Payment Days.",
+   "fieldname": "sandwich_days",
+   "fieldtype": "Float",
+   "label": "Sandwich Days",
    "non_negative": 1,
    "read_only": 1
   },
@@ -784,7 +794,7 @@
  "idx": 9,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-08-04 10:00:00.000000",
+ "modified": "2026-09-09 00:00:00.000000",
  "modified_by": "Administrator",
  "module": "Payroll",
  "name": "Salary Slip",
