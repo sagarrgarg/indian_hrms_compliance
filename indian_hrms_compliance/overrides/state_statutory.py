@@ -39,7 +39,7 @@ def apply_state_statutory_overrides(slip):
 		frappe.log_error(
 			title="PT/LWF: work state not resolved",
 			message=f"Employee {slip.employee} ({slip.name or 'new slip'}): no Indian State from Branch "
-			f"address, Office address, Company address or HR Settings default ({state_code!r}). "
+			f"State, Office address, Company address or HR Settings default ({state_code!r}). "
 			"PT / LWF not applied.",
 		)
 		return

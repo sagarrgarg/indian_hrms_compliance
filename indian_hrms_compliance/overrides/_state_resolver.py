@@ -7,7 +7,7 @@ Used by slip-time PT / LWF and the PT / LWF Return generators to attribute
 each employee's contribution to the right state. PT and LWF follow the place
 of WORK, not residence, so resolution order is:
 
-  1. Address linked to the employee's Branch (via Dynamic Link).
+  1. The State set on the employee's Branch.
   2. The employee's own "Office" Address.
   3. Address linked to the employee's Company.
   4. HR Settings.default_pt_state.
@@ -94,11 +94,12 @@ def resolve_employee_state(employee_name):
 
 	branch, company = frappe.db.get_value("Employee", employee_name, ["branch", "company"]) or (None, None)
 
-	state_text = None
 	if branch:
-		state_text = _address_state_via_dynamic_link("Branch", branch)
-	if not state_text:
-		state_text = _address_state_via_dynamic_link("Employee", employee_name, address_types=("Office",))
+		branch_state = frappe.db.get_value("Branch", branch, "indian_state")
+		if branch_state:
+			return branch_state
+
+	state_text = _address_state_via_dynamic_link("Employee", employee_name, address_types=("Office",))
 	if not state_text and company:
 		state_text = _address_state_via_dynamic_link("Company", company)
 
