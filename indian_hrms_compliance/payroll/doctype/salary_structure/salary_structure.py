@@ -598,6 +598,56 @@ def get_employees(salary_structure):
 	return list(set(employees))
 
 
+def structure_allowed_for_branch(salary_structure, branch):
+	"""A structure with no Applicable Branches is valid everywhere; otherwise the
+	employee's branch must be one of them."""
+	branches = frappe.get_all(
+		"Salary Structure Branch",
+		filters={"parent": salary_structure, "parenttype": "Salary Structure"},
+		pluck="branch",
+	)
+	return not branches or branch in branches
+
+
+@frappe.whitelist()
+@frappe.validate_and_sanitize_search_inputs
+def salary_structure_query(doctype, txt, searchfield, start, page_len, filters):
+	"""Salary Structure link search for assignments: submitted, active, this
+	company's or company-independent, and valid for the employee's branch
+	(structures with no Applicable Branches, or ones listing that branch)."""
+	filters = frappe._dict(filters or {})
+	branch = filters.get("branch")
+	if not branch and filters.get("employee"):
+		branch = frappe.db.get_value("Employee", filters.employee, "branch")
+
+	ss = frappe.qb.DocType("Salary Structure")
+	sb = frappe.qb.DocType("Salary Structure Branch")
+	has_branches = (
+		frappe.qb.from_(sb).select(sb.parent).where(sb.parenttype == "Salary Structure").distinct()
+	)
+	for_branch = (
+		frappe.qb.from_(sb)
+		.select(sb.parent)
+		.where((sb.parenttype == "Salary Structure") & (sb.branch == (branch or "")))
+	)
+	query = (
+		frappe.qb.from_(ss)
+		.select(ss.name, ss.min_base, ss.max_base)
+		.where(
+			(ss.docstatus == 1)
+			& (ss.is_active == "Yes")
+			& (ss.name.like(f"%{txt}%"))
+			& (ss.name.notin(has_branches) | ss.name.isin(for_branch))
+		)
+		.orderby(ss.name)
+		.limit(page_len)
+		.offset(start)
+	)
+	if filters.get("company"):
+		query = query.where((ss.company == filters.company) | ss.company.isnull() | (ss.company == ""))
+	return query.run()
+
+
 @frappe.whitelist()
 def get_salary_component(doctype, txt, searchfield, start, page_len, filters):
 	sc = frappe.qb.DocType("Salary Component")

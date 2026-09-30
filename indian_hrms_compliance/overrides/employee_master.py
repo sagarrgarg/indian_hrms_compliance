@@ -149,6 +149,15 @@ def _identity_siblings(doc):
 	)
 
 
+def validate_branch_required(doc, method=None):
+	"""Every active, salaried employee needs a Branch: it decides which salary
+	structures they can be assigned and their state PT / LWF. Virtual
+	(management-only) records draw no salary and are exempt."""
+	if doc.status != "Active" or doc.get("is_virtual_employee") or doc.branch:
+		return
+	frappe.throw(_("Branch is mandatory for an active employee."), title=_("Branch Required"))
+
+
 def validate_virtual_employee(doc, method=None):
 	"""A 'virtual' Employee is a management-only presence — it lets a group manager
 	be the reports_to / department head / DRI / approver of people in a company they

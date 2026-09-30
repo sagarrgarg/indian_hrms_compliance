@@ -2,8 +2,20 @@
 // For license information, please see license.txt
 
 frappe.ui.form.on("Employee", {
+	// Branch is mandatory for active, non-virtual employees (see
+	// employee_master.validate_branch_required).
+	toggle_branch_reqd(frm) {
+		frm.toggle_reqd("branch", frm.doc.status === "Active" && !frm.doc.is_virtual_employee);
+	},
+	status(frm) {
+		frm.trigger("toggle_branch_reqd");
+	},
+	is_virtual_employee(frm) {
+		frm.trigger("toggle_branch_reqd");
+	},
 	refresh: function (frm) {
 		if (!frm.is_new()) frm.trigger("render_setup_status");
+		frm.trigger("toggle_branch_reqd");
 
 		frm.set_query("payroll_cost_center", function () {
 			return {

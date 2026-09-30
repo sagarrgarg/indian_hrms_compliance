@@ -28,6 +28,15 @@ class BulkSalaryStructureAssignment(Document):
 		]
 		filters = [[d, "=", self.get(d)] for d in quick_filter_fields if self.get(d)]
 		filters += advanced_filters
+		if self.salary_structure:
+			# A branch-specific structure only lists employees of its branches.
+			branches = frappe.get_all(
+				"Salary Structure Branch",
+				filters={"parent": self.salary_structure, "parenttype": "Salary Structure"},
+				pluck="branch",
+			)
+			if branches:
+				filters.append(["branch", "in", branches])
 
 		Assignment = frappe.qb.DocType("Salary Structure Assignment")
 		employees_with_assignments = SubQuery(

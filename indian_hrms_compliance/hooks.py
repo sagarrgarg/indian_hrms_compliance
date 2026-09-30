@@ -291,6 +291,7 @@ doc_events = {
 			"indian_hrms_compliance.overrides.employee_master.auto_set_primary_employer",
 			"indian_hrms_compliance.overrides.employee_master.validate_single_primary_employer",
 			"indian_hrms_compliance.overrides.employee_master.validate_virtual_employee",
+			"indian_hrms_compliance.overrides.employee_master.validate_branch_required",
 			"indian_hrms_compliance.overrides.employee_master.validate_approver_company",
 			"indian_hrms_compliance.overrides.accountability_lifecycle.block_status_change_if_accountability_pending",
 			"indian_hrms_compliance.overrides.employee_master.auto_set_probation_schedule",

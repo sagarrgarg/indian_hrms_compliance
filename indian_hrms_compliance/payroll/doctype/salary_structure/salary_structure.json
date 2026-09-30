@@ -14,6 +14,7 @@
   "is_active",
   "is_default",
   "currency",
+  "applicable_branches",
   "base_range_section",
   "min_base",
   "base_range_col",
@@ -265,13 +266,21 @@
    "options": "Currency",
    "reqd": 1,
    "search_index": 1
+  },
+  {
+   "fieldname": "applicable_branches",
+   "fieldtype": "Table MultiSelect",
+   "label": "Applicable Branches",
+   "options": "Salary Structure Branch",
+   "allow_on_submit": 1,
+   "description": "Branches whose employees may be assigned this structure. Leave empty for a structure valid at every branch."
   }
  ],
  "icon": "fa fa-file-text",
  "idx": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-07-11 14:00:00.000000",
+ "modified": "2026-09-30 20:00:00.000000",
  "modified_by": "Administrator",
  "module": "Payroll",
  "name": "Salary Structure",

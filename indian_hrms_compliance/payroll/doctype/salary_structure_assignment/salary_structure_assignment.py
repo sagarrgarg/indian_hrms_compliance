@@ -19,6 +19,7 @@ class SalaryStructureAssignment(Document):
 	def validate(self):
 		self.validate_dates()
 		self.validate_company()
+		self.validate_branch()
 		self.validate_income_tax_slab()
 		self.set_payroll_payable_account()
 
@@ -27,6 +28,29 @@ class SalaryStructureAssignment(Document):
 
 		self.validate_cost_centers()
 		self.warn_about_missing_opening_entries()
+
+	def validate_branch(self):
+		"""The employee must have a branch, and a branch-specific structure must
+		list it (branch-less structures are valid everywhere)."""
+		from indian_hrms_compliance.payroll.doctype.salary_structure.salary_structure import (
+			structure_allowed_for_branch,
+		)
+
+		branch = frappe.db.get_value("Employee", self.employee, "branch")
+		if not branch:
+			frappe.throw(
+				_("Set a Branch on Employee {0} before assigning a salary structure.").format(
+					frappe.bold(self.employee)
+				),
+				title=_("Branch Required"),
+			)
+		if self.salary_structure and not structure_allowed_for_branch(self.salary_structure, branch):
+			frappe.throw(
+				_("Salary Structure {0} does not apply to branch {1} of Employee {2}.").format(
+					frappe.bold(self.salary_structure), frappe.bold(branch), frappe.bold(self.employee)
+				),
+				title=_("Wrong Branch"),
+			)
 
 	def on_update_after_submit(self):
 		self.validate_cost_centers()
