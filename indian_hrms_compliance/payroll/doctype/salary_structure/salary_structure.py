@@ -55,18 +55,21 @@ class SalaryStructure(Document):
 
 	def set_missing_values(self):
 		overwritten_fields = [
-			"depends_on_payment_days",
 			"variable_based_on_taxable_salary",
 			"is_tax_applicable",
 			"is_flexible_benefit",
 		]
 		overwritten_fields_if_missing = ["amount_based_on_formula", "formula", "amount"]
+		# depends_on_payment_days is a per-row choice: the component's value is only
+		# the default. A formula that already works on earned (pro-rated) amounts
+		# must be able to switch it off, or the amount gets pro-rated twice.
+		previous_components = self.get_previous_row_components()
 		for table in ["earnings", "deductions"]:
 			for d in self.get(table):
 				component_default_value = frappe.db.get_value(
 					"Salary Component",
 					cstr(d.salary_component),
-					overwritten_fields + overwritten_fields_if_missing,
+					[*overwritten_fields, "depends_on_payment_days", *overwritten_fields_if_missing],
 					as_dict=1,
 				)
 				if component_default_value:
@@ -75,9 +78,22 @@ class SalaryStructure(Document):
 						if d.get(fieldname) != value:
 							d.set(fieldname, value)
 
+					component_changed = previous_components.get(d.name) not in (None, d.salary_component)
+					if d.get("depends_on_payment_days") is None or component_changed:
+						d.depends_on_payment_days = component_default_value.depends_on_payment_days
+
 					if not (d.get("amount") or d.get("formula")):
 						for fieldname in overwritten_fields_if_missing:
 							d.set(fieldname, component_default_value.get(fieldname))
+
+	def get_previous_row_components(self):
+		"""Row name → salary component as last saved, to detect a component swap."""
+		previous = self.get_doc_before_save()
+		if not previous:
+			return {}
+		return {
+			d.name: d.salary_component for table in ("earnings", "deductions") for d in previous.get(table)
+		}
 
 	def validate_component_based_on_tax_slab(self):
 		for row in self.deductions:

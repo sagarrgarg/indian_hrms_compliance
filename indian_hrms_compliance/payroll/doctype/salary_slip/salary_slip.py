@@ -184,6 +184,7 @@ class SalarySlip(AccountsController):
 		return self.__actual_end_date
 
 	def validate(self):
+		self.set_missing_payment_days_flags()
 		self.check_salary_withholding()
 		self.status = self.get_status()
 		validate_active_employee(self.employee)
@@ -217,6 +218,17 @@ class SalarySlip(AccountsController):
 						max_working_hours
 					),
 					alert=True,
+				)
+
+	def set_missing_payment_days_flags(self):
+		"""Rows normally carry depends_on_payment_days from their structure row; a row
+		added without one (API, import) falls back to the component's default."""
+		for row in self.get("earnings") + self.get("deductions"):
+			if row.get("depends_on_payment_days") is None and row.salary_component:
+				row.depends_on_payment_days = cint(
+					frappe.get_cached_value(
+						"Salary Component", row.salary_component, "depends_on_payment_days"
+					)
 				)
 
 	def check_salary_withholding(self):
