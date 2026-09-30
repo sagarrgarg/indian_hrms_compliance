@@ -876,8 +876,9 @@ def check_assignment_base_within_bounds(doc):
 	range configured on the linked Salary Structure. Either bound is optional
 	(0/blank = unbounded). Lets HR pin a structure to a wage band so an
 	assignment can't be created below the structure's min-wage floor or above
-	its intended ceiling."""
-	if not doc.salary_structure or not doc.base:
+	its intended ceiling. A blank or zero base is still checked against
+	min_base — it is the lowest possible base, not "no base"."""
+	if not doc.salary_structure:
 		return None
 	# Defensive: fields ship with the doctype, but guard so a partial migrate
 	# (columns not yet added) degrades to "no check" instead of crashing.
