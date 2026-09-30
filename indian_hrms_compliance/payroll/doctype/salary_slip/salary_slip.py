@@ -403,7 +403,8 @@ class SalarySlip(AccountsController):
 			gl.append(self._gl_row(payable_account, credit=payable, cost_center=default_cc, **party_args))
 
 		# Employer provisions (statistical): self-balancing Dr/Cr, single cost center.
-		for e in self.earnings:
+		# Shown ones sit in earnings as info rows; hidden ones in employer_provisions.
+		for e in list(self.earnings) + list(self.get("employer_provisions") or []):
 			if not self._gl_is_statistical(e.salary_component):
 				continue
 			amt = flt(flt(e.amount) * ex, 2)
@@ -1890,6 +1891,9 @@ class SalarySlip(AccountsController):
 
 	def add_structure_components(self, component_type):
 		self.data, self.default_data = self.get_data_for_eval()
+		if component_type == "earnings":
+			# Rebuilt on every earnings pass, like the rows it mirrors.
+			self.set("employer_provisions", [])
 
 		for struct_row in self._salary_structure_doc.get(component_type):
 			self.add_structure_component(struct_row, component_type)
@@ -1926,6 +1930,10 @@ class SalarySlip(AccountsController):
 				"Salary Component", struct_row.salary_component, "show_on_salary_slip"
 			):
 				self.add_statistical_info_row(struct_row, display_amount, component_type)
+			elif display_amount and component_type == "earnings":
+				# Hidden employer provision (e.g. Gratuity): not on the slip, but kept
+				# so get_gl_entries can still book Dr expense / Cr payable.
+				self.add_employer_provision_row(struct_row, display_amount)
 
 		else:
 			# default behavior, the system does not add if component amount is zero
@@ -1950,6 +1958,22 @@ class SalarySlip(AccountsController):
 					default_amount=default_amount,
 					remove_if_zero_valued=remove_if_zero_valued,
 				)
+
+	def add_employer_provision_row(self, struct_row, amount):
+		self.append(
+			"employer_provisions",
+			{
+				"salary_component": struct_row.salary_component,
+				"abbr": struct_row.abbr,
+				"amount": flt(amount, struct_row.precision("amount")),
+				"default_amount": flt(amount, struct_row.precision("amount")),
+				"depends_on_payment_days": struct_row.depends_on_payment_days,
+				"statistical_component": 1,
+				"do_not_include_in_total": 1,
+				"do_not_include_in_accounts": 1,
+				"is_tax_applicable": 0,
+			},
+		)
 
 	def add_statistical_info_row(self, struct_row, amount, component_type):
 		"""Append a statistical (employer-side) component to the slip as an

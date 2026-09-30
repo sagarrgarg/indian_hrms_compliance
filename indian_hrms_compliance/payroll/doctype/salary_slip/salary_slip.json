@@ -59,6 +59,7 @@
   "earnings",
   "column_break_k1jz",
   "deductions",
+  "employer_provisions",
   "totals",
   "gross_pay",
   "gross_wages",
@@ -357,6 +358,16 @@
    "oldfieldname": "deduction_details",
    "oldfieldtype": "Table",
    "options": "Salary Detail"
+  },
+  {
+   "fieldname": "employer_provisions",
+   "fieldtype": "Table",
+   "label": "Employer Provisions",
+   "options": "Salary Detail",
+   "hidden": 1,
+   "print_hide": 1,
+   "read_only": 1,
+   "description": "Employer statistical components not shown on the slip (e.g. Gratuity). Booked as Dr expense / Cr payable provisions; never part of gross or net."
   },
   {
    "fieldname": "totals",
@@ -794,7 +805,7 @@
  "idx": 9,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-09-09 00:00:00.000000",
+ "modified": "2026-09-30 19:00:00.000000",
  "modified_by": "Administrator",
  "module": "Payroll",
  "name": "Salary Slip",
