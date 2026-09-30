@@ -107,6 +107,7 @@ def _set_statistical_earning(slip, component, amount):
 			row.amount = amount
 			row.default_amount = amount
 			row.statistical_component = 1
+			row.do_not_include_in_total = 1
 			return
 	if amount <= 0:
 		return
@@ -119,6 +120,8 @@ def _set_statistical_earning(slip, component, amount):
 			"amount": amount,
 			"default_amount": amount,
 			"statistical_component": 1,
+			# Slip totals skip rows by this flag, not by statistical_component.
+			"do_not_include_in_total": 1,
 			"depends_on_payment_days": 0,
 		},
 	)
