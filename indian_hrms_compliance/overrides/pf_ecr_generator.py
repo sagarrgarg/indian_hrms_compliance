@@ -47,12 +47,15 @@ import csv
 import io
 import json
 from datetime import date, timedelta
+from decimal import ROUND_HALF_UP, Decimal
 
 import frappe
 from frappe import _
 from frappe.utils import (
 	add_days,
 	add_months,
+	add_years,
+	cint,
 	flt,
 	formatdate,
 	get_first_day,
@@ -68,6 +71,9 @@ from indian_hrms_compliance.hr.doctype.statutory_component_mapping.statutory_com
 )
 
 
+# Pension (EPS) contributions stop once a member turns 58.
+EPS_AGE_LIMIT = 58
+
 # Defaults mirror the verified 2026 PF rates (matches
 # overrides/salary_structure_validator.HR_SETTINGS_DEFAULTS).
 HR_SETTINGS_DEFAULTS = {
@@ -78,7 +84,7 @@ HR_SETTINGS_DEFAULTS = {
 	"pf_edli_rate_pct": 0.50,
 	"pf_admin_charges_pct": 0.50,
 	"pf_admin_charges_min": 500,
-	"pf_edli_per_member_cap": 75,
+	"pf_edli_per_member_cap": 0,  # 0 = derive: ceiling × EDLI rate
 	"pf_ecr_filing_window_days": 15,
 	"pf_ecr_exclude_employees_with_no_uan": 1,
 }
@@ -251,43 +257,72 @@ def _compute_pf_row(slip, mapping, settings):
 	pf_ceiling = flt(settings["pf_wage_ceiling"])
 	epf_rate = flt(settings["pf_employee_rate_pct"]) / 100.0
 
-	gross_wages = _slip_gross_wages(slip)
-	epf_wages = _slip_basic_plus_da(slip, mapping)
-
+	wage_base = _slip_basic_plus_da(slip, mapping)
 	# If we couldn't compute Basic + DA from the slip but PF was clearly
 	# deducted, back-derive EPF wages from the deducted amount.
-	if not epf_wages and pf_emp_amount and epf_rate:
-		epf_wages = pf_emp_amount / epf_rate
+	if not wage_base and pf_emp_amount and epf_rate:
+		wage_base = pf_emp_amount / epf_rate
 
-	eps_wages = min(epf_wages, pf_ceiling)
-	edli_wages = min(epf_wages, pf_ceiling)
-
-	# EPFO rounds to nearest integer rupee for all per-row contribution
-	# figures. round() with ties-to-even is fine — half-rupee ties are
-	# vanishingly rare given the rate × ₹ wage product.
-	epf_contribution = round(epf_wages * epf_rate)
-	eps_contribution = round(eps_wages * flt(settings["pf_eps_rate_pct"]) / 100.0)
-	# EPS contribution caps at 1,250 (8.33% × 15,000); the round() above
-	# already respects that since eps_wages is capped at 15,000.
-	epf_eps_diff = epf_contribution - eps_contribution
-
-	ncp_days = _slip_ncp_days(slip)
-
-	return {
+	row = {
 		"employee": slip.employee,
 		"employee_name": slip.employee_name,
 		"uan": _employee_uan(slip.employee),
 		"salary_slip": slip.name,
-		"gross_wages": gross_wages,
-		"epf_wages": epf_wages,
-		"eps_wages": eps_wages,
-		"edli_wages": edli_wages,
-		"epf_contribution": epf_contribution,
-		"eps_contribution": eps_contribution,
-		"epf_eps_diff": epf_eps_diff,
-		"ncp_days": ncp_days,
+		"gross_wages": _slip_gross_wages(slip),
+		"wage_base": wage_base,
+		# A deduction above rate x ceiling means the member contributes on actual
+		# (higher) wages rather than the restricted ceiling.
+		"on_actual_wages": bool(pf_ceiling and epf_rate and pf_emp_amount > pf_ceiling * epf_rate + 1),
+		"eps_eligible": eps_eligible(slip.employee, slip.start_date),
+		"ncp_days": _slip_ncp_days(slip),
 		"refund_of_advances": 0,
 	}
+	_finalise_pf_row(row, settings)
+	return row
+
+
+def eps_eligible(employee, wage_month_start):
+	"""Pension (EPS) applies to a PF member unless marked excluded on the Employee
+	(eps_member unticked) or they turned 58 before this wage month began."""
+	if not employee:
+		return True
+	fields = ["date_of_birth"]
+	if frappe.get_meta("Employee").has_field("eps_member"):
+		fields.append("eps_member")
+	emp = frappe.db.get_value("Employee", employee, fields, as_dict=True) or {}
+	if "eps_member" in emp and not cint(emp.eps_member):
+		return False
+	dob = emp.get("date_of_birth")
+	if dob and wage_month_start and add_years(getdate(dob), EPS_AGE_LIMIT) < getdate(wage_month_start):
+		return False
+	return True
+
+
+def round_rupee(amount):
+	"""EPFO rounds each contribution to the rupee, half up (8.33% of 25,000 =
+	2,082.50 -> 2,083). Python's round() goes half-to-even, and float noise can
+	land just below .5, so round via Decimal on a 6-dp string."""
+	return int(Decimal(f"{flt(amount):.6f}").quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+
+
+def _finalise_pf_row(row, settings):
+	"""Fill EPF / EPS / EDLI wages and contributions from row["wage_base"].
+
+	EPF wages are capped at the ceiling unless the member contributes on actual
+	wages; EPS and EDLI wages are always capped, and EPS is nil for a member who is
+	not EPS-eligible (their whole employer share goes to EPF). EPFO rounds each
+	contribution to the rupee."""
+	pf_ceiling = flt(settings["pf_wage_ceiling"])
+	epf_rate = flt(settings["pf_employee_rate_pct"]) / 100.0
+	wage_base = flt(row["wage_base"])
+	capped = min(wage_base, pf_ceiling) if pf_ceiling else wage_base
+
+	row["epf_wages"] = wage_base if row.get("on_actual_wages") else capped
+	row["eps_wages"] = capped if row.get("eps_eligible", True) else 0
+	row["edli_wages"] = capped
+	row["epf_contribution"] = round_rupee(row["epf_wages"] * epf_rate)
+	row["eps_contribution"] = round_rupee(row["eps_wages"] * flt(settings["pf_eps_rate_pct"]) / 100.0)
+	row["epf_eps_diff"] = row["epf_contribution"] - row["eps_contribution"]
 
 
 def _employee_uan(employee):
@@ -316,15 +351,15 @@ def _build_ecr_txt(rows):
 		fields = [
 			uan,
 			name,
-			str(int(round(flt(r.get("gross_wages"))))),
-			str(int(round(flt(r.get("epf_wages"))))),
-			str(int(round(flt(r.get("eps_wages"))))),
-			str(int(round(flt(r.get("edli_wages"))))),
-			str(int(round(flt(r.get("epf_contribution"))))),
-			str(int(round(flt(r.get("eps_contribution"))))),
-			str(int(round(flt(r.get("epf_eps_diff"))))),
+			str(round_rupee(r.get("gross_wages"))),
+			str(round_rupee(r.get("epf_wages"))),
+			str(round_rupee(r.get("eps_wages"))),
+			str(round_rupee(r.get("edli_wages"))),
+			str(round_rupee(r.get("epf_contribution"))),
+			str(round_rupee(r.get("eps_contribution"))),
+			str(round_rupee(r.get("epf_eps_diff"))),
 			str(int(r.get("ncp_days") or 0)),
-			str(int(round(flt(r.get("refund_of_advances"))))),
+			str(round_rupee(r.get("refund_of_advances"))),
 		]
 		lines.append(ECR_FIELD_SEP.join(fields))
 	return ECR_LINE_SEP.join(lines) + ECR_LINE_SEP
@@ -380,10 +415,7 @@ def build_pf_ecr_rows(company, wage_month, settings=None, mapping=None):
 	if settings is None:
 		settings = {k: _hr_setting(k) for k in HR_SETTINGS_DEFAULTS.keys()}
 
-	exclude_no_uan = int(settings.get("pf_ecr_exclude_employees_with_no_uan") or 1)
-	epf_rate = flt(settings["pf_employee_rate_pct"]) / 100.0
-	eps_rate = flt(settings["pf_eps_rate_pct"]) / 100.0
-	pf_ceiling = flt(settings["pf_wage_ceiling"])
+	exclude_no_uan = cint(settings.get("pf_ecr_exclude_employees_with_no_uan", 1))
 
 	slips = _get_eligible_salary_slips(company, wage_month)
 	exceptions = []
@@ -405,20 +437,17 @@ def build_pf_ecr_rows(company, wage_month, settings=None, mapping=None):
 		if slip_meta.employee in by_emp:
 			base = by_emp[slip_meta.employee]
 			base["gross_wages"] += row["gross_wages"]
-			base["epf_wages"] += row["epf_wages"]
+			base["wage_base"] += row["wage_base"]
+			base["on_actual_wages"] = base["on_actual_wages"] or row["on_actual_wages"]
 			base["ncp_days"] += row["ncp_days"]
 		else:
 			by_emp[slip_meta.employee] = row
 	skipped_not_pf_member = len(non_member - set(by_emp))
 
 	for row in by_emp.values():
-		# Recompute capped EPS/EDLI + contributions from the (possibly aggregated)
-		# EPF wages — single-slip employees are unchanged.
-		row["eps_wages"] = min(row["epf_wages"], pf_ceiling)
-		row["edli_wages"] = min(row["epf_wages"], pf_ceiling)
-		row["epf_contribution"] = round(row["epf_wages"] * epf_rate)
-		row["eps_contribution"] = round(row["eps_wages"] * eps_rate)
-		row["epf_eps_diff"] = row["epf_contribution"] - row["eps_contribution"]
+		# Recompute capped EPF/EPS/EDLI + contributions from the (possibly
+		# aggregated) wage base — single-slip employees are unchanged.
+		_finalise_pf_row(row, settings)
 
 		if not row["uan"]:
 			if exclude_no_uan:
@@ -483,21 +512,28 @@ def generate_pf_ecr(pf_ecr_filing_name):
 	doc.total_eps_wages = sum(flt(r["eps_wages"]) for r in rows)
 	doc.total_epf_contribution = sum(flt(r["epf_contribution"]) for r in rows)
 	doc.total_eps_contribution = sum(flt(r["eps_contribution"]) for r in rows)
-	# EDLI — per-member contribution = EDLI Wages × 0.50%, capped at 75 per
-	# member (since EDLI wage cap × rate = 15000 × 0.005 = 75). The cap is
-	# already implicit because eps_wages is capped at 15000.
+	# EDLI — per-member contribution = EDLI Wages × 0.50%, capped at ceiling ×
+	# rate per member (125 at the 25,000 ceiling). The cap is already implicit
+	# because edli_wages is capped at the ceiling.
 	edli_rate = flt(settings["pf_edli_rate_pct"]) / 100.0
-	edli_cap_per_member = flt(settings.get("pf_edli_per_member_cap") or 75)
+	edli_cap_per_member = flt(settings.get("pf_edli_per_member_cap")) or round_rupee(
+		flt(settings["pf_wage_ceiling"]) * edli_rate
+	)
 	doc.total_edli_contribution = sum(
-		min(round(flt(r["edli_wages"]) * edli_rate), edli_cap_per_member) for r in rows
+		min(round_rupee(flt(r["edli_wages"]) * edli_rate), edli_cap_per_member) for r in rows
 	)
 	# Admin charges — 0.50% of total EPF Wages, with a per-establishment
 	# floor of ₹500.
 	admin_rate = flt(settings["pf_admin_charges_pct"]) / 100.0
 	admin_min = flt(settings["pf_admin_charges_min"])
-	doc.total_admin_charges = max(round(flt(doc.total_epf_wages) * admin_rate), admin_min) if rows else 0
+	doc.total_admin_charges = (
+		max(round_rupee(flt(doc.total_epf_wages) * admin_rate), admin_min) if rows else 0
+	)
+	# A/c 1 carries the employee share AND the employer's EPF share (12% minus
+	# the EPS part), so both belong in the remittance alongside A/c 10 / 2 / 21.
 	doc.total_remittance = (
 		flt(doc.total_epf_contribution)
+		+ sum(flt(r["epf_eps_diff"]) for r in rows)
 		+ flt(doc.total_eps_contribution)
 		+ flt(doc.total_edli_contribution)
 		+ flt(doc.total_admin_charges)
