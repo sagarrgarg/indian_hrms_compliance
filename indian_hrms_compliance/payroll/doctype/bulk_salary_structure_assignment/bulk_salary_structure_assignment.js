@@ -42,6 +42,11 @@ frappe.ui.form.on("Bulk Salary Structure Assignment", {
 		frm.trigger("get_employees");
 	},
 
+	salary_structure(frm) {
+		// A branch-specific structure narrows the employee list to its branches.
+		frm.trigger("get_employees");
+	},
+
 	branch(frm) {
 		frm.trigger("get_employees");
 	},
@@ -70,16 +75,11 @@ frappe.ui.form.on("Bulk Salary Structure Assignment", {
 
 	set_queries(frm) {
 		frm.set_query("salary_structure", function () {
-			// Offer this company's structures plus company-independent templates.
+			// This company's structures plus company-independent templates; when a
+			// Branch filter is set, only structures valid for that branch.
 			return {
-				filters: {
-					is_active: "Yes",
-					docstatus: 1,
-				},
-				or_filters: [
-					["company", "=", frm.doc.company],
-					["company", "is", "not set"],
-				],
+				query: "indian_hrms_compliance.payroll.doctype.salary_structure.salary_structure.salary_structure_query",
+				filters: { company: frm.doc.company, branch: frm.doc.branch },
 			};
 		});
 		frm.set_query("income_tax_slab", function () {

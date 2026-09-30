@@ -10,17 +10,11 @@ frappe.ui.form.on("Salary Structure Assignment", {
 			};
 		});
 		frm.set_query("salary_structure", function () {
-			// Offer both this company's structures and company-independent
-			// (blank-company) templates.
+			// This company's structures plus company-independent templates, limited
+			// to ones valid for the employee's branch (or with no branch set).
 			return {
-				filters: {
-					docstatus: 1,
-					is_active: "Yes",
-				},
-				or_filters: [
-					["company", "=", frm.doc.company],
-					["company", "is", "not set"],
-				],
+				query: "indian_hrms_compliance.payroll.doctype.salary_structure.salary_structure.salary_structure_query",
+				filters: { company: frm.doc.company, employee: frm.doc.employee },
 			};
 		});
 
