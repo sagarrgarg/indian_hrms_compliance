@@ -308,6 +308,12 @@ class SalarySlip(AccountsController):
 		if gl:
 			make_gl_entries(gl, merge_entries=False)
 
+	def make_gl_entries(self, cancel: bool = False):
+		"""Entry point for ERPNext's Repost Accounting Ledger (Salary Slip is listed
+		in repost_allowed_doctypes): cancel=1 reverses the posted rows, then a plain
+		call re-posts from the slip's current rows."""
+		self.create_gl_entries(cancel=cancel)
+
 	def get_gl_entries(self):
 		"""Reproduce, per slip, what the accrual JE did in aggregate:
 		Dr each earning's expense account; Cr each deduction's payable account;

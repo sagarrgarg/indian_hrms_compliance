@@ -533,6 +533,10 @@ accounting_dimension_doctypes = [
 
 bank_reconciliation_doctypes = ["Expense Claim"]
 
+# Salary Slip posts its own GL (create_gl_entries), so Repost Accounting Ledger can
+# regenerate it after a data correction — no cancel/amend of the slip needed.
+repost_allowed_doctypes = ["Salary Slip"]
+
 # Testing
 # -------
 
