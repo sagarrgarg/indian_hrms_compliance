@@ -26,6 +26,13 @@ def sanitize_expression(string: str | None = None) -> str | None:
 	return string
 
 
+def full_month_period() -> dict:
+	"""Period fields for evaluating structure formulas outside a Salary Slip
+	(CTC / payslip previews, the structure validator). They show a full month, so
+	payment_days == total_working_days and any payment-days ratio in a formula is 1."""
+	return {"payment_days": 30, "total_working_days": 30}
+
+
 @frappe.whitelist()
 def get_payroll_settings_for_payment_days() -> dict:
 	return frappe.get_cached_value(

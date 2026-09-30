@@ -8,6 +8,7 @@ from frappe.model.document import Document
 from frappe.utils import cint, flt, get_link_to_form, getdate
 
 from indian_hrms_compliance.payroll.doctype.payroll_period.payroll_period import get_payroll_period
+from indian_hrms_compliance.payroll.utils import full_month_period
 
 
 class DuplicateAssignment(frappe.ValidationError):
@@ -291,8 +292,12 @@ def preview_salary(salary_structure, base=0, variable=0, leave_encashment=0, emp
 	data = {}
 	if employee and frappe.db.exists("Employee", employee):
 		data.update(frappe.get_cached_doc("Employee", employee).as_dict())
+	# No employee picked yet: treat as no UAN so PF-gated conditions still evaluate.
+	data.setdefault("uan_number", "")
 	data.update({a: 0 for a in frappe.get_all("Salary Component", pluck="salary_component_abbr") if a})
-	data.update({"base": base, "variable": variable, "leave_encashment": le, "gross_pay": 0})
+	data.update(
+		{"base": base, "variable": variable, "leave_encashment": le, "gross_pay": 0, **full_month_period()}
+	)
 
 	def row_amount(r):
 		if r.condition and not _safe_eval(r.condition, g, data):
