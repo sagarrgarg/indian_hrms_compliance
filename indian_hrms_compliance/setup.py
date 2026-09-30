@@ -866,6 +866,21 @@ def get_custom_fields():
 				"mandatory_depends_on": "eval:!doc.eps_member",
 			},
 		],
+		"Branch": [
+			{
+				"fieldname": "indian_state",
+				"fieldtype": "Link",
+				"label": _("State"),
+				"options": "Indian State",
+				"insert_after": "branch",
+				"in_list_view": 1,
+				"in_standard_filter": 1,
+				"description": _(
+					"Work state of this branch. Drives state Labour Welfare Fund and Professional Tax "
+					"on salary slips of employees posted here."
+				),
+			},
+		],
 		"Attendance Request": [
 			{
 				"fieldname": "status",
