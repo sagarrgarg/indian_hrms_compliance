@@ -216,16 +216,19 @@ def _wage_code_base(doc):
 	return flt(getattr(doc, "max_base", 0)) or NOTIONAL_BASE
 
 
-def _row_monthly_amount(row, base=NOTIONAL_BASE):
+def _row_monthly_amount(row, base=NOTIONAL_BASE, context=None):
 	"""Best-effort monthly amount for a salary row. Flat rows use row.amount;
 	formula rows are evaluated against ``base`` (falling back to row.amount if
 	the formula references things we can't resolve here). ``uan_number`` is
-	supplied (0) so PF-gated formulas evaluate instead of raising NameError."""
+	supplied (0) so PF-gated formulas evaluate instead of raising NameError;
+	``context`` overrides it with real employee values when they are known."""
 	if getattr(row, "amount_based_on_formula", 0) and (row.formula or "").strip():
 		try:
 			return flt(
 				frappe.safe_eval(
-					row.formula.strip(), None, {"base": base, "gross_pay": base, "uan_number": 0}
+					row.formula.strip(),
+					None,
+					{"base": base, "gross_pay": base, "uan_number": 0, **(context or {})},
 				)
 			)
 		except Exception:
@@ -920,6 +923,114 @@ def check_assignment_base_within_bounds(doc):
 	return issues or None
 
 
+def _is_pf_wage_row(row, mapping=None):
+	"""Basic / DA row — the wage PF is computed on. Mapping first, then name match."""
+	names = {mapping.basic_component, mapping.da_component} - {None, ""} if mapping else set()
+	if names:
+		return row.salary_component in names
+	lower = (row.salary_component or "").lower()
+	return "basic" in lower or "dearness" in lower or lower == "da"
+
+
+def _is_employee_pf_row(row, mapping=None):
+	if mapping and mapping.pf_employee_component:
+		return row.salary_component == mapping.pf_employee_component
+	lower = (row.salary_component or "").lower()
+	return row.abbr == "PF" or ("provident fund" in lower and "employer" not in lower)
+
+
+def _slip_pf_wage(slip, mapping=None):
+	"""Full-month Basic + DA on a slip (default_amount is before payment-day pro-rating)."""
+	rows = [
+		r
+		for r in slip.earnings or []
+		if _is_pf_wage_row(r, mapping) and not r.statistical_component and not r.additional_salary
+	]
+	if not rows:
+		return None
+	return sum(flt(r.default_amount) or flt(r.amount) for r in rows)
+
+
+def _last_pf_wage(employee, company, before_date, exclude=None):
+	"""(wage, slip name) from the latest submitted slip, in the same company and
+	before ``before_date``, on which employee PF was actually deducted."""
+	mapping = get_mapping_for_company(company)
+	filters = {
+		"employee": employee,
+		"company": company,
+		"docstatus": 1,
+		"start_date": ("<", before_date),
+	}
+	if exclude:
+		filters["name"] = ("!=", exclude)
+	for name in frappe.get_all(
+		"Salary Slip", filters=filters, order_by="start_date desc", limit=24, pluck="name"
+	):
+		slip = frappe.get_doc("Salary Slip", name)
+		if any(_is_employee_pf_row(r, mapping) and flt(r.amount) > 0 for r in slip.deductions or []):
+			wage = _slip_pf_wage(slip, mapping)
+			if wage:
+				return wage, name
+	return None, None
+
+
+def _basic_reduced_issue(employee, new_wage, previous_wage, previous_slip):
+	return (
+		"HARD",
+		"BASIC_REDUCED_AFTER_PF",
+		_(
+			"Employee {0}: Basic + DA would be {1:.2f}, lower than the {2:.2f} on which PF was "
+			"deducted in Salary Slip {3}. Once PF has been deducted, the PF wage cannot be reduced "
+			"by a change of structure or base — keep Basic + DA at or above {2:.2f}."
+		).format(employee, flt(new_wage), flt(previous_wage), previous_slip),
+	)
+
+
+def check_basic_not_reduced_after_pf(doc):
+	"""HARD — an employee who has had PF deducted cannot be moved to a structure
+	or base that yields a lower Basic + DA than the one PF was last deducted on
+	(EPFO treats that as restructuring to cut contributions). Employees never
+	covered by PF are unaffected."""
+	if not (doc.employee and doc.salary_structure and doc.company and doc.from_date):
+		return None
+	previous_wage, previous_slip = _last_pf_wage(doc.employee, doc.company, doc.from_date)
+	if not previous_wage:
+		return None
+
+	mapping = get_mapping_for_company(doc.company)
+	structure = frappe.get_cached_doc("Salary Structure", doc.salary_structure)
+	context = {
+		"uan_number": frappe.db.get_value("Employee", doc.employee, "uan_number") or "",
+		"payment_days": 30,
+		"total_working_days": 30,
+	}
+	new_wage = sum(
+		_row_monthly_amount(r, flt(doc.base), context)
+		for r in structure.earnings or []
+		if _is_pf_wage_row(r, mapping) and not r.statistical_component
+	)
+	if new_wage + 0.5 < previous_wage:
+		return _basic_reduced_issue(doc.employee, new_wage, previous_wage, previous_slip)
+	return None
+
+
+def validate_salary_slip_basic_floor(doc, method=None):
+	"""doc_event on Salary Slip.validate — backstop for the same rule when the
+	drop comes from anywhere other than a new assignment (an amended formula,
+	a UAN change that flips the Basic branch, a re-based structure)."""
+	if doc.docstatus == 2 or not (doc.employee and doc.company and doc.start_date):
+		return
+	previous_wage, previous_slip = _last_pf_wage(doc.employee, doc.company, doc.start_date, doc.name)
+	if not previous_wage:
+		return
+	current_wage = _slip_pf_wage(doc, get_mapping_for_company(doc.company))
+	if current_wage is not None and current_wage + 0.5 < previous_wage:
+		_dispatch_issues_with_target(
+			doc.salary_structure or doc.name,
+			[_basic_reduced_issue(doc.employee, current_wage, previous_wage, previous_slip)],
+		)
+
+
 # ---------------------------------------------------------------------------
 # Check registries
 # ---------------------------------------------------------------------------
@@ -941,4 +1052,5 @@ ASSIGNMENT_LEVEL_CHECKS = (
 	check_income_tax_slab_assigned,
 	check_dpdp_consent_for_aadhaar,
 	check_assignment_base_within_bounds,
+	check_basic_not_reduced_after_pf,
 )

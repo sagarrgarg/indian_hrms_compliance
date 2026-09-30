@@ -398,6 +398,10 @@ doc_events = {
 			"indian_hrms_compliance.overrides.salary_structure_validator.validate_salary_structure_assignment",
 		],
 	},
+	# Once PF has been deducted on a Basic, no later slip may carry a lower one.
+	"Salary Slip": {
+		"validate": "indian_hrms_compliance.overrides.salary_structure_validator.validate_salary_slip_basic_floor",
+	},
 	"PF ECR Filing": {
 		"on_update": "indian_hrms_compliance.overrides.compliance_calendar.auto_link_filing_on_save",
 	},
