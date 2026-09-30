@@ -221,14 +221,26 @@ def _row_monthly_amount(row, base=NOTIONAL_BASE, context=None):
 	formula rows are evaluated against ``base`` (falling back to row.amount if
 	the formula references things we can't resolve here). ``uan_number`` is
 	supplied (0) so PF-gated formulas evaluate instead of raising NameError;
-	``context`` overrides it with real employee values when they are known."""
+	``context`` overrides it with real employee values when they are known.
+	Evaluated as a full month, in the same sandbox as the Salary Slip (ceil, floor…)."""
+	from indian_hrms_compliance.payroll.doctype.salary_structure.salary_structure import (
+		_preview_eval_globals,
+	)
+	from indian_hrms_compliance.payroll.utils import full_month_period
+
 	if getattr(row, "amount_based_on_formula", 0) and (row.formula or "").strip():
 		try:
 			return flt(
 				frappe.safe_eval(
 					row.formula.strip(),
-					None,
-					{"base": base, "gross_pay": base, "uan_number": 0, **(context or {})},
+					_preview_eval_globals(),
+					{
+						"base": base,
+						"gross_pay": base,
+						"uan_number": 0,
+						**full_month_period(),
+						**(context or {}),
+					},
 				)
 			)
 		except Exception:
@@ -999,11 +1011,7 @@ def check_basic_not_reduced_after_pf(doc):
 
 	mapping = get_mapping_for_company(doc.company)
 	structure = frappe.get_cached_doc("Salary Structure", doc.salary_structure)
-	context = {
-		"uan_number": frappe.db.get_value("Employee", doc.employee, "uan_number") or "",
-		"payment_days": 30,
-		"total_working_days": 30,
-	}
+	context = {"uan_number": frappe.db.get_value("Employee", doc.employee, "uan_number") or ""}
 	new_wage = sum(
 		_row_monthly_amount(r, flt(doc.base), context)
 		for r in structure.earnings or []

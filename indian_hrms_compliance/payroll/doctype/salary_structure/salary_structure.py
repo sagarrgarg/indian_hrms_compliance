@@ -12,7 +12,7 @@ from frappe.utils import cint, cstr, flt, get_link_to_form
 
 import erpnext
 
-from indian_hrms_compliance.payroll.utils import COMPONENT_PARENTFIELDS, sanitize_expression
+from indian_hrms_compliance.payroll.utils import COMPONENT_PARENTFIELDS, full_month_period, sanitize_expression
 
 
 class SalaryStructure(Document):
@@ -254,7 +254,7 @@ class SalaryStructure(Document):
 			for abbr in frappe.get_all("Salary Component", pluck="salary_component_abbr")
 			if abbr
 		}
-		data.update({"base": base, "variable": variable, "uan_number": uan})
+		data.update({"base": base, "variable": variable, "uan_number": uan, **full_month_period()})
 
 		def _eval_row(row):
 			condition = sanitize_expression(row.condition) if row.condition else ""
