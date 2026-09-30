@@ -403,8 +403,18 @@ _EMPLOYER_PF_HINTS = ("employer provident", "employer pf", "employer's provident
 _EMPLOYER_ESI_HINTS = ("employer esi", "employer state insurance", "employer's esi", "employer e s i")
 _EMPLOYER_LWF_HINTS = ("employer lwf", "employer labour welfare", "labour welfare fund - employer")
 
-# EPS (pension) share of the 12% employer PF, i.e. 8.33 / 12.
-_EPS_FRACTION = 8.33 / 12.0
+def _eps_share(employer_pf, employee, wage_month_start):
+	"""Pension (EPS) part of the employer PF: 8.33/12 of it, capped at 8.33% of the
+	wage ceiling, and nil when the member is not EPS-eligible (excluded or 58+)."""
+	from indian_hrms_compliance.overrides import pf_ecr_generator as pfg
+
+	if not pfg.eps_eligible(employee, wage_month_start):
+		return 0
+	eps_rate = flt(pfg._hr_setting("pf_eps_rate_pct")) / 100.0
+	er_rate = flt(pfg._hr_setting("pf_employer_rate_pct")) / 100.0 or 0.12
+	share = pfg.round_rupee(employer_pf * eps_rate / er_rate)
+	cap = pfg.round_rupee(flt(pfg._hr_setting("pf_wage_ceiling")) * eps_rate)
+	return min(share, cap) if cap else share
 
 
 def _employer_kind(name):
@@ -654,7 +664,7 @@ def get_wages_register_html(filters=None):
 				earn[r.salary_component] += flt(r.amount)
 
 		if employer_pf_amt and "Pension (EPS)" in empl:
-			pension = round(employer_pf_amt * _EPS_FRACTION)
+			pension = _eps_share(employer_pf_amt, s.employee, s.start_date)
 			empl["Pension (EPS)"] += pension
 			empl["EPF Difference"] += employer_pf_amt - pension
 
@@ -865,7 +875,7 @@ def get_payroll_summary_html(filters=None):
 		net += flt(d.net_pay)
 		lwf_employer_total += slip_lwf_er
 		if slip_pf_emp or slip_er_pf:
-			per_pf.append((slip_pf_emp, slip_vpf, slip_er_pf))
+			per_pf.append((slip_pf_emp, slip_vpf, slip_er_pf, pfg.eps_eligible(d.employee, d.start_date)))
 		if slip_esi_emp or slip_er_esi:
 			per_esi.append((slip_esi_emp, slip_er_esi))
 
@@ -878,28 +888,32 @@ def get_payroll_summary_html(filters=None):
 		er_rate = flt(pfg._hr_setting("pf_employer_rate_pct")) / 100.0 or 0.12
 		eps_rate = flt(pfg._hr_setting("pf_eps_rate_pct")) / 100.0
 		edli_rate = flt(pfg._hr_setting("pf_edli_rate_pct")) / 100.0
-		edli_cap = flt(pfg._hr_setting("pf_edli_per_member_cap") or 75)
 		admin_rate = flt(pfg._hr_setting("pf_admin_charges_pct")) / 100.0
 		admin_min = flt(pfg._hr_setting("pf_admin_charges_min"))
 		ceiling = flt(pfg._hr_setting("pf_wage_ceiling"))
+		edli_cap = flt(pfg._hr_setting("pf_edli_per_member_cap")) or pfg.round_rupee(ceiling * edli_rate)
 		epf_ac01 = pension_ac10 = diff_ac01 = 0.0
-		wages_01 = wages_10 = edli_ac21 = 0.0
-		for pe, vp, erpf in per_pf:
+		wages_01 = wages_10 = wages_21 = edli_ac21 = 0.0
+		for pe, vp, erpf, eps_ok in per_pf:
 			# imply employer share = employee share (standard 12%) when the
 			# structure does not model an explicit employer-PF component.
 			employer_pf = erpf if erpf else pe
 			epf_wages = (employer_pf / er_rate) if (employer_pf and er_rate) else (
 				(pe / emp_rate) if emp_rate else 0.0
 			)
-			eps_wages = min(epf_wages, ceiling) if ceiling else epf_wages
-			pension = round(eps_wages * eps_rate)
+			capped = min(epf_wages, ceiling) if ceiling else epf_wages
+			# No pension for a member excluded from EPS or aged 58+; EDLI and admin
+			# charges still run on their (capped) wages.
+			eps_wages = capped if eps_ok else 0
+			pension = pfg.round_rupee(eps_wages * eps_rate)
 			epf_ac01 += pe + vp
 			pension_ac10 += pension
 			diff_ac01 += employer_pf - pension
 			wages_01 += epf_wages
 			wages_10 += eps_wages
-			edli_ac21 += min(round(eps_wages * edli_rate), edli_cap)
-		admin_ac02 = max(round(wages_10 * admin_rate), admin_min)
+			wages_21 += capped
+			edli_ac21 += min(pfg.round_rupee(capped * edli_rate), edli_cap)
+		admin_ac02 = max(pfg.round_rupee(wages_21 * admin_rate), admin_min)
 		edli_admin_ac22 = 0.0  # A/c-22 abolished (rate 0) — kept for form parity
 		pf = {
 			"count": len(per_pf),

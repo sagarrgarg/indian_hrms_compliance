@@ -834,6 +834,37 @@ def get_custom_fields():
 				"default": "0",
 				"non_negative": 1,
 			},
+			# Employees' Pension Scheme membership. Everyone in PF is an EPS member
+			# unless excluded (joined on/after 01-09-2014 with wages above the ceiling
+			# at joining — since 17-09-2026 that ceiling is 25,000). EPS also stops
+			# automatically at age 58; that needs no flag.
+			{
+				"fieldname": "eps_section_break",
+				"fieldtype": "Section Break",
+				"label": _("Pension (EPS)"),
+				"insert_after": "uan_seeding_attempts",
+				"collapsible": 1,
+			},
+			{
+				"fieldname": "eps_member",
+				"fieldtype": "Check",
+				"label": _("EPS Member"),
+				"insert_after": "eps_section_break",
+				"default": "1",
+				"description": _(
+					"Untick only if this PF member is excluded from the pension scheme (joined EPF on or "
+					"after 01-09-2014 with wages above the ceiling). Pension stops by itself at age 58."
+				),
+			},
+			{
+				"fieldname": "eps_exclusion_reason",
+				"fieldtype": "Select",
+				"label": _("EPS Exclusion Reason"),
+				"options": "\nJoined after 01-09-2014 above wage ceiling\nPension already drawn\nOther",
+				"insert_after": "eps_member",
+				"depends_on": "eval:!doc.eps_member",
+				"mandatory_depends_on": "eval:!doc.eps_member",
+			},
 		],
 		"Attendance Request": [
 			{
