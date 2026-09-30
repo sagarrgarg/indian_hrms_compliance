@@ -61,6 +61,9 @@
   "ot_daily_threshold_hours",
   "ot_weekly_threshold_hours",
   "ot_rate_multiplier",
+  "ot_wage_divisor_days",
+  "ot_wage_divisor_hours",
+  "ot_quarterly_limit_hours",
   "unlink_payment_section",
   "unlink_payment_on_cancellation_of_employee_advance",
   "performance_tab",
@@ -1490,7 +1493,7 @@
    "fieldtype": "Float",
    "label": "Daily OT After (net hours)",
    "default": "9",
-   "description": "Overtime starts once net hours in a day exceed this. Statutory cap is 9."
+   "description": "Overtime starts once net hours in a day exceed this. The OSH Code sets 8 hours a day (states may allow a longer spread-over)."
   },
   {
    "fieldname": "ot_weekly_threshold_hours",
@@ -1505,13 +1508,36 @@
    "label": "OT Rate Multiplier",
    "default": "2",
    "description": "Overtime pay multiplier on the ordinary (Basic+DA) hourly rate. Statutory default is 2x."
+  },
+  {
+   "fieldname": "ot_wage_divisor_days",
+   "fieldtype": "Int",
+   "label": "OT Hourly Rate: Days per Month",
+   "default": "26",
+   "non_negative": 1,
+   "description": "Hourly rate = monthly (Basic + DA) ÷ (these days × the hours below). 26 × 8 is the common basis."
+  },
+  {
+   "fieldname": "ot_wage_divisor_hours",
+   "fieldtype": "Float",
+   "label": "OT Hourly Rate: Hours per Day",
+   "default": "8",
+   "non_negative": 1
+  },
+  {
+   "fieldname": "ot_quarterly_limit_hours",
+   "fieldtype": "Float",
+   "label": "OT Limit per Quarter (hours)",
+   "default": "144",
+   "non_negative": 1,
+   "description": "Overtime beyond this in a calendar quarter is flagged when creating overtime pay (OSH Central Rules 2026: 144). It is still paid."
   }
  ],
  "icon": "fa fa-cog",
  "idx": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-08-07 10:00:00.000000",
+ "modified": "2026-09-30 14:20:48.510731",
  "modified_by": "Administrator",
  "module": "HR",
  "name": "HR Settings",
