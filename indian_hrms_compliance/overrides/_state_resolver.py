@@ -3,14 +3,16 @@
 
 """Employee → Indian State resolver — Phase 6B-2.
 
-Used by PT Return + LWF Return generators to attribute each
-employee's monthly contribution to the right state. Resolution order:
+Used by slip-time PT / LWF and the PT / LWF Return generators to attribute
+each employee's contribution to the right state. PT and LWF follow the place
+of WORK, not residence, so resolution order is:
 
-  1. Address linked to Employee (via Dynamic Link) → Address.gst_state.
-  2. Address linked to the employee's Company → Address.gst_state.
-  3. HR Settings.default_pt_state (Phase 6A field — only sensible for
-     single-state Companies; multi-state shops should set per-employee
-     Address).
+  1. Address linked to the employee's Branch (via Dynamic Link).
+  2. The employee's own "Office" Address.
+  3. Address linked to the employee's Company.
+  4. HR Settings.default_pt_state.
+
+An employee's Permanent / Personal address is never used.
 
 Returns the Indian State *name* (= state_code, e.g. 'KA'), or None.
 """
@@ -38,9 +40,10 @@ def _state_name_to_code_map():
 	return mapping
 
 
-def _address_state_via_dynamic_link(doctype, name):
+def _address_state_via_dynamic_link(doctype, name, address_types=None):
 	"""Return the gst_state of the first Address linked to (doctype, name)
-	via Dynamic Link, or None. Preference: Permanent > Office > anything."""
+	via Dynamic Link, or None. Preference: Office > Permanent > anything;
+	address_types restricts which addresses count."""
 	addresses = frappe.db.sql(
 		"""
 		SELECT a.name, a.address_type, a.gst_state, a.state, a.country
@@ -51,13 +54,15 @@ def _address_state_via_dynamic_link(doctype, name):
 		(doctype, name),
 		as_dict=True,
 	)
+	if address_types:
+		addresses = [a for a in addresses if a.address_type in address_types]
 	if not addresses:
 		return None
 
-	# Preference order — Permanent first (employee's home state for taxation
-	# is normally the residence), then Office, then anything.
-	preferred_order = ["Permanent", "Office", "Personal", "Billing", "Shipping"]
-	addresses.sort(key=lambda a: preferred_order.index(a.address_type) if a.address_type in preferred_order else 99)
+	preferred_order = ["Office", "Permanent", "Personal", "Billing", "Shipping"]
+	addresses.sort(
+		key=lambda a: preferred_order.index(a.address_type) if a.address_type in preferred_order else 99
+	)
 	for addr in addresses:
 		# gst_state is the canonical India-only state field on Address; falls
 		# back to the free-text 'state' if gst_state unset.
@@ -87,13 +92,15 @@ def resolve_employee_state(employee_name):
 	if not employee_name:
 		return None
 
-	# Step 1 — Employee-linked Address.
-	state_text = _address_state_via_dynamic_link("Employee", employee_name)
+	branch, company = frappe.db.get_value("Employee", employee_name, ["branch", "company"]) or (None, None)
+
+	state_text = None
+	if branch:
+		state_text = _address_state_via_dynamic_link("Branch", branch)
 	if not state_text:
-		# Step 2 — Company-linked Address.
-		company = frappe.db.get_value("Employee", employee_name, "company")
-		if company:
-			state_text = _address_state_via_dynamic_link("Company", company)
+		state_text = _address_state_via_dynamic_link("Employee", employee_name, address_types=("Office",))
+	if not state_text and company:
+		state_text = _address_state_via_dynamic_link("Company", company)
 
 	if state_text:
 		code_map = _state_name_to_code_map()
@@ -101,7 +108,7 @@ def resolve_employee_state(employee_name):
 		if state_text in code_map:
 			return code_map[state_text]
 
-	# Step 3 — HR Settings default.
+	# Last resort — HR Settings default.
 	default_state = _hr_setting_default_pt_state()
 	if default_state:
 		return default_state
