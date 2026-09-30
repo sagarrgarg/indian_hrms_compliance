@@ -22,6 +22,9 @@
   "lwf_section",
   "lwf_applicable",
   "lwf_filing_frequency",
+  "lwf_calculation",
+  "lwf_employee_percent",
+  "lwf_employer_multiplier",
   "column_break_lwf",
   "lwf_employee_amount",
   "lwf_employer_amount",
@@ -138,6 +141,29 @@
    "depends_on": "lwf_applicable"
   },
   {
+   "default": "Flat",
+   "fieldname": "lwf_calculation",
+   "fieldtype": "Select",
+   "label": "LWF Calculation",
+   "options": "Flat\nPercentage of Gross",
+   "depends_on": "lwf_applicable",
+   "description": "Flat: the amounts on the right are deducted as-is. Percentage of Gross: employee pays this % of the month's gross pay and the employer a multiple of it, each capped at the amounts on the right (e.g. Haryana 0.2%, employer 2x, caps 35 / 70)."
+  },
+  {
+   "fieldname": "lwf_employee_percent",
+   "fieldtype": "Float",
+   "label": "LWF Employee % of Gross",
+   "precision": "3",
+   "depends_on": "eval:doc.lwf_applicable && doc.lwf_calculation=='Percentage of Gross'"
+  },
+  {
+   "default": "2",
+   "fieldname": "lwf_employer_multiplier",
+   "fieldtype": "Float",
+   "label": "LWF Employer Multiple of Employee Share",
+   "depends_on": "eval:doc.lwf_applicable && doc.lwf_calculation=='Percentage of Gross'"
+  },
+  {
    "fieldname": "column_break_lwf",
    "fieldtype": "Column Break"
   },
@@ -145,13 +171,15 @@
    "fieldname": "lwf_employee_amount",
    "fieldtype": "Currency",
    "label": "LWF Employee Amount",
-   "depends_on": "lwf_applicable"
+   "depends_on": "lwf_applicable",
+   "description": "Per deduction period. For percentage states this is the monthly cap."
   },
   {
    "fieldname": "lwf_employer_amount",
    "fieldtype": "Currency",
    "label": "LWF Employer Amount",
-   "depends_on": "lwf_applicable"
+   "depends_on": "lwf_applicable",
+   "description": "Per deduction period. For percentage states this is the monthly cap."
   },
   {
    "fieldname": "shops_estab_section",
@@ -215,7 +243,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-05-30 09:00:00.000000",
+ "modified": "2026-09-30 18:00:00.000000",
  "modified_by": "Administrator",
  "module": "HR",
  "name": "Indian State",
