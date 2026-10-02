@@ -17,11 +17,30 @@
   "personal_section",
   "date_of_birth",
   "gender",
+  "marital_status",
+  "father_spouse_relation",
+  "father_or_spouse_name",
   "col_personal",
   "pan_number",
   "aadhaar_number",
   "aadhaar_last_4",
   "uan_number",
+  "form_11_section",
+  "has_previous_pf",
+  "earlier_eps_member",
+  "previous_pf_account_number",
+  "col_form_11",
+  "previous_employment_doj",
+  "previous_employment_doe",
+  "scheme_certificate_number",
+  "ppo_number",
+  "international_worker_section",
+  "is_international_worker",
+  "country_of_origin",
+  "col_intl",
+  "passport_number",
+  "passport_valid_from",
+  "passport_valid_upto",
   "bank_section",
   "bank_name",
   "bank_ac_no",
@@ -137,6 +156,25 @@
    "options": "Gender"
   },
   {
+   "fieldname": "marital_status",
+   "fieldtype": "Select",
+   "label": "Marital Status",
+   "options": "\nSingle\nMarried\nDivorced\nWidowed"
+  },
+  {
+   "fieldname": "father_spouse_relation",
+   "fieldtype": "Select",
+   "label": "Father / Spouse",
+   "options": "\nFather\nSpouse",
+   "description": "Whose name is given below (PF Form 11, item 2)."
+  },
+  {
+   "fieldname": "father_or_spouse_name",
+   "fieldtype": "Data",
+   "label": "Father's / Spouse's Name",
+   "description": "As on Aadhaar / statutory records. Mandatory on a candidate submission."
+  },
+  {
    "fieldname": "col_personal",
    "fieldtype": "Column Break"
   },
@@ -168,6 +206,104 @@
    "fieldtype": "Data",
    "label": "UAN (if any)",
    "description": "12-digit Universal Account Number from your previous employer's PF."
+  },
+  {
+   "fieldname": "form_11_section",
+   "fieldtype": "Section Break",
+   "label": "PF Declaration (Form 11)",
+   "description": "Previous PF / pension membership. Skipped entirely when the candidate was never a PF member."
+  },
+  {
+   "fieldname": "has_previous_pf",
+   "fieldtype": "Select",
+   "label": "Earlier a PF Member?",
+   "options": "\nNo\nYes",
+   "description": "Form 11 item 7 - earlier a member of the EPF Scheme, 1952."
+  },
+  {
+   "fieldname": "earlier_eps_member",
+   "fieldtype": "Select",
+   "label": "Earlier a Pension (EPS) Member?",
+   "options": "\nYes\nNo",
+   "depends_on": "eval:doc.has_previous_pf=='Yes'",
+   "description": "Form 11 item 8 - earlier a member of the Employees' Pension Scheme, 1995."
+  },
+  {
+   "fieldname": "previous_pf_account_number",
+   "fieldtype": "Data",
+   "label": "Previous PF Account Number",
+   "depends_on": "eval:doc.has_previous_pf=='Yes'",
+   "description": "e.g. DL/CPM/0012345/000/0001234"
+  },
+  {
+   "fieldname": "col_form_11",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "previous_employment_doj",
+   "fieldtype": "Date",
+   "label": "Previous Employment - Date of Joining",
+   "depends_on": "eval:doc.has_previous_pf=='Yes'"
+  },
+  {
+   "fieldname": "previous_employment_doe",
+   "fieldtype": "Date",
+   "label": "Previous Employment - Date of Exit",
+   "depends_on": "eval:doc.has_previous_pf=='Yes'"
+  },
+  {
+   "fieldname": "scheme_certificate_number",
+   "fieldtype": "Data",
+   "label": "Scheme Certificate No. (if issued)",
+   "depends_on": "eval:doc.has_previous_pf=='Yes'"
+  },
+  {
+   "fieldname": "ppo_number",
+   "fieldtype": "Data",
+   "label": "Pension Payment Order (PPO) No. (if issued)",
+   "depends_on": "eval:doc.has_previous_pf=='Yes'"
+  },
+  {
+   "fieldname": "international_worker_section",
+   "fieldtype": "Section Break",
+   "label": "International Worker"
+  },
+  {
+   "fieldname": "is_international_worker",
+   "fieldtype": "Select",
+   "label": "International Worker?",
+   "options": "No\nYes",
+   "default": "No",
+   "description": "Form 11 item 10."
+  },
+  {
+   "fieldname": "country_of_origin",
+   "fieldtype": "Link",
+   "label": "Country of Origin",
+   "options": "Country",
+   "depends_on": "eval:doc.is_international_worker=='Yes'"
+  },
+  {
+   "fieldname": "col_intl",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "passport_number",
+   "fieldtype": "Data",
+   "label": "Passport Number",
+   "depends_on": "eval:doc.is_international_worker=='Yes'"
+  },
+  {
+   "fieldname": "passport_valid_from",
+   "fieldtype": "Date",
+   "label": "Passport Valid From",
+   "depends_on": "eval:doc.is_international_worker=='Yes'"
+  },
+  {
+   "fieldname": "passport_valid_upto",
+   "fieldtype": "Date",
+   "label": "Passport Valid Upto",
+   "depends_on": "eval:doc.is_international_worker=='Yes'"
   },
   {
    "fieldname": "bank_section",
@@ -502,7 +638,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-08-06 21:00:00.000000",
+ "modified": "2026-10-02 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "HR",
  "name": "Employee Onboarding Application",
