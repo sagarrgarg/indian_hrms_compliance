@@ -89,6 +89,13 @@ PAYSLIP_DOCUMENT_TYPE = "Previous Payslip"
 SIGNED_OFFER_LETTER_DOCUMENT_TYPE = "Signed Offer Letter"
 
 # Fields safe to hand to the New Employee Setup page (no HR-review/internal fields).
+# Form 11 blocks that only apply when their Yes/No switch is on.
+PREVIOUS_PF_FIELDS = (
+	"earlier_eps_member", "previous_pf_account_number", "previous_employment_doj",
+	"previous_employment_doe", "scheme_certificate_number", "ppo_number",
+)
+INTERNATIONAL_WORKER_FIELDS = ("country_of_origin", "passport_number", "passport_valid_from", "passport_valid_upto")
+
 SETUP_FIELDS = (
 	"first_name", "middle_name", "last_name", "date_of_birth", "gender",
 	"pan_number", "aadhaar_number", "aadhaar_last_4", "uan_number",
@@ -101,6 +108,7 @@ class EmployeeOnboardingApplication(Document):
 		self._apply_invite_token()
 		self._normalise()
 		self._validate_statutory_ids()
+		self._validate_form_11()
 		self._validate_dob()
 		self._validate_required_documents()
 		self._validate_status_transitions()
@@ -197,6 +205,79 @@ class EmployeeOnboardingApplication(Document):
 		# were given.
 		if self.prior_employment:
 			self.is_fresher = 1 if self.prior_employment == "Fresher" else 0
+
+		self._normalise_form_11()
+
+	def _normalise_form_11(self):
+		"""PF Declaration (Form 11) fields: tidy text, and keep the previous-PF and
+		international-worker blocks consistent with their Yes/No switches so a
+		stale value can never print on the form."""
+		for field in ("father_or_spouse_name", "previous_pf_account_number", "scheme_certificate_number", "ppo_number"):
+			if self.get(field):
+				self.set(field, " ".join(self.get(field).split()))
+		if self.previous_pf_account_number:
+			self.previous_pf_account_number = self.previous_pf_account_number.upper()
+		if self.passport_number:
+			self.passport_number = re.sub(r"\s", "", self.passport_number).upper()
+
+		# A UAN or an old PF number means they were a member, whatever was ticked.
+		if self.uan_number or self.previous_pf_account_number:
+			self.has_previous_pf = "Yes"
+		if self.has_previous_pf == "Yes":
+			self.earlier_eps_member = self.earlier_eps_member or "Yes"
+		elif self.has_previous_pf == "No":
+			for field in PREVIOUS_PF_FIELDS:
+				self.set(field, None)
+
+		if (self.is_international_worker or "No") != "Yes":
+			self.is_international_worker = "No"
+			for field in INTERNATIONAL_WORKER_FIELDS:
+				self.set(field, None)
+
+	def _validate_form_11(self):
+		"""What Form 11 cannot be printed without. Enforced on a candidate's own
+		submission only — HR drafts and applications received before these fields
+		existed stay editable."""
+		if self.previous_employment_doj and self.previous_employment_doe:
+			if getdate(self.previous_employment_doe) < getdate(self.previous_employment_doj):
+				frappe.throw(_("Previous employment: Date of Exit cannot be before Date of Joining."))
+		if self.passport_valid_from and self.passport_valid_upto:
+			if getdate(self.passport_valid_upto) < getdate(self.passport_valid_from):
+				frappe.throw(_("Passport: Valid Upto cannot be before Valid From."))
+
+		if self.status == "Draft" or not self.is_new():
+			return
+
+		if not self.father_or_spouse_name:
+			frappe.throw(_("Father's / Spouse's Name is required."), title=_("Missing Detail"))
+		if not self.father_spouse_relation:
+			self.father_spouse_relation = "Father"
+		if not self.has_previous_pf:
+			frappe.throw(
+				_("Please answer whether you have been a PF member before (Yes / No)."), title=_("Missing Detail")
+			)
+		if self.has_previous_pf == "Yes":
+			if not (self.uan_number or self.previous_pf_account_number):
+				frappe.throw(
+					_("You said you were a PF member before - give your UAN or your previous PF Account Number."),
+					title=_("Missing Detail"),
+				)
+			if not self.previous_employment_doe:
+				frappe.throw(_("Give the Date of Exit from your previous employment."), title=_("Missing Detail"))
+		if self.is_international_worker == "Yes":
+			missing = [
+				label
+				for field, label in (
+					("country_of_origin", _("Country of Origin")),
+					("passport_number", _("Passport Number")),
+					("passport_valid_upto", _("Passport Valid Upto")),
+				)
+				if not self.get(field)
+			]
+			if missing:
+				frappe.throw(
+					_("International worker: please fill {0}.").format(", ".join(missing)), title=_("Missing Detail")
+				)
 
 	def _validate_statutory_ids(self):
 		# These are HARD locks: the data flows directly into Employee + payroll
@@ -1058,6 +1139,7 @@ def mark_converted(application: str, employee: str):
 	# field Travel Request, Job Offer, the profile-change flow and PWA Profile read).
 	if app.get("mobile_no"):
 		emp_updates["cell_number"] = app.mobile_no
+	emp_updates.update(_form_11_employee_values(app))
 	if emp_updates:
 		frappe.db.set_value("Employee", employee, emp_updates)
 
@@ -1084,6 +1166,33 @@ def mark_converted(application: str, employee: str):
 	)
 
 	_record_dpdp_consent(app, employee)
+
+
+def _form_11_employee_values(app) -> dict:
+	"""PF Declaration (Form 11) details the candidate gave, as Employee field
+	values. Only fields that exist on Employee and were actually answered."""
+	meta = frappe.get_meta("Employee")
+	values = {
+		"father_or_husband_name": app.get("father_or_spouse_name"),
+		"father_spouse_relation": app.get("father_spouse_relation"),
+		"marital_status": app.get("marital_status"),
+		"previous_pf_account_number": app.get("previous_pf_account_number"),
+		"previous_employment_doj": app.get("previous_employment_doj"),
+		"previous_employment_doe": app.get("previous_employment_doe"),
+		"scheme_certificate_number": app.get("scheme_certificate_number"),
+		"ppo_number": app.get("ppo_number"),
+		"country_of_origin": app.get("country_of_origin"),
+		"passport_number": app.get("passport_number"),
+		"date_of_issue": app.get("passport_valid_from"),
+		"valid_upto": app.get("passport_valid_upto"),
+	}
+	if app.get("has_previous_pf"):
+		member = app.has_previous_pf == "Yes"
+		values["earlier_epf_member"] = "Yes" if member else "No"
+		values["earlier_eps_member"] = (app.get("earlier_eps_member") or "Yes") if member else "No"
+	if app.get("is_international_worker"):
+		values["is_international_worker"] = 1 if app.is_international_worker == "Yes" else 0
+	return {f: v for f, v in values.items() if v not in (None, "") and meta.has_field(f)}
 
 
 def _attach_documents_to_employee(app, employee: str):
