@@ -1022,6 +1022,33 @@ def check_basic_not_reduced_after_pf(doc):
 	return None
 
 
+def check_basic_within_base(doc):
+	"""HARD — the structure's Basic + DA for this employee cannot exceed the
+	assigned base. A structure with a Basic floor (e.g. 25,010 for an employee
+	outside PF) would otherwise pay more than the base it was given, because the
+	remaining rows cannot go negative to absorb the difference."""
+	if not (doc.employee and doc.salary_structure and doc.company and flt(doc.base)):
+		return None
+	mapping = get_mapping_for_company(doc.company)
+	structure = frappe.get_cached_doc("Salary Structure", doc.salary_structure)
+	context = {"uan_number": frappe.db.get_value("Employee", doc.employee, "uan_number") or ""}
+	wage = sum(
+		_row_monthly_amount(r, flt(doc.base), context)
+		for r in structure.earnings or []
+		if _is_pf_wage_row(r, mapping) and not r.statistical_component
+	)
+	if wage <= flt(doc.base) + 0.5:
+		return None
+	return (
+		"HARD",
+		"ASSIGN_BASIC_EXCEEDS_BASE",
+		_(
+			"Salary Structure {0} gives Employee {1} a Basic + DA of {2:.2f}, more than the assigned "
+			"base {3:.2f}. Raise the base to at least {2:.2f} or pick a structure for this wage band."
+		).format(doc.salary_structure, doc.employee, flt(wage), flt(doc.base)),
+	)
+
+
 def validate_salary_slip_basic_floor(doc, method=None):
 	"""doc_event on Salary Slip.validate — backstop for the same rule when the
 	drop comes from anywhere other than a new assignment (an amended formula,
@@ -1061,4 +1088,5 @@ ASSIGNMENT_LEVEL_CHECKS = (
 	check_dpdp_consent_for_aadhaar,
 	check_assignment_base_within_bounds,
 	check_basic_not_reduced_after_pf,
+	check_basic_within_base,
 )
