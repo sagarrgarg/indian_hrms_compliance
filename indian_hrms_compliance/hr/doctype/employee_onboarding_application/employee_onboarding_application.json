@@ -25,6 +25,7 @@
   "aadhaar_number",
   "aadhaar_last_4",
   "uan_number",
+  "esic_ip_number",
   "form_11_section",
   "has_previous_pf",
   "earlier_eps_member",
@@ -57,6 +58,8 @@
   "emergency_contact_relation",
   "col_emergency",
   "emergency_contact_phone",
+  "family_section",
+  "family_members",
   "documents_section",
   "prior_employment",
   "is_fresher",
@@ -206,6 +209,12 @@
    "fieldtype": "Data",
    "label": "UAN (if any)",
    "description": "12-digit Universal Account Number from your previous employer's PF."
+  },
+  {
+   "fieldname": "esic_ip_number",
+   "fieldtype": "Data",
+   "label": "ESIC Insurance (IP) No. (if any)",
+   "description": "10-digit ESIC number from an earlier employer. It stays the same for life."
   },
   {
    "fieldname": "form_11_section",
@@ -387,6 +396,18 @@
    "fieldtype": "Data",
    "label": "Contact Phone",
    "options": "Phone"
+  },
+  {
+   "fieldname": "family_section",
+   "fieldtype": "Section Break",
+   "label": "Family & Nominees",
+   "description": "Family members and nominees for PF Form 2 and ESIC Form 1."
+  },
+  {
+   "fieldname": "family_members",
+   "fieldtype": "Table",
+   "label": "Family Members & Nominees",
+   "options": "Employee Family Member"
   },
   {
    "fieldname": "documents_section",
@@ -638,7 +659,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-10-02 12:00:00.000000",
+ "modified": "2026-10-02 14:00:00.000000",
  "modified_by": "Administrator",
  "module": "HR",
  "name": "Employee Onboarding Application",

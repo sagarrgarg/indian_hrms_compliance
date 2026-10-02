@@ -650,6 +650,23 @@ def get_custom_fields():
 				"description": _("Whose name is given above (PF Form 11, item 2)."),
 			},
 			{
+				"fieldname": "family_nominees_section",
+				"fieldtype": "Section Break",
+				"label": _("Family & Nominees"),
+				"insert_after": "family_background",
+				"description": _(
+					"Source for PF Form 2 (EPF nominees with shares, EPS family) and ESIC Form 1 "
+					"(family particulars, nominee)."
+				),
+			},
+			{
+				"fieldname": "family_members",
+				"fieldtype": "Table",
+				"label": _("Family Members & Nominees"),
+				"options": "Employee Family Member",
+				"insert_after": "family_nominees_section",
+			},
+			{
 				"fieldname": "approvers_section",
 				"fieldtype": "Section Break",
 				"label": _("Approvers"),
@@ -733,6 +750,14 @@ def get_custom_fields():
 				"insert_after": "uan_number",
 				"print_hide": 1,
 				"translatable": 0,
+			},
+			{
+				"fieldname": "esic_dispensary",
+				"label": _("ESIC Dispensary / Branch Office"),
+				"fieldtype": "Data",
+				"insert_after": "esic_ip_number",
+				"translatable": 0,
+				"description": _("Dispensary (or IMP) and ESIC branch office the employee is attached to - printed on ESIC Form 1."),
 			},
 			{
 				"fieldname": "aadhaar_number",
