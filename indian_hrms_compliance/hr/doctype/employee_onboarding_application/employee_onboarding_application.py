@@ -50,6 +50,10 @@ from indian_hrms_compliance.overrides.employee_master import (
 	verhoeff_check_aadhaar,
 )
 
+from indian_hrms_compliance.hr.doctype.employee_family_member.employee_family_member import (
+	validate_family_members,
+)
+
 MOBILE_RE = re.compile(r"^(\+?91)?[6-9]\d{9}$")
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
@@ -109,6 +113,7 @@ class EmployeeOnboardingApplication(Document):
 		self._normalise()
 		self._validate_statutory_ids()
 		self._validate_form_11()
+		validate_family_members(self)
 		self._validate_dob()
 		self._validate_required_documents()
 		self._validate_status_transitions()
@@ -189,6 +194,8 @@ class EmployeeOnboardingApplication(Document):
 			self.ifsc_code = self.ifsc_code.strip().upper()
 		if self.uan_number:
 			self.uan_number = re.sub(r"\D", "", self.uan_number)
+		if self.get("esic_ip_number"):
+			self.esic_ip_number = re.sub(r"\D", "", self.esic_ip_number)
 		if self.mobile_no:
 			# strip spaces/dashes but keep a leading +
 			self.mobile_no = re.sub(r"[^\d+]", "", self.mobile_no)
@@ -1140,6 +1147,8 @@ def mark_converted(application: str, employee: str):
 	if app.get("mobile_no"):
 		emp_updates["cell_number"] = app.mobile_no
 	emp_updates.update(_form_11_employee_values(app))
+	if app.get("esic_ip_number") and not frappe.db.get_value("Employee", employee, "esic_ip_number"):
+		emp_updates["esic_ip_number"] = app.esic_ip_number
 	if emp_updates:
 		frappe.db.set_value("Employee", employee, emp_updates)
 
@@ -1151,6 +1160,7 @@ def mark_converted(application: str, employee: str):
 	# table as-is (same type + file + notes), so the structured list survives on
 	# the Employee form alongside the loose File attachments above.
 	_copy_documents_table_to_employee(app, employee)
+	_copy_family_members_to_employee(app, employee)
 
 	# Stamp the application before writing the consent row so the consent row
 	# can reference the linked_employee in its audit trail.
@@ -1286,6 +1296,33 @@ def _copy_documents_table_to_employee(app, employee: str):
 			}
 		).insert(ignore_permissions=True)
 		existing.add(key)
+
+
+FAMILY_MEMBER_FIELDS = (
+	"member_name", "relation", "date_of_birth", "residing_with_employee", "place_of_residence",
+	"pf_nominee_share", "esic_nominee", "guardian_name", "guardian_relation", "address",
+)
+
+
+def _copy_family_members_to_employee(app, employee: str):
+	"""Mirror app.family_members onto Employee.family_members (PF Form 2 /
+	ESIC Form 1 source). Same low-level inserts as the documents table, and
+	idempotent: nothing is copied if the Employee already has family rows."""
+	if not frappe.get_meta("Employee").has_field("family_members"):
+		return
+	rows = app.get("family_members") or []
+	table_filters = {"parent": employee, "parenttype": "Employee", "parentfield": "family_members"}
+	if not rows or frappe.db.count("Employee Family Member", table_filters):
+		return
+	for idx, row in enumerate(rows, start=1):
+		frappe.get_doc(
+			{
+				"doctype": "Employee Family Member",
+				**table_filters,
+				"idx": idx,
+				**{f: row.get(f) for f in FAMILY_MEMBER_FIELDS},
+			}
+		).insert(ignore_permissions=True)
 
 
 def _record_dpdp_consent(app, employee: str):

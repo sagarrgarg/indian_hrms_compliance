@@ -1,0 +1,109 @@
+{
+ "actions": [],
+ "creation": "2026-10-02 14:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "member_name",
+  "relation",
+  "date_of_birth",
+  "residing_with_employee",
+  "place_of_residence",
+  "column_break_nominee",
+  "pf_nominee_share",
+  "esic_nominee",
+  "guardian_name",
+  "guardian_relation",
+  "address"
+ ],
+ "fields": [
+  {
+   "fieldname": "member_name",
+   "fieldtype": "Data",
+   "label": "Name",
+   "reqd": 1,
+   "in_list_view": 1,
+   "columns": 2
+  },
+  {
+   "fieldname": "relation",
+   "fieldtype": "Select",
+   "label": "Relationship",
+   "reqd": 1,
+   "in_list_view": 1,
+   "columns": 2,
+   "options": "\nSpouse\nSon\nDaughter\nFather\nMother\nBrother\nSister\nOther"
+  },
+  {
+   "fieldname": "date_of_birth",
+   "fieldtype": "Date",
+   "label": "Date of Birth",
+   "in_list_view": 1,
+   "columns": 2
+  },
+  {
+   "default": "1",
+   "fieldname": "residing_with_employee",
+   "fieldtype": "Check",
+   "label": "Lives with the Employee",
+   "in_list_view": 1,
+   "columns": 1
+  },
+  {
+   "fieldname": "place_of_residence",
+   "fieldtype": "Data",
+   "label": "Place of Residence (Town, State)",
+   "depends_on": "eval:!doc.residing_with_employee",
+   "description": "Only when not living with the employee (ESIC Form 1)."
+  },
+  {
+   "fieldname": "column_break_nominee",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "pf_nominee_share",
+   "fieldtype": "Percent",
+   "label": "PF Nominee Share %",
+   "in_list_view": 1,
+   "columns": 2,
+   "description": "Share of the PF balance on death (PF Form 2, Part A). Leave 0 if not a PF nominee. All shares must total 100."
+  },
+  {
+   "default": "0",
+   "fieldname": "esic_nominee",
+   "fieldtype": "Check",
+   "label": "ESIC Nominee",
+   "in_list_view": 1,
+   "columns": 1,
+   "description": "The one person to receive ESIC cash benefit (ESIC Form 1)."
+  },
+  {
+   "fieldname": "guardian_name",
+   "fieldtype": "Data",
+   "label": "Guardian's Name (minor nominee)",
+   "description": "Needed only when a nominee is under 18."
+  },
+  {
+   "fieldname": "guardian_relation",
+   "fieldtype": "Data",
+   "label": "Guardian's Relationship to the Nominee"
+  },
+  {
+   "fieldname": "address",
+   "fieldtype": "Small Text",
+   "label": "Address (if different from the employee's)"
+  }
+ ],
+ "istable": 1,
+ "links": [],
+ "modified": "2026-10-02 14:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "HR",
+ "name": "Employee Family Member",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
