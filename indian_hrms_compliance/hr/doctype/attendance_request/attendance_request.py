@@ -17,6 +17,32 @@ class OverlappingAttendanceRequestError(frappe.ValidationError):
 	pass
 
 
+def get_wfh_request(employee: str, attendance_date) -> frappe._dict | None:
+	"""The approved Work From Home request covering this date, if any."""
+	rows = frappe.get_all(
+		"Attendance Request",
+		filters={
+			"employee": employee,
+			"docstatus": 1,
+			"reason": "Work From Home",
+			"from_date": ("<=", attendance_date),
+			"to_date": (">=", attendance_date),
+		},
+		fields=["name", "half_day", "half_day_date"],
+		order_by="creation desc",
+		limit=1,
+	)
+	return rows[0] if rows else None
+
+
+def wfh_only_status(request: frappe._dict, attendance_date) -> tuple[str, str | None]:
+	"""(status, other-half status) a WFH request gives a day on its own, i.e.
+	with no leave that day: a half-day WFH leaves the other half Absent."""
+	if request.half_day and getdate(request.half_day_date) == getdate(attendance_date):
+		return "Half Day", "Absent"
+	return "Work From Home", None
+
+
 class AttendanceRequest(Document):
 	def validate(self):
 		validate_active_employee(self.employee)
@@ -199,6 +225,12 @@ class AttendanceRequest(Document):
 		if attendance_list:
 			for attendance in attendance_list:
 				attendance_obj = frappe.get_doc("Attendance", attendance["name"])
+				if attendance_obj.leave_application and attendance_obj.status == "Half Day":
+					# shared with a half-day leave: hand the day back to the leave
+					attendance_obj.db_set(
+						{"half_day_status": "Present", "modify_half_day_status": 1, "attendance_request": None}
+					)
+					continue
 				attendance_obj.cancel()
 		if self.meta.has_field("status"):
 			self.db_set("status", "Cancelled", update_modified=False)
@@ -235,6 +267,9 @@ class AttendanceRequest(Document):
 
 	def create_or_update_attendance(self, date: str):
 		doc = self.get_attendance_doc(date)
+		if self.get_half_day_leave(date):
+			self.mark_other_half(doc, date)
+			return
 		status = self.get_attendance_status(date)
 
 		if doc:
@@ -321,6 +356,8 @@ class AttendanceRequest(Document):
 		return True
 
 	def has_leave_record(self, attendance_date: str) -> str | None:
+		"""An approved leave covering the whole of this day. A single half-day leave
+		does not count: the request marks the other half (see mark_other_half)."""
 		leaves = frappe.get_all(
 			"Leave Application",
 			filters={
@@ -331,6 +368,53 @@ class AttendanceRequest(Document):
 				"status": "Approved",
 			},
 			fields=["name", "half_day", "half_day_date"],
+		)
+		if not leaves:
+			return None
+
+		half_day_leaves = [
+			leave
+			for leave in leaves
+			if leave.half_day and leave.half_day_date and getdate(leave.half_day_date) == getdate(attendance_date)
+		]
+		# A single half-day leave leaves the other half for this request to mark, whether or
+		# not the request itself is half-day (indian_hrms_compliance). As in v16, two half-day
+		# leaves (both halves) or a full-day leave keep the whole day as leave.
+		if len(leaves) == 1 and len(half_day_leaves) == 1:
+			return None
+		return leaves[0].name
+
+	def get_half_day_leave(self, attendance_date: str) -> str | None:
+		"""The approved leave application taking only half of this day."""
+		return frappe.db.exists(
+			"Leave Application",
+			{
+				"employee": self.employee,
+				"docstatus": 1,
+				"status": "Approved",
+				"half_day": 1,
+				"half_day_date": attendance_date,
+			},
+		)
+
+	def other_half_status(self) -> str:
+		return "Work From Home" if self.reason == "Work From Home" else "Present"
+
+	def mark_other_half(self, doc, date: str):
+		"""Half-day leave + this request on the same day: the leave keeps its half,
+		the request sets the other half (Work From Home / Present)."""
+		if not doc or doc.status != "Half Day":
+			self._note_skip(date, _("No half-day leave attendance to update"))
+			return
+		half = self.other_half_status()
+		doc.db_set(
+			{"half_day_status": half, "modify_half_day_status": 0, "attendance_request": self.name}
+		)
+		doc.add_comment(
+			comment_type="Info",
+			text=_("Other half set to {0} via Attendance Request {1}").format(
+				frappe.bold(half), self.name
+			),
 		)
 
 		if self.half_day and self.half_day_date and getdate(self.half_day_date) == getdate(attendance_date):
@@ -388,8 +472,10 @@ class AttendanceRequest(Document):
 			return "Present"
 
 	def status_unchanged(self, attendance_date):
-		new_status = self.get_attendance_status(attendance_date)
 		attendance_doc = self.get_attendance_doc(attendance_date)
+		if self.get_half_day_leave(attendance_date):
+			return bool(attendance_doc) and attendance_doc.half_day_status == self.other_half_status()
+		new_status = self.get_attendance_status(attendance_date)
 		if attendance_doc and attendance_doc.status == new_status:
 			if new_status == "Half Day" and self.half_day and attendance_doc.half_day_status == "Absent":
 				return False

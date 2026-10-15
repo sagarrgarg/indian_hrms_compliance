@@ -219,7 +219,7 @@
    "fieldtype": "Select",
    "label": "Status for Other Half",
    "no_copy": 1,
-   "options": "\nPresent\nAbsent"
+   "options": "\nPresent\nAbsent\nWork From Home"
   },
   {
    "default": "0",

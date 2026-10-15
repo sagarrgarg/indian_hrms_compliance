@@ -26,6 +26,7 @@ status_map = {
 	"Absent": "A",
 	"Half Day/Other Half Absent": "HD/A",
 	"Half Day/Other Half Present": "HD/P",
+	"Half Day/Other Half WFH": "HD/WFH",
 	"Work From Home": "WFH",
 	"On Leave": "L",
 	"Holiday": "H",
@@ -326,6 +327,10 @@ def get_attendance_records(filters: Filters) -> list[dict]:
 		.when(
 			((Attendance.status == "Half Day") & (Attendance.half_day_status == "Absent")),
 			"Half Day/Other Half Absent",
+		)
+		.when(
+			((Attendance.status == "Half Day") & (Attendance.half_day_status == "Work From Home")),
+			"Half Day/Other Half WFH",
 		)
 		.else_(Attendance.status)
 	)
