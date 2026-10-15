@@ -25,6 +25,10 @@ from erpnext.setup.doctype.employee.employee import get_holiday_list_for_employe
 
 import indian_hrms_compliance
 from indian_hrms_compliance.api import get_current_employee_info
+from indian_hrms_compliance.hr.doctype.attendance_request.attendance_request import (
+	get_wfh_request,
+	wfh_only_status,
+)
 from indian_hrms_compliance.hr.doctype.leave_block_list.leave_block_list import get_applicable_block_dates
 from indian_hrms_compliance.hr.doctype.leave_ledger_entry.leave_ledger_entry import create_leave_ledger_entry
 from indian_hrms_compliance.hr.utils import (
@@ -333,6 +337,9 @@ class LeaveApplication(Document, PWANotificationsMixin):
 			doc = frappe.get_doc("Attendance", attendance_name)
 			half_day_status = None if status == "On Leave" else "Present"
 			modify_half_day_status = 1 if doc.status == "Absent" and status == "Half Day" else 0
+			if status == "Half Day" and get_wfh_request(self.employee, date):
+				# half-day leave on a WFH day: the other half stays Work From Home
+				half_day_status, modify_half_day_status = "Work From Home", 0
 			doc.db_set(
 				{
 					"status": status,
@@ -354,6 +361,10 @@ class LeaveApplication(Document, PWANotificationsMixin):
 			doc.status = status
 			doc.half_day_status = "Present" if status == "Half Day" else None
 			doc.modify_half_day_status = 1 if status == "Half Day" else 0
+			wfh = get_wfh_request(self.employee, date) if status == "Half Day" else None
+			if wfh:
+				doc.half_day_status, doc.modify_half_day_status = "Work From Home", 0
+				doc.attendance_request = wfh.name
 			doc.flags.ignore_validate = True  # ignores check leave record validation in attendance
 			doc.insert(ignore_permissions=True)
 			doc.submit()
@@ -367,7 +378,33 @@ class LeaveApplication(Document, PWANotificationsMixin):
 				as_dict=1,
 			)
 			for name in attendance:
+				wfh = self._wfh_on_shared_day(name.name)
+				if wfh:
+					# the day also had WFH: drop only the leave half
+					status, half = wfh_only_status(wfh, frappe.db.get_value("Attendance", name.name, "attendance_date"))
+					frappe.db.set_value(
+						"Attendance",
+						name.name,
+						{
+							"status": status,
+							"half_day_status": half,
+							"modify_half_day_status": 0,
+							"leave_type": None,
+							"leave_application": None,
+							"attendance_request": wfh.name,
+						},
+					)
+					continue
 				frappe.db.set_value("Attendance", name, "docstatus", 2)
+
+	def _wfh_on_shared_day(self, attendance_name):
+		"""The WFH request also covering a half-day-leave attendance, if any."""
+		att = frappe.db.get_value(
+			"Attendance", attendance_name, ["status", "attendance_date"], as_dict=True
+		)
+		if not att or att.status != "Half Day":
+			return None
+		return get_wfh_request(self.employee, att.attendance_date)
 
 	def validate_salary_processed_days(self):
 		if not frappe.db.get_value("Leave Type", self.leave_type, "is_lwp"):
@@ -619,9 +656,18 @@ class LeaveApplication(Document, PWANotificationsMixin):
 				"docstatus": 1,
 				"half_day_status": ("!=", "Absent"),
 			},
-			fields=["name", "attendance_date"],
+			fields=["name", "attendance_date", "status"],
 			order_by="attendance_date",
 		)
+		# a half-day leave may share its day with Work From Home (the other half)
+		if self.half_day and self.half_day_date:
+			attendance_dates = [
+				a
+				for a in attendance_dates
+				if not (
+					a.status == "Work From Home" and getdate(a.attendance_date) == getdate(self.half_day_date)
+				)
+			]
 		if attendance_dates:
 			frappe.throw(
 				_("Attendance for employee {0} is already marked for the following dates: {1}").format(
