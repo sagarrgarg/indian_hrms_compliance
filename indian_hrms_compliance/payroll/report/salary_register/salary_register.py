@@ -535,9 +535,19 @@ def _gross_wages_excluded_components():
 def get_wages_register_html(filters=None):
 	"""Render the employee-wise statutory Salary / Wages Register as a
 	standalone, print-ready (landscape) HTML document."""
+	context = _wages_register_context(filters)
+	template = _read_template("wages_register.html")
+	return frappe.render_template(template, context)
+
+
+def _parse_filters(filters):
 	if isinstance(filters, str):
 		filters = json.loads(filters)
-	filters = filters or {}
+	return frappe._dict(filters or {})
+
+
+def _wages_register_context(filters):
+	filters = _parse_filters(filters)
 
 	company = filters.get("company")
 	company_currency = erpnext.get_company_currency(company) if company else None
@@ -694,6 +704,7 @@ def get_wages_register_html(filters=None):
 			esic_no=emp.esic_ip_number or "",
 			uan=emp.uan_number or "",
 			doj=formatdate(emp.date_of_joining) if emp.date_of_joining else "",
+			doj_date=getdate(emp.date_of_joining) if emp.date_of_joining else None,
 			wd=flt(s.total_working_days),
 			el=_get_el_days(s.employee, s.start_date, s.end_date, lwp_types),
 			lwp=flt(s.leave_without_pay),
@@ -731,7 +742,7 @@ def get_wages_register_html(filters=None):
 	ded_cols = [c for c in ded_cols if totals.ded[c]]
 	emp_cols = [c for c in emp_cols if totals.emp[c]]
 
-	context = {
+	return {
 		"company": _get_company_header(company),
 		"period_label": _period_label(filters.get("from_date")),
 		"from_date": formatdate(filters.get("from_date")),
@@ -747,9 +758,6 @@ def get_wages_register_html(filters=None):
 		"printed_on": formatdate(frappe.utils.nowdate()),
 		"inr": _inr,
 	}
-
-	template = _read_template("wages_register.html")
-	return frappe.render_template(template, context)
 
 
 def _read_template(name):
@@ -795,9 +803,13 @@ def get_payroll_summary_html(filters=None):
 	statutory RATES (EPS, EDLI, admin, ESI %) are read from HR Settings via
 	the ECR/ESI generators; only the wage bases come from the slips (which
 	auto-respects a ₹15,000 PF cap when the structure caps it)."""
-	if isinstance(filters, str):
-		filters = json.loads(filters)
-	filters = filters or {}
+	context = _payroll_summary_context(filters)
+	template = _read_template("payroll_summary.html")
+	return frappe.render_template(template, context)
+
+
+def _payroll_summary_context(filters):
+	filters = _parse_filters(filters)
 
 	company = filters.get("company")
 	company_currency = erpnext.get_company_currency(company) if company else None
@@ -959,7 +971,7 @@ def get_payroll_summary_html(filters=None):
 		"LWFER": lwf_employer_total,
 	}
 
-	context = {
+	return {
 		"company": _get_company_header(company),
 		"period_label": _period_label(filters.get("from_date")),
 		"earn_tot": earn_tot,
@@ -976,5 +988,221 @@ def get_payroll_summary_html(filters=None):
 		"printed_on": formatdate(frappe.utils.nowdate()),
 		"inr": _inr,
 	}
-	template = _read_template("payroll_summary.html")
-	return frappe.render_template(template, context)
+
+
+# ---------------------------------------------------------------------------
+# Excel versions of the two PDFs — same figures, one value per cell so the
+# sheet can be filtered and sorted (Emp Code, UAN, PF No. get their own columns).
+# ---------------------------------------------------------------------------
+
+
+def _xlsx_header(ws, ctx, title):
+	from openpyxl.styles import Font
+
+	co = ctx["company"]
+	ws.append([co.company_name or co.name])
+	ws["A1"].font = Font(bold=True, size=13)
+	meta = []
+	if co.pan:
+		meta.append(f"PAN: {co.pan}")
+	meta.append(f"Firm PF No.: {co.pf_establishment_code or '-'}")
+	meta.append(f"Firm ESIC No.: {co.esic_establishment_code or '-'}")
+	if co.lwf_establishment_code:
+		meta.append(f"LWF No.: {co.lwf_establishment_code}")
+	ws.append(["   ·   ".join(meta)])
+	ws.append([f"{title} for the month of {ctx['period_label']}"])
+	ws["A3"].font = Font(bold=True)
+	ws.append([])
+
+
+def _send_xlsx(wb, name, ctx):
+	from io import BytesIO
+
+	buf = BytesIO()
+	wb.save(buf)
+	co = (ctx["company"].company_name or ctx["company"].name or "").replace(" ", "_")
+	frappe.response["filename"] = f"{name}_{co}_{ctx['period_label'].replace(' ', '_')}.xlsx"
+	frappe.response["filecontent"] = buf.getvalue()
+	frappe.response["type"] = "binary"
+
+
+@frappe.whitelist()
+def download_wages_register_xlsx(filters=None):
+	"""The Salary / Wages Register as a flat, filterable .xlsx."""
+	from openpyxl import Workbook
+	from openpyxl.styles import Alignment, Font, PatternFill
+	from openpyxl.utils import get_column_letter
+
+	ctx = _wages_register_context(filters)
+	earn_cols, ded_cols, emp_cols = ctx["earn_cols"], ctx["ded_cols"], ctx["emp_cols"]
+	has_bonus = ctx["has_bonus"]
+
+	wb = Workbook()
+	ws = wb.active
+	ws.title = "Wages Register"
+	_xlsx_header(ws, ctx, "Salary / Wages Register")
+
+	# (label, getter, kind) — kind: text | date | num | days
+	cols = [
+		("S.No.", lambda r: r.sno, "days"),
+		("Emp Code", lambda r: r.employee, "text"),
+		("Employee Name", lambda r: r.employee_name, "text"),
+		("Father / Husband Name", lambda r: r.father_or_husband_name, "text"),
+		("Designation", lambda r: r.designation, "text"),
+		("UAN", lambda r: r.uan, "text"),
+		("PF Number", lambda r: r.pf_no, "text"),
+		("ESIC IP Number", lambda r: r.esic_no, "text"),
+		("Date of Joining", lambda r: r.doj_date, "date"),
+	]
+	cols += [(f"Rate - {c}", lambda r, c=c: r.rate[c], "num") for c in earn_cols]
+	cols += [("Rate - Total", lambda r: r.rate_total, "num")]
+	cols += [
+		("W.D.", lambda r: r.wd, "days"),
+		("E.L.", lambda r: r.el, "days"),
+		("LWP", lambda r: r.lwp, "days"),
+		("ABS", lambda r: r.absent, "days"),
+		("P.D.", lambda r: r.pd, "days"),
+	]
+	cols += [(f"Earned - {c}", lambda r, c=c: r.earn[c], "num") for c in earn_cols]
+	cols += [("Gross", lambda r: r.gross, "num")]
+	if has_bonus:
+		cols += [("Bonus (Advance)", lambda r: r.bonus, "num")]
+	cols += [(f"Ded - {c}", lambda r, c=c: r.ded[c], "num") for c in ded_cols]
+	cols += [("Ded - Total", lambda r: r.ded_total, "num")]
+	if emp_cols:
+		cols += [(f"Employer - {c}", lambda r, c=c: r.emp[c], "num") for c in emp_cols]
+		cols += [("Employer - Total", lambda r: r.emp_total, "num")]
+	cols += [("Net Payment", lambda r: r.net, "num")]
+
+	head_row = ws.max_row + 1
+	ws.append([c[0] for c in cols])
+	fill = PatternFill("solid", fgColor="E5E7EB")
+	for cell in ws[head_row]:
+		cell.font = Font(bold=True)
+		cell.fill = fill
+		cell.alignment = Alignment(wrap_text=True, vertical="center", horizontal="center")
+
+	for r in ctx["rows"]:
+		ws.append([flt(get(r)) if kind in ("num", "days") else (get(r) or None) for _l, get, kind in cols])
+	last_row = ws.max_row
+
+	# totals sit one row below the data so filtering never hides or sorts them
+	totals = ctx["totals"]
+	tot = {f"Rate - {c}": totals.rate[c] for c in earn_cols}
+	tot.update({f"Earned - {c}": totals.earn[c] for c in earn_cols})
+	tot.update({f"Ded - {c}": totals.ded[c] for c in ded_cols})
+	tot.update({f"Employer - {c}": totals.emp[c] for c in emp_cols})
+	tot.update(
+		{
+			"Rate - Total": totals.rate_total,
+			"Gross": totals.gross,
+			"Bonus (Advance)": totals.bonus,
+			"Ded - Total": totals.ded_total,
+			"Employer - Total": totals.emp_total,
+			"Net Payment": totals.net,
+		}
+	)
+	ws.append([])
+	ws.append([f"TOTAL ({len(ctx['rows'])} employees)" if i == 1 else tot.get(c[0]) for i, c in enumerate(cols)])
+	for cell in ws[ws.max_row]:
+		cell.font = Font(bold=True)
+
+	for idx, (label, _get, kind) in enumerate(cols, start=1):
+		letter = get_column_letter(idx)
+		fmt = {"num": "#,##0.00", "days": "General", "date": "DD-MM-YYYY", "text": "@"}[kind]
+		for row in ws.iter_rows(min_row=head_row + 1, min_col=idx, max_col=idx):
+			row[0].number_format = fmt
+		width = {"text": 18, "date": 12, "num": 12, "days": 7}[kind]
+		if label in ("Employee Name", "Father / Husband Name"):
+			width = 24
+		ws.column_dimensions[letter].width = width
+
+	ws.row_dimensions[head_row].height = 30
+	ws.freeze_panes = ws.cell(row=head_row + 1, column=4)
+	ws.auto_filter.ref = f"A{head_row}:{get_column_letter(len(cols))}{last_row}"
+
+	_send_xlsx(wb, "Wages_Register", ctx)
+
+
+@frappe.whitelist()
+def download_payroll_summary_xlsx(filters=None):
+	"""The Grand Total of Salary / Wages summary as a 3-column .xlsx
+	(Section | Particulars | Amount)."""
+	from openpyxl import Workbook
+	from openpyxl.styles import Font, PatternFill
+
+	ctx = _payroll_summary_context(filters)
+	wb = Workbook()
+	ws = wb.active
+	ws.title = "Grand Total Summary"
+	_xlsx_header(ws, ctx, "Grand Total of Salary / Wages")
+
+	head_row = ws.max_row + 1
+	ws.append(["Section", "Particulars", "Amount"])
+	for cell in ws[head_row]:
+		cell.font = Font(bold=True)
+		cell.fill = PatternFill("solid", fgColor="E5E7EB")
+
+	bold_rows = []
+
+	def add(section, label, amount, total=False):
+		ws.append([section, label, flt(amount)])
+		if total:
+			bold_rows.append(ws.max_row)
+
+	for comp, amt in ctx["earn_tot"].items():
+		add("Earnings", comp, amt)
+	add("Earnings", "Total Earning (Gross Wages)", ctx["total_earning"], True)
+	if ctx["bonus_advance"]:
+		add("Earnings", "Add: Statutory Bonus (Advance)", ctx["bonus_advance"])
+
+	for comp, amt in ctx["ded_tot"].items():
+		add("Deductions", comp, amt)
+	add("Deductions", "Total Deduction", ctx["ded_total"], True)
+
+	er = ctx["employer"]
+	add("Employer Contributions", "Pension", er["Pension"])
+	add("Employer Contributions", "Difference", er["Difference"])
+	add("Employer Contributions", "E.S.I.C.", er["ESIC"])
+	add("Employer Contributions", "LWFER", er["LWFER"])
+	add("Employer Contributions", "Total", ctx["employer_total"], True)
+
+	add("Net", "Net Payment", ctx["net"], True)
+	add("Net", "Total Employee", ctx["total_employee"])
+
+	pf = ctx["pf"]
+	if pf:
+		for ac in ("01", "10", "21"):
+			add("P.F.", f"Total Employee A/c - {ac}", pf["count"])
+		add("P.F.", "Salary / Wages A/c - 01", pf["wages_01"])
+		add("P.F.", "Salary / Wages A/c - 10", pf["wages_10"])
+		add("P.F.", "Salary / Wages A/c - 21", pf["wages_21"])
+		add("P.F.", "E.P.F. A/c - 01", pf["epf_ac01"])
+		add("P.F.", "Pension A/c - 10", pf["pension_ac10"])
+		add("P.F.", "Difference A/c - 01", pf["diff_ac01"])
+		add("P.F.", "Administration A/c - 02", pf["admin_ac02"])
+		add("P.F.", "E.D.L.I. A/c - 21", pf["edli_ac21"])
+		add("P.F.", "Admn. EDLI A/c - 22", pf["edli_admin_ac22"])
+		add("P.F.", "Total Amount", pf["total"], True)
+
+	esi = ctx["esi"]
+	if esi:
+		add("E.S.I.C.", "Total Employee", esi["count"])
+		add("E.S.I.C.", "ESIC Wages", esi["wages"])
+		add("E.S.I.C.", "ESIC Employee Share", esi["employee"])
+		add("E.S.I.C.", "ESIC Employer Share", esi["employer"])
+		add("E.S.I.C.", "Total Amount", esi["total"], True)
+
+	for r in bold_rows:
+		for cell in ws[r]:
+			cell.font = Font(bold=True)
+	for row in ws.iter_rows(min_row=head_row + 1, min_col=2, max_col=3):
+		label, amount = row
+		amount.number_format = "0" if label.value.startswith("Total Employee") else "#,##0.00"
+	ws.column_dimensions["A"].width = 24
+	ws.column_dimensions["B"].width = 36
+	ws.column_dimensions["C"].width = 16
+	ws.freeze_panes = ws.cell(row=head_row + 1, column=1)
+	ws.auto_filter.ref = f"A{head_row}:C{ws.max_row}"
+
+	_send_xlsx(wb, "Payroll_Summary", ctx)

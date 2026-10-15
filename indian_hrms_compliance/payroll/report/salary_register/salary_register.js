@@ -166,6 +166,29 @@ frappe.query_reports["Salary Register"] = {
 			open_pdf("get_payroll_summary_html", __("Building Payroll Summary…"));
 		});
 
+		// Excel versions of the two PDFs: one value per cell (Emp Code, UAN, PF No.
+		// in their own columns) so the sheet can be filtered and sorted.
+		const download_xlsx = (method) => {
+			const filters = report.get_values();
+			if (!filters.company) {
+				frappe.msgprint(__("Please select a Company."));
+				return;
+			}
+			const params = new URLSearchParams({ filters: JSON.stringify(filters) });
+			window.open(
+				"/api/method/indian_hrms_compliance.payroll.report.salary_register.salary_register." +
+					method +
+					"?" +
+					params.toString(),
+			);
+		};
+		report.page.add_inner_button(__("Wages Register (Excel)"), function () {
+			download_xlsx("download_wages_register_xlsx");
+		});
+		report.page.add_inner_button(__("Grand Total Summary (Excel)"), function () {
+			download_xlsx("download_payroll_summary_xlsx");
+		});
+
 		// Bank disbursement statement (the firm's exact bank-transfer format) —
 		// same download as the standalone Salary Bank Statement report, offered
 		// here too so the whole register + bank file are in one place.
