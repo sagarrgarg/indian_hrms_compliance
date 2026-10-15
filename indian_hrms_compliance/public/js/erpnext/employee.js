@@ -15,6 +15,7 @@ frappe.ui.form.on("Employee", {
 	},
 	refresh: function (frm) {
 		if (!frm.is_new()) frm.trigger("render_setup_status");
+		if (!frm.is_new()) frm.trigger("render_warnings");
 		frm.trigger("toggle_branch_reqd");
 
 		frm.set_query("payroll_cost_center", function () {
@@ -178,5 +179,113 @@ frappe.ui.form.on("Employee", {
 				});
 			},
 		});
+	},
+
+	// Warnings tab: this employee's warning letters + disciplinary actions.
+	render_warnings(frm) {
+		const field = frm.fields_dict.warnings_html;
+		if (!field) return;
+		const esc = (v) => frappe.utils.escape_html(v || "");
+		frappe.call({
+			method: "indian_hrms_compliance.hr.warning_letter.get_employee_warnings",
+			args: { employee: frm.doc.name },
+			callback: function (r) {
+				const d = r.message || {};
+				const letters = d.letters || [];
+				const actions = d.actions || [];
+				let html = `<div style="max-width:860px;">
+					<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+						<strong style="font-size:15px;">${__("Warning Letters")} (${letters.length})</strong>
+						${d.can_issue ? `<button class="btn btn-sm btn-primary ihc-issue-warning">${__("Issue Warning Letter")}</button>` : ""}
+					</div>`;
+				if (!letters.length) {
+					html += `<div class="text-muted" style="margin-bottom:16px;">${__("No warning letters issued.")}</div>`;
+				} else {
+					html += `<table class="table table-bordered" style="font-size:12px;"><thead><tr>
+						<th>${__("Date")}</th><th>${__("Level")}</th><th>${__("Reason")}</th>
+						<th>${__("Incident")}</th><th></th></tr></thead><tbody>`;
+					letters.forEach((l) => {
+						const incident = [l.incident_date ? frappe.datetime.str_to_user(l.incident_date) : "", l.incident_details]
+							.filter(Boolean)
+							.join(" — ");
+						html += `<tr>
+							<td style="white-space:nowrap;">${frappe.datetime.str_to_user(l.appointment_date)}</td>
+							<td>${esc(l.warning_level) || __("Warning")}</td>
+							<td>${esc(l.warning_category)}</td>
+							<td>${esc(incident)}</td>
+							<td style="white-space:nowrap;">
+								<a href="/app/appointment-letter/${encodeURIComponent(l.name)}">${__("Open")}</a> ·
+								<a href="/printview?doctype=Appointment%20Letter&name=${encodeURIComponent(l.name)}&format=Warning%20Letter" target="_blank">${__("Print")}</a>
+							</td></tr>`;
+					});
+					html += `</tbody></table>`;
+				}
+				if (actions.length) {
+					html += `<strong style="display:block;margin:14px 0 8px;">${__("Disciplinary Actions")} (${actions.length})</strong>
+						<table class="table table-bordered" style="font-size:12px;"><thead><tr>
+						<th>${__("Date")}</th><th>${__("Nature")}</th><th>${__("Stage")}</th><th>${__("Outcome")}</th><th></th></tr></thead><tbody>`;
+					actions.forEach((a) => {
+						html += `<tr>
+							<td style="white-space:nowrap;">${a.action_date ? frappe.datetime.str_to_user(a.action_date) : ""}</td>
+							<td>${esc(a.nature_of_misconduct)}</td><td>${esc(a.workflow_state)}</td><td>${esc(a.outcome)}</td>
+							<td><a href="/app/disciplinary-action/${encodeURIComponent(a.name)}">${__("Open")}</a></td></tr>`;
+					});
+					html += `</tbody></table>`;
+				}
+				html += `</div>`;
+				field.$wrapper.html(html);
+				field.$wrapper.find(".ihc-issue-warning").on("click", () => frm.trigger("issue_warning_letter"));
+			},
+		});
+	},
+
+	issue_warning_letter(frm) {
+		const dialog = new frappe.ui.Dialog({
+			title: __("Issue Warning Letter"),
+			fields: [
+				{ fieldname: "letter_date", fieldtype: "Date", label: __("Letter Date"), default: frappe.datetime.get_today(), reqd: 1 },
+				{
+					fieldname: "warning_level",
+					fieldtype: "Select",
+					label: __("Warning Level"),
+					options: ["First Warning", "Second Warning", "Final Warning"],
+					default: "First Warning",
+					reqd: 1,
+				},
+				{
+					fieldname: "warning_category",
+					fieldtype: "Select",
+					label: __("Reason"),
+					options: ["Attendance", "Misconduct", "Performance", "Policy"],
+					reqd: 1,
+				},
+				{ fieldname: "incident_date", fieldtype: "Date", label: __("Incident Date") },
+				{
+					fieldname: "incident_details",
+					fieldtype: "Small Text",
+					label: __("What happened"),
+					reqd: 1,
+					description: __("Printed in the letter as written."),
+				},
+			],
+			primary_action_label: __("Create & Print"),
+			primary_action(values) {
+				frappe.call({
+					method: "indian_hrms_compliance.hr.warning_letter.issue_warning_letter",
+					args: Object.assign({ employee: frm.doc.name }, values),
+					freeze: true,
+					callback(r) {
+						if (!r.message) return;
+						dialog.hide();
+						frm.trigger("render_warnings");
+						window.open(
+							`/printview?doctype=Appointment%20Letter&name=${encodeURIComponent(r.message)}&format=Warning%20Letter`,
+							"_blank"
+						);
+					},
+				});
+			},
+		});
+		dialog.show();
 	},
 });

@@ -131,6 +131,7 @@ jinja = {
 after_install = "indian_hrms_compliance.install.after_install"
 after_migrate = [
 	"indian_hrms_compliance.setup.sync_custom_fields",
+	"indian_hrms_compliance.setup.seed_letter_templates",
 	"indian_hrms_compliance.setup.seed_grievance_types",
 	"indian_hrms_compliance.setup.reconcile_attendance_request_status",
 	"indian_hrms_compliance.setup.reconcile_hrms_task_risk_tiers",

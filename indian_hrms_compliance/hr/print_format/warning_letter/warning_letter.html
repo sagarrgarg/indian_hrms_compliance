@@ -1,0 +1,37 @@
+{%- set emp = frappe.db.get_value("Employee", doc.employee, ["employee_name", "designation", "department", "branch"], as_dict=True) if doc.employee else None -%}
+<div style="font-size: 13px; line-height: 1.6;">
+	<div style="display: flex; justify-content: space-between; margin-bottom: 18px;">
+		<div><b>Ref:</b> {{ doc.name }}</div>
+		<div><b>Date:</b> {{ frappe.utils.formatdate(doc.appointment_date) }}</div>
+	</div>
+
+	<div style="margin-bottom: 18px;">
+		<div>To,</div>
+		<div><b>{{ doc.applicant_name }}</b></div>
+		{% if doc.employee %}<div>Employee Code: {{ doc.employee }}</div>{% endif %}
+		{% if emp and emp.designation %}<div>{{ emp.designation }}{% if emp.department %}, {{ emp.department.split(" - ")[0] }}{% endif %}</div>{% endif %}
+		{% if emp and emp.branch %}<div>{{ emp.branch }}</div>{% endif %}
+	</div>
+
+	<div style="margin-bottom: 18px;">
+		<b>Subject: {{ doc.warning_level or "Warning Letter" }}{% if doc.warning_category %} &ndash; {{ doc.warning_category }}{% endif %}</b>
+	</div>
+
+	<div style="margin-bottom: 14px; white-space: pre-line;">{{ doc.introduction }}</div>
+
+	{% for t in doc.terms %}
+	<div style="margin-bottom: 10px;">{{ t.description }}</div>
+	{% endfor %}
+
+	<div style="margin-top: 40px; white-space: pre-line;">{{ doc.closing_notes }}</div>
+
+	<div style="margin-top: 50px; border-top: 1px dashed #999; padding-top: 14px;">
+		<b>Acknowledgement</b>
+		<p style="margin: 8px 0 34px;">I have received this letter and understood its contents.</p>
+		<div style="display: flex; justify-content: space-between;">
+			<div>Signature: ____________________</div>
+			<div>Date: ______________</div>
+		</div>
+		<div style="margin-top: 6px;">{{ doc.applicant_name }}{% if doc.employee %} ({{ doc.employee }}){% endif %}</div>
+	</div>
+</div>

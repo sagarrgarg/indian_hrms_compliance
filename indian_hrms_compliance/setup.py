@@ -50,6 +50,41 @@ def before_app_uninstall(app_name):
 	remove_lending_docperms_from_ess()
 
 
+LETTER_TYPE_OPTIONS = (
+	"Appointment\nConfirmation\nProbation Extension\nRelease\n"
+	"Relieving Letter\nExperience Letter\nService Certificate\nWarning Letter\nOther"
+)
+
+
+def seed_letter_templates():
+	"""after_migrate: create the standard exit and warning letter templates if
+	missing. Runs after sync_custom_fields, so the letter types exist (the old
+	patches set the options with a raw db write, the cached meta still rejected
+	the new type, and the seed failed silently)."""
+	from indian_hrms_compliance.patches.v15_0.add_exit_letter_types import EXIT_LETTER_TEMPLATES
+	from indian_hrms_compliance.patches.v15_0.add_warning_letter_type import WARNING_LETTER_TEMPLATE
+
+	for tmpl in [*EXIT_LETTER_TEMPLATES, WARNING_LETTER_TEMPLATE]:
+		if frappe.db.exists("Appointment Letter Template", tmpl["name"]):
+			continue
+		frappe.db.savepoint("seed_letter_template")
+		try:
+			doc = frappe.get_doc(
+				{
+					"doctype": "Appointment Letter Template",
+					"template_name": tmpl["name"],
+					"letter_type": tmpl["letter_type"],
+					"introduction": tmpl["introduction"],
+					"closing_notes": tmpl["closing_notes"],
+					"terms": [{"title": tmpl["letter_type"], "description": tmpl["terms_html"]}],
+				}
+			)
+			doc.insert(ignore_permissions=True)
+		except Exception:
+			frappe.db.rollback(save_point="seed_letter_template")
+			frappe.log_error(f"Letter template seed failed: {tmpl['name']}")
+
+
 def sync_custom_fields():
 	"""Idempotently (re)create all HR/Payroll custom fields.
 
@@ -585,6 +620,17 @@ def get_custom_fields():
 				"insert_after": "setup_status_tab",
 			},
 			{
+				"fieldname": "warnings_tab",
+				"fieldtype": "Tab Break",
+				"label": _("Warnings"),
+				"insert_after": "employee_readiness_html",
+			},
+			{
+				"fieldname": "warnings_html",
+				"fieldtype": "HTML",
+				"insert_after": "warnings_tab",
+			},
+			{
 				"fieldname": "employment_type",
 				"fieldtype": "Link",
 				"ignore_user_permissions": 1,
@@ -1036,7 +1082,7 @@ def get_custom_fields():
 				"fieldname": "letter_type",
 				"fieldtype": "Select",
 				"label": _("Letter Type"),
-				"options": "Appointment\nConfirmation\nProbation Extension\nRelease\nOther",
+				"options": LETTER_TYPE_OPTIONS,
 				"default": "Appointment",
 				"insert_after": "appointment_date",
 				"in_list_view": 1,
@@ -1051,13 +1097,64 @@ def get_custom_fields():
 				"depends_on": "eval:in_list(['Confirmation','Probation Extension','Release'], doc.letter_type)",
 				"read_only": 1,
 			},
+			{
+				"fieldname": "employee",
+				"fieldtype": "Link",
+				"label": _("Employee"),
+				"options": "Employee",
+				"insert_after": "probation_review",
+				"depends_on": "eval:in_list(['Relieving Letter','Experience Letter','Service Certificate','Warning Letter'], doc.letter_type)",
+				"description": _("Set for letters to an existing employee, where there is no Job Applicant."),
+			},
+			{
+				"fieldname": "full_and_final_statement",
+				"fieldtype": "Link",
+				"label": _("Full and Final Statement"),
+				"options": "Full and Final Statement",
+				"insert_after": "employee",
+				"depends_on": "eval:in_list(['Relieving Letter','Experience Letter','Service Certificate'], doc.letter_type)",
+				"read_only": 1,
+			},
+			{
+				"fieldname": "warning_level",
+				"fieldtype": "Select",
+				"label": _("Warning Level"),
+				"options": "\nFirst Warning\nSecond Warning\nFinal Warning",
+				"insert_after": "full_and_final_statement",
+				"depends_on": "eval:doc.letter_type=='Warning Letter'",
+				"in_list_view": 1,
+				"in_standard_filter": 1,
+			},
+			{
+				"fieldname": "warning_category",
+				"fieldtype": "Select",
+				"label": _("Reason"),
+				"options": "\nAttendance\nMisconduct\nPerformance\nPolicy",
+				"insert_after": "warning_level",
+				"depends_on": "eval:doc.letter_type=='Warning Letter'",
+				"in_standard_filter": 1,
+			},
+			{
+				"fieldname": "incident_date",
+				"fieldtype": "Date",
+				"label": _("Incident Date"),
+				"insert_after": "warning_category",
+				"depends_on": "eval:doc.letter_type=='Warning Letter'",
+			},
+			{
+				"fieldname": "incident_details",
+				"fieldtype": "Small Text",
+				"label": _("Incident Details"),
+				"insert_after": "incident_date",
+				"depends_on": "eval:doc.letter_type=='Warning Letter'",
+			},
 		],
 		"Appointment Letter Template": [
 			{
 				"fieldname": "letter_type",
 				"fieldtype": "Select",
 				"label": _("Letter Type"),
-				"options": "Appointment\nConfirmation\nProbation Extension\nRelease\nOther",
+				"options": LETTER_TYPE_OPTIONS,
 				"default": "Appointment",
 				"insert_after": "template_name",
 				"in_list_view": 1,

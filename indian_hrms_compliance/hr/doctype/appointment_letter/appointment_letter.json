@@ -47,7 +47,8 @@
    "fieldname": "introduction",
    "fieldtype": "Long Text",
    "label": "Introduction",
-   "reqd": 1
+   "reqd": 1,
+   "fetch_if_empty": 1
   },
   {
    "fieldname": "body_section",
@@ -63,7 +64,7 @@
    "fieldtype": "Link",
    "label": "Job Applicant",
    "options": "Job Applicant",
-   "reqd": 1
+   "mandatory_depends_on": "eval:!doc.employee"
   },
   {
    "fieldname": "company",
@@ -86,7 +87,7 @@
   }
  ],
  "links": [],
- "modified": "2022-01-18 19:27:35.649424",
+ "modified": "2026-10-16 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "HR",
  "name": "Appointment Letter",

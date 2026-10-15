@@ -129,34 +129,24 @@ class DisciplinaryAction(Document):
 			return  # already triggered
 		if not int(_hr_setting("auto_trigger_warning_letter", 1) or 0):
 			return
-		# Use the Warning Letter Template if seeded (Phase 5 Stage 4).
-		template = frappe.db.get_value(
-			"Appointment Letter Template", {"letter_type": "Warning Letter"}, "name"
-		)
-		if not template:
-			# Stage 4 hasn't shipped yet — skip silently. HR can issue manually.
-			return
-		employee_name = (
-			frappe.db.get_value("Employee", self.employee, "employee_name") or self.employee
-		)
+		from indian_hrms_compliance.hr.warning_letter import WARNING_TEMPLATE, create_warning_letter
+
+		if not frappe.db.exists("Appointment Letter Template", WARNING_TEMPLATE):
+			return  # template not seeded yet — HR can issue from the Employee's Warnings tab
 		try:
-			letter = frappe.get_doc(
-				{
-					"doctype": "Appointment Letter",
-					"job_applicant": "",
-					"applicant_name": employee_name,
-					"appointment_date": self.outcome_decided_on or today(),
-					"company": self.company,
-					"appointment_letter_template": template,
-					"letter_type": "Warning Letter",
-					"employee": self.employee,
-				}
+			name = create_warning_letter(
+				self.employee,
+				letter_date=self.outcome_decided_on or today(),
+				warning_level="Final Warning" if self.outcome == "Final Warning" else None,
+				warning_category=self.nature_of_misconduct,
+				incident_date=self.incident_date,
+				incident_details=self.incident_description,
+				ignore_permissions=True,
 			)
-			letter.insert(ignore_permissions=True, ignore_mandatory=True)
-			self.db_set("linked_warning_letter", letter.name, update_modified=False)
+			self.db_set("linked_warning_letter", name, update_modified=False)
 			frappe.msgprint(
 				_("Created Warning Letter {0} for this outcome.").format(
-					frappe.utils.get_link_to_form("Appointment Letter", letter.name)
+					frappe.utils.get_link_to_form("Appointment Letter", name)
 				)
 			)
 		except Exception:
