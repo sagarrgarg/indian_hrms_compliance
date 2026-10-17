@@ -3,9 +3,9 @@ import { employeeResource } from "./employee"
 import { reactive } from "vue"
 
 export const expenseClaimSummary = createResource({
-	url: "hrms.api.get_expense_claim_summary",
+	url: "indian_hrms_compliance.api.get_expense_claim_summary",
 	auto: true,
-	cache: "hrms:expense_claim_summary",
+	cache: "indian_hrms_compliance:expense_claim_summary",
 })
 
 const transformClaimData = (data) => {
@@ -16,13 +16,13 @@ const transformClaimData = (data) => {
 }
 
 export const myClaims = createResource({
-	url: "hrms.api.get_expense_claims",
+	url: "indian_hrms_compliance.api.get_expense_claims",
 	params: {
 		employee: employeeResource.data.name,
 		limit: 10,
 	},
 	auto: true,
-	cache: "hrms:my_claims",
+	cache: "indian_hrms_compliance:my_claims",
 	transform(data) {
 		return transformClaimData(data)
 	},
@@ -32,7 +32,7 @@ export const myClaims = createResource({
 })
 
 export const teamClaims = createResource({
-	url: "hrms.api.get_expense_claims",
+	url: "indian_hrms_compliance.api.get_expense_claims",
 	params: {
 		employee: employeeResource.data.name,
 		approver_id: employeeResource.data.user_id,
@@ -40,7 +40,7 @@ export const teamClaims = createResource({
 		limit: 10,
 	},
 	auto: true,
-	cache: "hrms:team_claims",
+	cache: "indian_hrms_compliance:team_claims",
 	transform(data) {
 		return transformClaimData(data)
 	},
@@ -49,7 +49,7 @@ export const teamClaims = createResource({
 export let claimTypesByID = reactive({})
 
 export const claimTypesResource = createResource({
-	url: "hrms.api.get_expense_claim_types",
+	url: "indian_hrms_compliance.api.get_expense_claim_types",
 	auto: true,
 	transform(data) {
 		return data.map((row) => {

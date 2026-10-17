@@ -26,32 +26,32 @@ export default defineConfig({
 				display: "standalone",
 				name: "Frappe HR",
 				short_name: "Frappe HR",
-				start_url: "/hrms",
-				scope: "/hrms",
-				id: "/hrms",
+				start_url: "/indian_hrms_compliance",
+				scope: "/indian_hrms_compliance",
+				id: "/indian_hrms_compliance",
 				description: "Everyday HR & Payroll operations at your fingertips",
 				theme_color: "#ffffff",
 				icons: [
 					{
-						src: "/assets/hrms/manifest/manifest-icon-192.maskable.png",
+						src: "/assets/indian_hrms_compliance/manifest/manifest-icon-192.maskable.png",
 						sizes: "192x192",
 						type: "image/png",
 						purpose: "any",
 					},
 					{
-						src: "/assets/hrms/manifest/manifest-icon-192.maskable.png",
+						src: "/assets/indian_hrms_compliance/manifest/manifest-icon-192.maskable.png",
 						sizes: "192x192",
 						type: "image/png",
 						purpose: "maskable",
 					},
 					{
-						src: "/assets/hrms/manifest/manifest-icon-512.maskable.png",
+						src: "/assets/indian_hrms_compliance/manifest/manifest-icon-512.maskable.png",
 						sizes: "512x512",
 						type: "image/png",
 						purpose: "any",
 					},
 					{
-						src: "/assets/hrms/manifest/manifest-icon-512.maskable.png",
+						src: "/assets/indian_hrms_compliance/manifest/manifest-icon-512.maskable.png",
 						sizes: "512x512",
 						type: "image/png",
 						purpose: "maskable",
@@ -66,7 +66,7 @@ export default defineConfig({
 		},
 	},
 	build: {
-		outDir: "../hrms/public/frontend",
+		outDir: "../indian_hrms_compliance/public/frontend",
 		emptyOutDir: true,
 		target: "es2015",
 		commonjsOptions: {

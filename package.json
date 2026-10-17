@@ -1,16 +1,16 @@
 {
   "private": true,
-  "name": "hrms",
+  "name": "indian_hrms_compliance",
   "description": "Open Source HR & Payroll System powered by the Frappe Framework",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/frappe/hrms.git"
+    "url": "git+https://github.com/frappe/indian_hrms_compliance.git"
   },
   "homepage": "https://frappe.io/hr",
   "author": "Frappe Technologies Pvt. Ltd.",
   "license": "GPL-3.0",
   "bugs": {
-    "url": "https://github.com/frappe/hrms/issues"
+    "url": "https://github.com/frappe/indian_hrms_compliance/issues"
   },
   "aworkspaces": ["frontend", "roster", "frappe-ui"],
   "scripts": {

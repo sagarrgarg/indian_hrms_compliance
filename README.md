@@ -7,14 +7,14 @@
 		<p>Open Source, modern, and easy-to-use HR and Payroll Software</p>
 	</p>
 
-[![CI](https://github.com/frappe/hrms/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/frappe/hrms/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/frappe/hrms/branch/develop/graph/badge.svg?token=0TwvyUg3I5)](https://codecov.io/gh/frappe/hrms)
+[![CI](https://github.com/frappe/indian_hrms_compliance/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/frappe/indian_hrms_compliance/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/frappe/indian_hrms_compliance/branch/develop/graph/badge.svg?token=0TwvyUg3I5)](https://codecov.io/gh/frappe/indian_hrms_compliance)
 
 <a href="https://trendshift.io/repositories/10972" target="_blank"><img src="https://trendshift.io/api/badge/repositories/10972" alt="frappe%2Fhrms | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 </div>
 
 <div align="center">
-	<img src=".github/hrms-hero.png"/>
+	<img src=".github/indian_hrms_compliance-hero.png"/>
 </div>
 
 <div align="center">
@@ -43,11 +43,11 @@ Initially, it was a set of modules within ERPNext but version 14 onwards, as the
 <details open>
 
 <summary>View Screenshots</summary>
-	<img src=".github/hrms-appraisal.png"/>
-	<img src=".github/hrms-requisition.png"/>
-	<img src=".github/hrms-attendance.png"/>
-	<img src=".github/hrms-salary.png"/>
-	<img src=".github/hrms-pwa.png"/>
+	<img src=".github/indian_hrms_compliance-appraisal.png"/>
+	<img src=".github/indian_hrms_compliance-requisition.png"/>
+	<img src=".github/indian_hrms_compliance-attendance.png"/>
+	<img src=".github/indian_hrms_compliance-salary.png"/>
+	<img src=".github/indian_hrms_compliance-pwa.png"/>
 </details>
 
 ### Under the Hood
@@ -65,7 +65,7 @@ You can try [Frappe Cloud](https://frappecloud.com), a simple, user-friendly and
 It takes care of installation, setup, upgrades, monitoring, maintenance and support of your Frappe deployments. It is a fully featured developer platform with an ability to manage and control multiple Frappe deployments.
 
 <div>
-	<a href="https://frappecloud.com/hrms/signup" target="_blank">
+	<a href="https://frappecloud.com/indian_hrms_compliance/signup" target="_blank">
 		<picture>
 			<source media="(prefers-color-scheme: dark)" srcset="https://frappe.io/files/try-on-fc-white.png">
 			<img src="https://frappe.io/files/try-on-fc-black.png" alt="Try on Frappe Cloud" height="28" />
@@ -78,8 +78,8 @@ It takes care of installation, setup, upgrades, monitoring, maintenance and supp
 ### Docker
 You need Docker, docker-compose and git setup on your machine. Refer [Docker documentation](https://docs.docker.com/). After that, run the following commands:
 ```
-git clone https://github.com/frappe/hrms
-cd hrms/docker
+git clone https://github.com/frappe/indian_hrms_compliance
+cd indian_hrms_compliance/docker
 docker-compose up
 ```
 
@@ -98,13 +98,13 @@ Use the following credentials to log in:
 	```
 2. In a separate terminal window, run the following commands
 	```sh
-	$ bench new-site hrms.local
+	$ bench new-site indian_hrms_compliance.local
 	$ bench get-app erpnext
-	$ bench get-app hrms
-	$ bench --site hrms.local install-app hrms
-	$ bench --site hrms.local add-to-hosts
+	$ bench get-app indian_hrms_compliance
+	$ bench --site indian_hrms_compliance.local install-app indian_hrms_compliance
+	$ bench --site indian_hrms_compliance.local add-to-hosts
 	```
-3. You can access the site at `http://hrms.local:8080`
+3. You can access the site at `http://indian_hrms_compliance.local:8080`
 
 ## Learning and Community
 
