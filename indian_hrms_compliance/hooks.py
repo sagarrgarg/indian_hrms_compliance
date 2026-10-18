@@ -155,7 +155,12 @@ setup_wizard_requires = "assets/indian_hrms_compliance/js/setup_wizard.js"
 setup_wizard_stages = "indian_hrms_compliance.setup_wizard.get_setup_stages"
 setup_wizard_complete = "indian_hrms_compliance.subscription_utils.update_erpnext_access"
 
-extend_bootinfo = "indian_hrms_compliance.utils.extend_bootinfo"
+# port: v16 (utils.extend_bootinfo) and indian_hrms_compliance (boot.extend_bootinfo) both extend
+# bootinfo; a second assignment further below used to silently replace this one.
+extend_bootinfo = [
+	"indian_hrms_compliance.utils.extend_bootinfo",
+	"indian_hrms_compliance.boot.extend_bootinfo",
+]
 
 # Uninstallation
 # ------------
@@ -202,7 +207,7 @@ has_permission = {
 	"Goal": "indian_hrms_compliance.overrides.goal.has_permission",
 }
 
-extend_bootinfo = "indian_hrms_compliance.boot.extend_bootinfo"
+# (extend_bootinfo: see the combined list above)
 
 # has_permission = {
 # 	"Event": "frappe.desk.doctype.event.event.has_permission",
@@ -331,23 +336,20 @@ doc_events = {
 	"Project": {"validate": "indian_hrms_compliance.controllers.employee_boarding_controller.update_employee_boarding_status"},
 	"Task": {"on_update": "indian_hrms_compliance.controllers.employee_boarding_controller.update_task"},
 	# ---- Usage telemetry: recurring feature usage (see indian_hrms_compliance/telemetry.py) ----
-	"Leave Application": {"on_submit": "indian_hrms_compliance.telemetry.on_leave_application_submit"},
+	# (port: telemetry for Leave Application, Attendance Request, Employee Checkin, Appraisal,
+	#  Salary Structure and Salary Slip is merged into those doctypes' entries below — a second
+	#  dict key for the same doctype would silently override the first)
 	"Expense Claim": {"on_submit": "indian_hrms_compliance.telemetry.on_expense_claim_submit"},
-	"Attendance Request": {"on_submit": "indian_hrms_compliance.telemetry.on_attendance_request_submit"},
 	"Shift Request": {"on_submit": "indian_hrms_compliance.telemetry.on_shift_request_submit"},
-	"Employee Checkin": {"after_insert": "indian_hrms_compliance.telemetry.on_employee_checkin"},
 	"Payroll Entry": {"on_submit": "indian_hrms_compliance.telemetry.on_payroll_entry_submit"},
 	"Job Offer": {"on_submit": "indian_hrms_compliance.telemetry.on_job_offer_submit"},
-	"Appraisal": {"on_submit": "indian_hrms_compliance.telemetry.on_appraisal_submit"},
 	"Interview": {"on_submit": "indian_hrms_compliance.telemetry.on_interview_submit"},
 	# ---- Activation telemetry: post-install setup funnel (first-time milestones) ----
 	"Shift Type": {"after_insert": "indian_hrms_compliance.telemetry.on_milestone_insert"},
 	"Leave Type": {"after_insert": "indian_hrms_compliance.telemetry.on_milestone_insert"},
-	"Salary Structure": {"after_insert": "indian_hrms_compliance.telemetry.on_milestone_insert"},
 	"Job Opening": {"after_insert": "indian_hrms_compliance.telemetry.on_milestone_insert"},
 	"Appraisal Cycle": {"after_insert": "indian_hrms_compliance.telemetry.on_milestone_insert"},
 	"Employee Onboarding": {"after_insert": "indian_hrms_compliance.telemetry.on_milestone_insert"},
-	"Salary Slip": {"on_submit": "indian_hrms_compliance.telemetry.on_milestone_submit"},
 	"Job Requisition": {
 		"on_update": "indian_hrms_compliance.overrides.job_requisition_workflow.auto_create_opening_on_approval",
 	},
@@ -365,13 +367,17 @@ doc_events = {
 			# Straggler biometric punches for an already-Absent older day trigger a
 			# one-shot recompute/repost so late syncs self-heal without a watermark.
 			"indian_hrms_compliance.hr.doctype.employee_checkin.employee_checkin.heal_late_checkin",
+			"indian_hrms_compliance.telemetry.on_employee_checkin",
 		],
 	},
 	# Leave Application approved/cancelled also moves an employee between the
 	# on_leave and not_yet_in / in_now buckets.
 	"Leave Application": {
 		"on_update_after_submit": "indian_hrms_compliance.api.publish_org_attendance_refetch",
-		"on_submit": "indian_hrms_compliance.api.publish_org_attendance_refetch",
+		"on_submit": [
+			"indian_hrms_compliance.api.publish_org_attendance_refetch",
+			"indian_hrms_compliance.telemetry.on_leave_application_submit",
+		],
 	},
 	# Back-dated attendance requests beyond the HR-Settings months threshold can
 	# only be submitted by an HRMS Master Manager (the configured approval role).
@@ -381,6 +387,7 @@ doc_events = {
 	"Attendance Request": {
 		"after_insert": "indian_hrms_compliance.api.notify_approver_of_new_request",
 		"before_submit": "indian_hrms_compliance.overrides.attendance_backdated.guard_attendance_request",
+		"on_submit": "indian_hrms_compliance.telemetry.on_attendance_request_submit",
 	},
 	# Employee Advance & Resignation Request likewise lack the approver-notify
 	# mixin — tell the reporting manager when a fresh one is raised.
@@ -400,6 +407,7 @@ doc_events = {
 	},
 	"Appraisal": {
 		"validate": "indian_hrms_compliance.overrides.appraisal.populate_kra_performance",
+		"on_submit": "indian_hrms_compliance.telemetry.on_appraisal_submit",
 	},
 	"Employee Separation": {
 		"after_insert": "indian_hrms_compliance.overrides.employee_separation_no_dues.clone_no_dues_from_template",
@@ -426,6 +434,7 @@ doc_events = {
 	},
 	"Salary Structure": {
 		"validate": "indian_hrms_compliance.overrides.salary_structure_validator.validate_salary_structure",
+		"after_insert": "indian_hrms_compliance.telemetry.on_milestone_insert",
 	},
 	"Salary Structure Assignment": {
 		"validate": [
@@ -436,6 +445,7 @@ doc_events = {
 	# Once PF has been deducted on a Basic, no later slip may carry a lower one.
 	"Salary Slip": {
 		"validate": "indian_hrms_compliance.overrides.salary_structure_validator.validate_salary_slip_basic_floor",
+		"on_submit": "indian_hrms_compliance.telemetry.on_milestone_submit",
 	},
 	"PF ECR Filing": {
 		"on_update": "indian_hrms_compliance.overrides.compliance_calendar.auto_link_filing_on_save",
@@ -572,7 +582,7 @@ bank_reconciliation_doctypes = ["Expense Claim"]
 audit_trail_doctypes = ["Expense Claim", "Payroll Entry", "Salary Slip", "Leave Encashment", "Gratuity"]
 # Salary Slip posts its own GL (create_gl_entries), so Repost Accounting Ledger can
 # regenerate it after a data correction — no cancel/amend of the slip needed.
-repost_allowed_doctypes = ["Salary Slip"]
+# (port: merged with v16's ["Expense Claim"], which is assigned further below)
 
 # Testing
 # -------
@@ -687,4 +697,4 @@ ignore_translatable_strings_from = ["frappe", "erpnext"]
 employee_holiday_list = ["indian_hrms_compliance.utils.holiday_list.get_holiday_list_for_employee"]
 export_python_type_annotations = True
 require_type_annotated_api_methods = True
-repost_allowed_doctypes = ["Expense Claim"]
+repost_allowed_doctypes = ["Expense Claim", "Salary Slip"]
