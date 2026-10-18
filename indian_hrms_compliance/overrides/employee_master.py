@@ -1242,12 +1242,19 @@ def get_assignable_masters(company: str) -> dict[str, bool]:
 	"""Return whether a submitted master exists for each gated Employee assignment action"""
 	masters = {
 		"Leave Policy": {"docstatus": 1},
-		"Salary Structure": {"docstatus": 1, "is_active": "Yes", "company": company},
+		"Salary Structure": {"docstatus": 1, "is_active": "Yes"},
 		"Shift Schedule": {"docstatus": 1},
 	}
+	# A blank-company Salary Structure is a company-independent template usable by every
+	# company (indian_hrms_compliance 4f52c715c), so it counts alongside this company's own.
+	or_filters = {"Salary Structure": [["company", "=", company], ["company", "is", "not set"]]}
 
 	return {
-		doctype: bool(frappe.get_list(doctype, filters=filters, limit=1, pluck="name"))
+		doctype: bool(
+			frappe.get_list(
+				doctype, filters=filters, or_filters=or_filters.get(doctype), limit=1, pluck="name"
+			)
+		)
 		for doctype, filters in masters.items()
 	}
 
