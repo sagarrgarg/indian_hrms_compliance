@@ -66,7 +66,7 @@ def list_kras():
 	for r in frappe.get_all(
 		"HRMS Task",
 		filters={"status": "Active", "kra": ("in", [r.name for r in rows] or ["__none__"])},
-		fields=["kra", "count(name) as n"],
+		fields=["kra", {"COUNT": "name", "as": "n"}],
 		group_by="kra",
 	):
 		live_counts[r.kra] = r.n

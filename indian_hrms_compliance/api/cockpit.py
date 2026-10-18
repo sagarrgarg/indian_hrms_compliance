@@ -362,7 +362,7 @@ def get_org_integrity_summary(status: str = "Open", limit: int = 50) -> dict:
 		for r in frappe.get_all(
 			"Org Integrity Finding",
 			filters=filters,
-			fields=["severity", "count(name) as c"],
+			fields=["severity", {"COUNT": "name", "as": "c"}],
 			group_by="severity",
 		)
 		if r.severity
@@ -372,7 +372,7 @@ def get_org_integrity_summary(status: str = "Open", limit: int = 50) -> dict:
 		for r in frappe.get_all(
 			"Org Integrity Finding",
 			filters=filters,
-			fields=["check_type", "count(name) as c"],
+			fields=["check_type", {"COUNT": "name", "as": "c"}],
 			group_by="check_type",
 		)
 		if r.check_type
