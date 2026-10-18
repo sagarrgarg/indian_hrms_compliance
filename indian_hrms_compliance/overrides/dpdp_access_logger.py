@@ -10,7 +10,7 @@ Two integration surfaces:
 
   log_field_access(...)             — direct programmatic call, used by
                                        reports / exports / API endpoints.
-  log_form_load_access(doc, method) — doc_event 'on_load' wrapper. For
+  log_form_load_access(doc, method) — doc_event 'onload' wrapper. For
                                        each sensitive field defined for
                                        this doctype, logs a Read.
 
@@ -197,6 +197,9 @@ def log_field_access(
 			}
 		)
 		doc.insert(ignore_permissions=True)
+		# Desk opens forms with a GET request, and Frappe rolls GET requests back
+		# unless asked to commit. Ask, as Frappe's own View Log does, or the row is lost.
+		frappe.local.flags.commit = True
 		_set_throttle(user, subject_doctype, subject_record, field_accessed)
 	except Exception:
 		# Audit-log writes must NEVER break the underlying read. Eat all errors.
@@ -210,7 +213,7 @@ def log_field_access(
 
 
 def log_form_load_access(doc, method=None):
-	"""doc_event on_load hook — log each sensitive field defined for this
+	"""doc_event onload hook — log each sensitive field defined for this
 	doctype as a Read.
 
 	Skip rules:
