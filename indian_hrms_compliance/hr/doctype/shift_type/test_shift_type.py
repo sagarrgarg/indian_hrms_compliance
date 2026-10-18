@@ -34,6 +34,9 @@ class TestShiftType(HRMSTestSuite):
 		# (the retired last_sync_of_checkin watermark is gone); reset so a simulated
 		# clock in one test never leaks into the next.
 		frappe.flags.current_datetime = None
+		# v16: per-test isolation comes from ERPNextTestSuite.tearDown (rollback);
+		# v15's setUp-time deletes are gone upstream, so the parent must still run.
+		super().tearDown()
 
 	def test_mark_attendance(self):
 		from indian_hrms_compliance.hr.doctype.employee_checkin.test_employee_checkin import make_checkin
