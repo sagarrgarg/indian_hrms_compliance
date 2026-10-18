@@ -8,7 +8,7 @@ helper plus its wiring into Attendance, Leave Application, Shift Request and
 Shift Assignment."""
 
 import frappe
-from frappe.tests.utils import FrappeTestCase
+from frappe.tests import IntegrationTestCase
 
 from erpnext.setup.doctype.employee.test_employee import make_employee
 
@@ -19,7 +19,7 @@ DOJ = "2026-01-01"
 REL = "2026-06-30"
 
 
-class TestEmploymentWindowGuard(FrappeTestCase):
+class TestEmploymentWindowGuard(IntegrationTestCase):
 	@classmethod
 	def setUpClass(cls):
 		super().setUpClass()

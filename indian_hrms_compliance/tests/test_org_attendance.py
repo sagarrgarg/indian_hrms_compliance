@@ -3,12 +3,12 @@
 
 """Tests for get_org_attendance_today buckets, scope, dual-mode, and authorization."""
 
-from datetime import datetime, time as dtime
-
-from frappe.utils import add_days, getdate
+from datetime import datetime
+from datetime import time as dtime
 
 import frappe
-from frappe.tests.utils import FrappeTestCase
+from frappe.tests import IntegrationTestCase
+from frappe.utils import add_days, getdate
 
 from erpnext.setup.doctype.employee.test_employee import make_employee
 
@@ -16,7 +16,7 @@ from indian_hrms_compliance.api import get_org_attendance_today
 from indian_hrms_compliance.tests.test_utils import create_company
 
 
-class TestOrgAttendanceTodayMode(FrappeTestCase):
+class TestOrgAttendanceTodayMode(IntegrationTestCase):
 	def test_admin_gets_all_scope(self):
 		frappe.set_user("Administrator")
 		out = get_org_attendance_today()
@@ -58,7 +58,7 @@ class TestOrgAttendanceTodayMode(FrappeTestCase):
 		self.assertEqual(out["for_date"], str(getdate()))
 
 
-class TestOrgAttendancePastMode(FrappeTestCase):
+class TestOrgAttendancePastMode(IntegrationTestCase):
 	def test_yesterday_returns_past_mode_shape(self):
 		frappe.set_user("Administrator")
 		yesterday = str(add_days(getdate(), -1))
@@ -125,7 +125,7 @@ class TestOrgAttendancePastMode(FrappeTestCase):
 			self.assertEqual(card["company"], any_company)
 
 
-class TestOrgAttendanceLogTypeClassification(FrappeTestCase):
+class TestOrgAttendanceLogTypeClassification(IntegrationTestCase):
 	"""Biometric devices often push check-ins with no IN/OUT log type. Such
 	punches must still classify correctly: a lone punch means the person is In
 	for the day (not Out), and punches alternate IN/OUT thereafter."""

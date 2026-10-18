@@ -12,13 +12,14 @@ Covers the guided-onboarding wiring added for the convert-from-application flow:
     blanket auto-enrol is suppressed during setup)
 
 setup_new_employee() commits at the end, so each test patches frappe.db.commit
-to a no-op and relies on FrappeTestCase rollback for isolation.
+to a no-op and relies on IntegrationTestCase rollback for isolation.
 """
 
+import unittest
 from unittest.mock import patch
 
 import frappe
-from frappe.tests.utils import FrappeTestCase
+from frappe.tests import IntegrationTestCase
 from frappe.utils import add_months, getdate
 
 
@@ -26,14 +27,14 @@ def _first(doctype, filters=None):
 	return frappe.db.get_value(doctype, filters or {}, "name")
 
 
-class TestNewEmployeeSetup(FrappeTestCase):
+class TestNewEmployeeSetup(IntegrationTestCase):
 	@classmethod
 	def setUpClass(cls):
 		super().setUpClass()
 		cls.company = _first("Company")
 		cls.gender = _first("Gender")
 		if not (cls.company and cls.gender):
-			raise frappe.tests.utils.unittest.SkipTest("Company + Gender required.")
+			raise unittest.SkipTest("Company + Gender required.")
 		frappe.set_user("Administrator")
 
 	def tearDown(self):

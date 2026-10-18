@@ -15,7 +15,7 @@ from types import SimpleNamespace
 
 import frappe
 from frappe.exceptions import ValidationError
-from frappe.tests.utils import FrappeTestCase
+from frappe.tests import IntegrationTestCase
 from frappe.utils import add_months, getdate
 
 from indian_hrms_compliance.overrides.attendance_backdated import (
@@ -29,7 +29,7 @@ ROLE = "HRMS Master Manager"
 PLAIN_USER = "backdate.gate@example.com"
 
 
-class TestBackdatedAttendanceApproval(FrappeTestCase):
+class TestBackdatedAttendanceApproval(IntegrationTestCase):
 	def setUp(self):
 		frappe.set_user("Administrator")
 		if not frappe.db.exists("Role", ROLE):

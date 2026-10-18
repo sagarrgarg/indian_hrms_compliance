@@ -16,7 +16,7 @@ import urllib.parse
 
 import frappe
 from frappe.exceptions import ValidationError
-from frappe.tests.utils import FrappeTestCase
+from frappe.tests import IntegrationTestCase
 
 from indian_hrms_compliance.hr.doctype.employee_onboarding_application.employee_onboarding_application import (
 	generate_invite_link_full,
@@ -54,7 +54,7 @@ def _payload(email, pan, **kw):
 	return d
 
 
-class TestGuestRateLimit(FrappeTestCase):
+class TestGuestRateLimit(IntegrationTestCase):
 	def setUp(self):
 		frappe.set_user("Guest")
 		frappe.local.request_ip = "203.0.113.150"

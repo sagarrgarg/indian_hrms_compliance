@@ -11,7 +11,7 @@ on-demand current-value fetch endpoint.
 import unittest
 
 import frappe
-from frappe.tests.utils import FrappeTestCase
+from frappe.tests import IntegrationTestCase
 
 from indian_hrms_compliance.hr.doctype.employee_profile_change_request.employee_profile_change_request import (
 	SENSITIVE_FIELDS,
@@ -38,7 +38,7 @@ def _pick_employee():
 	)
 
 
-class TestProfileChangeRequestSubmit(FrappeTestCase):
+class TestProfileChangeRequestSubmit(IntegrationTestCase):
 	@classmethod
 	def setUpClass(cls):
 		super().setUpClass()
@@ -86,7 +86,7 @@ class TestProfileChangeRequestSubmit(FrappeTestCase):
 		self.assertEqual(doc.changes[0].new_value, "ABCDE1234F")
 
 
-class TestProfileChangeRequestApproval(FrappeTestCase):
+class TestProfileChangeRequestApproval(IntegrationTestCase):
 	@classmethod
 	def setUpClass(cls):
 		super().setUpClass()
@@ -145,7 +145,7 @@ class TestProfileChangeRequestApproval(FrappeTestCase):
 			approve_profile_change_request(self.res["name"])
 
 
-class TestProfileChangeRequestWithdraw(FrappeTestCase):
+class TestProfileChangeRequestWithdraw(IntegrationTestCase):
 	@classmethod
 	def setUpClass(cls):
 		super().setUpClass()
@@ -183,7 +183,7 @@ class TestProfileChangeRequestWithdraw(FrappeTestCase):
 			withdraw_profile_change_request(self.res["name"])
 
 
-class TestMaskAndCurrentValueEndpoint(FrappeTestCase):
+class TestMaskAndCurrentValueEndpoint(IntegrationTestCase):
 	def test_mask_aadhaar(self):
 		self.assertEqual(mask_value("aadhaar_number", "999999990019"), "XXXX XXXX 0019")
 
@@ -198,7 +198,7 @@ class TestMaskAndCurrentValueEndpoint(FrappeTestCase):
 		self.assertIn("aadhaar_number", SENSITIVE_FIELDS)
 
 
-class TestHistoryEndpoint(FrappeTestCase):
+class TestHistoryEndpoint(IntegrationTestCase):
 	@classmethod
 	def setUpClass(cls):
 		super().setUpClass()

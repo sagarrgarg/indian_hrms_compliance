@@ -8,7 +8,7 @@ dicts with the documented keys, summary must include all categories, and the
 realtime helpers must not raise."""
 
 import frappe
-from frappe.tests.utils import FrappeTestCase
+from frappe.tests import IntegrationTestCase
 
 from indian_hrms_compliance.api import (
 	_APPROVAL_CATEGORIES,
@@ -25,7 +25,7 @@ from indian_hrms_compliance.api import (
 REQUIRED_ITEM_KEYS = {"doctype", "name", "category", "title", "employee_name", "date", "action_type"}
 
 
-class TestInboxProviders(FrappeTestCase):
+class TestInboxProviders(IntegrationTestCase):
 	def test_every_provider_returns_list(self):
 		"""All 10 providers are callable and return a list (possibly empty)."""
 		for provider in _APPROVAL_PROVIDERS:
@@ -58,7 +58,7 @@ class TestInboxProviders(FrappeTestCase):
 			self.assertGreaterEqual(a, b, "items not in date desc order")
 
 
-class TestRealtimeHelpers(FrappeTestCase):
+class TestRealtimeHelpers(IntegrationTestCase):
 	def test_inbox_cache_keys_constants(self):
 		"""The two inbox cache keys must match what socket.js looks for."""
 		self.assertEqual(len(_INBOX_CACHE_KEYS), 2)

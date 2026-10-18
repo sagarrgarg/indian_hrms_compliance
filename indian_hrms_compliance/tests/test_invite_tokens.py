@@ -9,11 +9,12 @@ random 48-char token (zero PII). Legacy signed tokens (v2 + pipe formats)
 must keep verifying until they expire in the wild.
 """
 
+import unittest
 import urllib.parse
 from types import SimpleNamespace
 
 import frappe
-from frappe.tests.utils import FrappeTestCase
+from frappe.tests import IntegrationTestCase
 from frappe.utils import add_days, getdate
 
 from indian_hrms_compliance.hr.doctype.employee_onboarding_application.employee_onboarding_application import (
@@ -46,13 +47,13 @@ REQUIRED_DOCS = [
 ]
 
 
-class TestDraftInvites(FrappeTestCase):
+class TestDraftInvites(IntegrationTestCase):
 	@classmethod
 	def setUpClass(cls):
 		super().setUpClass()
 		cls.company, cls.designation = _company_and_designation()
 		if not (cls.company and cls.designation):
-			raise frappe.tests.utils.unittest.SkipTest("Company + Designation required.")
+			raise unittest.SkipTest("Company + Designation required.")
 		frappe.set_user("Administrator")
 
 	def tearDown(self):
@@ -251,7 +252,7 @@ class TestDraftInvites(FrappeTestCase):
 		self.assertTrue(doc.consent_timestamp)
 
 
-class TestLegacyTokens(FrappeTestCase):
+class TestLegacyTokens(IntegrationTestCase):
 	"""Links issued before the draft flow must keep working until expiry."""
 
 	def test_v2_roundtrip_and_tamper(self):
