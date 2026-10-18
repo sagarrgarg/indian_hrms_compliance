@@ -182,6 +182,13 @@ class BootStrapTestData:
 		self.make_records(["leave_type_name"], records)
 
 	def make_leave_period(self):
+		# Leave Period is global in indian_hrms_compliance and the app auto-creates one per
+		# Fiscal Year (hr/leave_period_setup.py, Fiscal Year after_insert); ERPNext's test
+		# bootstrap creates those fiscal years first, so this multi-year fixture would overlap.
+		if frappe.db.exists(
+			"Leave Period", {"from_date": ("<=", "2019-12-31"), "to_date": (">=", "2013-01-01")}
+		):
+			return
 		records = [
 			{
 				"doctype": "Leave Period",
