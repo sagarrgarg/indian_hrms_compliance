@@ -477,6 +477,13 @@ class SalarySlip(AccountsController):
 		return bool(frappe.get_cached_value("Salary Component", component, "statistical_component"))
 
 	def _gl_only_tax_impact(self, component):
+		# v16 removed Salary Component.only_tax_impact and all "Only Tax Impact" benefit
+		# logic (upstream 1113b660d): such components are now paid like any other
+		# earning, so they must post GL. Only honour the flag where the field still
+		# exists in the schema — never a stale column left behind by a v15 migration,
+		# which would leave Payroll Payable short of what the bank entry pays.
+		if not frappe.get_meta("Salary Component").has_field("only_tax_impact"):
+			return False
 		fb, oti = frappe.get_cached_value(
 			"Salary Component", component, ["is_flexible_benefit", "only_tax_impact"]
 		)
