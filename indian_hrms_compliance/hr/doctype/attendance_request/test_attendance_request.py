@@ -2,7 +2,7 @@
 # See license.txt
 
 import frappe
-from frappe.utils import add_days, add_months, get_year_ending, get_year_start, getdate
+from frappe.utils import add_days, add_months, get_datetime, get_year_ending, get_year_start, getdate
 
 from indian_hrms_compliance.hr.doctype.attendance.attendance import mark_attendance
 from indian_hrms_compliance.hr.doctype.attendance_request.attendance_request import OverlappingAttendanceRequestError
@@ -301,13 +301,17 @@ class TestAttendanceRequest(HRMSTestSuite):
 		# 2) Create shift type + assignment
 		shift_type = create_shift("Test Half Day Shift", "09:00:00", "17:00:00")
 		shift_type.process_attendance_after = add_days(today, -1)
-		shift_type.last_sync_of_checkin = add_days(today, 1)
 		shift_type.enable_auto_attendance = 1
 		shift_type.save()
 		create_shift_assignment(self.employee.name, shift_type.name, add_days(today, -1), add_days(today, 1))
 
 		# 3) Shift auto-attendance marks the other half absent when no checkins exist
-		frappe.get_doc("Shift Type", shift_type.name).mark_absent_for_half_day_dates(self.employee.name)
+		# port: freeze 'now' instead of the retired last_sync_of_checkin watermark
+		frappe.flags.current_datetime = get_datetime(add_days(today, 1))
+		try:
+			frappe.get_doc("Shift Type", shift_type.name).mark_absent_for_half_day_dates(self.employee.name)
+		finally:
+			frappe.flags.current_datetime = None
 		self.assertEqual(
 			frappe.db.get_value(
 				"Attendance", {"leave_application": leave_application.name}, "half_day_status"

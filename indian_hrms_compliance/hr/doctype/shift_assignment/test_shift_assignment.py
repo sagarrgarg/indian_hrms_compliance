@@ -268,7 +268,6 @@ class TestShiftAssignment(HRMSTestSuite):
 			overtime_type=overtime_type.name,
 			enable_auto_attendance=1,
 			allow_check_out_after_shift_end_time=300,
-			last_sync_of_checkin=now_datetime() + timedelta(days=2),
 		)
 
 		employee = make_employee(
@@ -280,7 +279,12 @@ class TestShiftAssignment(HRMSTestSuite):
 		make_checkin(employee, get_datetime(f"{getdate()} 08:00:00"))
 		make_checkin(employee, get_datetime(f"{getdate()} 19:00:00"), log_type="OUT")
 
-		shift_type.process_auto_attendance()
+		# port: freeze 'now' instead of the retired last_sync_of_checkin watermark
+		frappe.flags.current_datetime = now_datetime() + timedelta(days=2)
+		try:
+			shift_type.process_auto_attendance()
+		finally:
+			frappe.flags.current_datetime = None
 
 		attendance = frappe.db.get_value(
 			"Attendance",

@@ -596,7 +596,6 @@ class TestShiftType(HRMSTestSuite):
 			start_time="06:00:00",
 			end_time="22:00:00",
 			process_attendance_after=start_date,
-			last_sync_of_checkin=last_sync,
 		)
 		night_shift = setup_shift_type(
 			shift_type="Test Overlap Night",
@@ -605,14 +604,18 @@ class TestShiftType(HRMSTestSuite):
 			begin_check_in_before_shift_start_time=120,
 			allow_check_out_after_shift_end_time=180,
 			process_attendance_after=start_date,
-			last_sync_of_checkin=last_sync,
 		)
 
 		make_shift_assignment(day_shift.name, employee, start_date)
 		make_shift_assignment(night_shift.name, employee, start_date)
 
-		day_shift.process_auto_attendance()
-		night_shift.process_auto_attendance()
+		# port: freeze 'now' instead of the retired last_sync_of_checkin watermark
+		frappe.flags.current_datetime = last_sync
+		try:
+			day_shift.process_auto_attendance()
+			night_shift.process_auto_attendance()
+		finally:
+			frappe.flags.current_datetime = None
 
 		for shift in (day_shift, night_shift):
 			status = frappe.db.get_value(

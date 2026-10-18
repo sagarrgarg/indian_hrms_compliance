@@ -884,7 +884,6 @@ class TestEmployeeCheckin(HRMSTestSuite):
 			end_time="12:00:00",
 			allow_check_out_after_shift_end_time=630,
 			working_hours_threshold_for_half_day=3,
-			last_sync_of_checkin=datetime.combine(today, get_time("15:00:00")),
 		)
 		emp = make_employee("testhalfday5@example.com", company="_Test Company", default_shift=shift.name)
 		employee = frappe.get_doc("Employee", emp)
@@ -924,7 +923,12 @@ class TestEmployeeCheckin(HRMSTestSuite):
 		]
 
 		# sync before shift end: checkins aren't processed yet, half day shouldn't be force-closed
-		shift.process_auto_attendance()
+		# port: freeze 'now' instead of the retired last_sync_of_checkin watermark
+		frappe.flags.current_datetime = datetime.combine(today, get_time("15:00:00"))
+		try:
+			shift.process_auto_attendance()
+		finally:
+			frappe.flags.current_datetime = None
 
 		attendance = frappe.get_all("Attendance", filters=attendance_filters, fields=attendance_fields)
 		self.assertEqual(len(attendance), 1)
@@ -933,9 +937,12 @@ class TestEmployeeCheckin(HRMSTestSuite):
 		self.assertEqual(attendance[0].modify_half_day_status, 1)
 
 		# sync after shift end: checkins should update the same attendance, not raise DuplicateAttendanceError
-		shift.last_sync_of_checkin = datetime.combine(add_days(today, 1), get_time("01:00:00"))
-		shift.save()
-		shift.process_auto_attendance()
+		# port: freeze 'now' instead of the retired last_sync_of_checkin watermark
+		frappe.flags.current_datetime = datetime.combine(add_days(today, 1), get_time("01:00:00"))
+		try:
+			shift.process_auto_attendance()
+		finally:
+			frappe.flags.current_datetime = None
 
 		attendance = frappe.get_all("Attendance", filters=attendance_filters, fields=attendance_fields)
 		self.assertEqual(len(attendance), 1)

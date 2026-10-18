@@ -2,7 +2,7 @@
 # See license.txt
 
 import frappe
-from frappe.utils import add_days, flt, get_first_day, getdate, nowdate, today
+from frappe.utils import add_days, flt, get_datetime, get_first_day, getdate, nowdate, today
 
 from erpnext.setup.doctype.employee.test_employee import make_employee
 
@@ -96,7 +96,6 @@ class TestOvertimeSlip(HRMSTestSuite):
 			shift_type="_Test Overtime Shift",
 			allow_overtime=1,
 			overtime_type=overtime_type.name,
-			last_sync_of_checkin=f"{add_days(date, 10)} 15:00:00",
 			process_attendance_after=add_days(month_start_date, -1),
 			mark_auto_attendance_on_holidays=1,
 		)
@@ -109,7 +108,12 @@ class TestOvertimeSlip(HRMSTestSuite):
 			shift_type=shift_type.name, employee=employee, start_date=add_days(month_start_date, -1)
 		)
 		create_checkin_records_for_overtime(employee)
-		shift_type.process_auto_attendance()
+		# port: freeze 'now' instead of the retired last_sync_of_checkin watermark
+		frappe.flags.current_datetime = get_datetime(f"{add_days(date, 10)} 15:00:00")
+		try:
+			shift_type.process_auto_attendance()
+		finally:
+			frappe.flags.current_datetime = None
 
 		dates = get_start_end_dates("Monthly", nowdate())
 		payroll_entry = get_payroll_entry(
@@ -159,7 +163,6 @@ class TestOvertimeSlip(HRMSTestSuite):
 			shift_type="_Test Overtime Shift Mid Leaver",
 			allow_overtime=1,
 			overtime_type=overtime_type.name,
-			last_sync_of_checkin=f"{add_days(date, 10)} 15:00:00",
 			process_attendance_after=add_days(month_start_date, -1),
 			mark_auto_attendance_on_holidays=1,
 		)
@@ -172,7 +175,12 @@ class TestOvertimeSlip(HRMSTestSuite):
 			shift_type=shift_type.name, employee=employee, start_date=add_days(month_start_date, -1)
 		)
 		create_checkin_records_for_overtime(employee)
-		shift_type.process_auto_attendance()
+		# port: freeze 'now' instead of the retired last_sync_of_checkin watermark
+		frappe.flags.current_datetime = get_datetime(f"{add_days(date, 10)} 15:00:00")
+		try:
+			shift_type.process_auto_attendance()
+		finally:
+			frappe.flags.current_datetime = None
 
 		dates = get_start_end_dates("Monthly", nowdate())
 		payroll_entry = get_payroll_entry(
@@ -277,7 +285,6 @@ def setup_overtime(employee, overtime_calculation_method="Salary Component Based
 		shift_type="_Test Overtime Shift",
 		allow_overtime=1,
 		overtime_type=overtime_type.name,
-		last_sync_of_checkin=f"{add_days(date, 10)} 15:00:00",
 		process_attendance_after=add_days(month_start_date, -1),
 		mark_auto_attendance_on_holidays=1,
 	)
@@ -286,7 +293,12 @@ def setup_overtime(employee, overtime_calculation_method="Salary Component Based
 		shift_type=shift_type.name, employee=employee, start_date=add_days(month_start_date, -1)
 	)
 	create_checkin_records_for_overtime(employee)
-	shift_type.process_auto_attendance()
+	# port: freeze 'now' instead of the retired last_sync_of_checkin watermark
+	frappe.flags.current_datetime = get_datetime(f"{add_days(date, 10)} 15:00:00")
+	try:
+		shift_type.process_auto_attendance()
+	finally:
+		frappe.flags.current_datetime = None
 
 	slip = create_overtime_slip(employee)
 	slip.submit()
