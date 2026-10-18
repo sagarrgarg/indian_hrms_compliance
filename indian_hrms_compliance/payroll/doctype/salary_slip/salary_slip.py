@@ -281,16 +281,29 @@ class SalarySlip(AccountsController):
 		"""Post this slip's GL directly (or reverse on cancel) — replaces the
 		run-level accrual Journal Entry. Each slip is its own accounting voucher,
 		so submit = ledger posted, cancel = ledger reversed atomically."""
-		if cancel:
-			# Reverse the rows ACTUALLY posted for this voucher — never a freshly
-			# recomputed map. The split/cost-centre is derived from live external
-			# data (Salary Structure Assignment) that could drift between submit and
-			# cancel; reversing the stored rows keeps the ledger exactly net-zero.
-			make_reverse_gl_entries(voucher_type=self.doctype, voucher_no=self.name)
-			return
-		gl = self.get_gl_entries()
-		if gl:
-			make_gl_entries(gl, merge_entries=False)
+		# v16 requires the Payroll Payable account to be of type Payable (Payroll Entry
+		# validate_payroll_payable_account, upstream 8a5d057de), and GL then demands a
+		# party on it. Like v16's own payroll Journal Entries (party_not_required unless
+		# accounting is employee-wise), skip that party check for this slip's GL.
+		skip_party = not cint(
+			frappe.db.get_single_value("Payroll Settings", "process_payroll_accounting_entry_based_on_employee")
+		)
+		previous_flag = frappe.flags.party_not_required
+		if skip_party:
+			frappe.flags.party_not_required = True
+		try:
+			if cancel:
+				# Reverse the rows ACTUALLY posted for this voucher — never a freshly
+				# recomputed map. The split/cost-centre is derived from live external
+				# data (Salary Structure Assignment) that could drift between submit and
+				# cancel; reversing the stored rows keeps the ledger exactly net-zero.
+				make_reverse_gl_entries(voucher_type=self.doctype, voucher_no=self.name)
+				return
+			gl = self.get_gl_entries()
+			if gl:
+				make_gl_entries(gl, merge_entries=False)
+		finally:
+			frappe.flags.party_not_required = previous_flag
 
 	def make_gl_entries(self, cancel: bool = False):
 		"""Entry point for ERPNext's Repost Accounting Ledger (Salary Slip is listed
@@ -379,9 +392,11 @@ class SalarySlip(AccountsController):
 
 		# Net → Cr Payroll Payable. Mirror the bank entry exactly so the two net:
 		# same account (resolved above), and a party ONLY in employee-wise mode
-		# (the bank debit is party-less otherwise). No against_voucher — this is a
-		# plain Current Liability (account_type is forbidden on it), so netting is by
-		# account balance, and the bank side keys to the Payroll Entry, not the slip.
+		# (the bank debit is party-less otherwise).
+		# v16: the Payroll Payable account must be of type Payable, so it is also tracked
+		# in the Payment Ledger; reference the run (as v16's accrual JE does with
+		# reference_type "Payroll Entry") so the slip credit and the bank entry's debit,
+		# which references the Payroll Entry, net there too.
 		payable = flt(payable, 2)
 		if payable:
 			party_args = {}
@@ -389,6 +404,8 @@ class SalarySlip(AccountsController):
 				"Payroll Settings", "process_payroll_accounting_entry_based_on_employee"
 			)):
 				party_args = {"party_type": "Employee", "party": self.employee}
+			if self.payroll_entry:
+				party_args.update({"against_voucher_type": "Payroll Entry", "against_voucher": self.payroll_entry})
 			gl.append(self._gl_row(payable_account, credit=payable, cost_center=default_cc, **party_args))
 
 		# Employer provisions (statistical): self-balancing Dr/Cr, single cost center.
