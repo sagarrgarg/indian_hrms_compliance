@@ -298,6 +298,16 @@ class SalarySlip(AccountsController):
 				# data (Salary Structure Assignment) that could drift between submit and
 				# cancel; reversing the stored rows keeps the ledger exactly net-zero.
 				make_reverse_gl_entries(voucher_type=self.doctype, voucher_no=self.name)
+				# v16: stored GL rows don't carry advance_voucher_*, so reversing them can't
+				# delink this slip's Advance Payment Ledger rows (ERPNext only does that from a
+				# freshly built GL map). Delink them explicitly, so a recovered Employee
+				# Advance's return_amount is recomputed without this slip.
+				aple = frappe.qb.DocType("Advance Payment Ledger Entry")
+				(
+					frappe.qb.update(aple)
+					.set(aple.delinked, 1)
+					.where((aple.voucher_type == self.doctype) & (aple.voucher_no == self.name))
+				).run()
 				return
 			gl = self.get_gl_entries()
 			if gl:
@@ -374,6 +384,11 @@ class SalarySlip(AccountsController):
 				continue
 			acct = self.get_salary_component_account(d.salary_component)
 			advance = self._gl_advance_ref(d)
+			if advance:
+				# v16 credits the advance's own receivable (Employee Advance.advance_account,
+				# as Payroll Entry.add_advance_deduction_entry does), so the advance clears
+				# even when the deduction component maps to a different account.
+				acct = frappe.db.get_value("Employee Advance", advance, "advance_account") or acct
 			for cc, a in self._gl_split(amt, cost_centers):
 				if not a:
 					continue
