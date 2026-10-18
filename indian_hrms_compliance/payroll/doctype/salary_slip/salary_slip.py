@@ -2110,13 +2110,15 @@ class SalarySlip(AccountsController):
 				)
 
 	def add_employer_provision_row(self, struct_row, amount):
+		# v16: evaluated component rows (frappe._dict from the SSA) carry `precision`
+		# as an int, not a Document.precision() method
 		self.append(
 			"employer_provisions",
 			{
 				"salary_component": struct_row.salary_component,
 				"abbr": struct_row.abbr,
-				"amount": flt(amount, struct_row.precision("amount")),
-				"default_amount": flt(amount, struct_row.precision("amount")),
+				"amount": flt(amount, struct_row.precision),
+				"default_amount": flt(amount, struct_row.precision),
 				"depends_on_payment_days": struct_row.depends_on_payment_days,
 				"statistical_component": 1,
 				"do_not_include_in_total": 1,
