@@ -485,10 +485,13 @@ scheduler_events = {
 
 # Phase 6D — DPDP wiring (append-only).
 #
-# doc_events on_load hooks for sensitive doctypes — the access logger
+# doc_events onload hooks for sensitive doctypes — the access logger
 # decides which fields on each doctype trigger an audit row. Appended
 # outside the doc_events dict literal so we don't merge-collide with
 # existing entries (Employee already has 6 validate hooks).
+# The event is "onload", which Frappe fires when a form is opened
+# (frappe.desk.form.load.run_onload). It used to be registered as
+# "on_load", an event Frappe never fires, so nothing was logged.
 _dpdp_on_load = "indian_hrms_compliance.overrides.dpdp_access_logger.log_form_load_access"
 for _dt in (
 	"Employee",
@@ -500,15 +503,15 @@ for _dt in (
 	"POSH Complaint",
 ):
 	_entry = doc_events.setdefault(_dt, {})
-	_existing = _entry.get("on_load")
+	_existing = _entry.get("onload")
 	if _existing is None:
-		_entry["on_load"] = _dpdp_on_load
+		_entry["onload"] = _dpdp_on_load
 	elif isinstance(_existing, list):
 		if _dpdp_on_load not in _existing:
 			_existing.append(_dpdp_on_load)
 	elif isinstance(_existing, str):
 		if _existing != _dpdp_on_load:
-			_entry["on_load"] = [_existing, _dpdp_on_load]
+			_entry["onload"] = [_existing, _dpdp_on_load]
 del _dt, _entry, _existing
 
 # Weekly: DPDP retention purge.
