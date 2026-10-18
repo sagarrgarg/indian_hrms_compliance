@@ -1244,7 +1244,7 @@ class TestSalarySlip(HRMSTestSuite):
 
 		return emp_id, getdate(sunday)
 
-	@change_settings(
+	@HRMSTestSuite.change_settings(
 		"Payroll Settings",
 		{
 			"payroll_based_on": "Attendance",
@@ -1273,7 +1273,7 @@ class TestSalarySlip(HRMSTestSuite):
 		# 2 absent days + the Sunday they sandwich
 		self.assertEqual(ss.payment_days, working_days - 3)
 
-	@change_settings(
+	@HRMSTestSuite.change_settings(
 		"Payroll Settings",
 		{
 			"payroll_based_on": "Attendance",
@@ -1296,7 +1296,7 @@ class TestSalarySlip(HRMSTestSuite):
 		self.assertEqual(ss.sandwich_days, 0)
 		self.assertEqual(ss.payment_days, working_days - 1)
 
-	@change_settings(
+	@HRMSTestSuite.change_settings(
 		"Payroll Settings",
 		{
 			"payroll_based_on": "Attendance",
@@ -1319,7 +1319,7 @@ class TestSalarySlip(HRMSTestSuite):
 		self.assertEqual(ss.sandwich_days, 1)
 		self.assertEqual(ss.payment_days, working_days - 2)
 
-	@change_settings(
+	@HRMSTestSuite.change_settings(
 		"Payroll Settings",
 		{
 			"payroll_based_on": "Attendance",
@@ -1341,7 +1341,7 @@ class TestSalarySlip(HRMSTestSuite):
 		self.assertEqual(ss.sandwich_days, 0)
 		self.assertEqual(ss.payment_days, working_days - 2)
 
-	@change_settings(
+	@HRMSTestSuite.change_settings(
 		"Payroll Settings",
 		{
 			"payroll_based_on": "Attendance",
@@ -1369,7 +1369,7 @@ class TestSalarySlip(HRMSTestSuite):
 		self.assertEqual(ss.sandwich_days, 0)
 		self.assertEqual(ss.payment_days, no_of_days[0] - 3)
 
-	@change_settings(
+	@HRMSTestSuite.change_settings(
 		"Payroll Settings",
 		{
 			"payroll_based_on": "Leave",

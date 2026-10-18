@@ -417,20 +417,6 @@ class AttendanceRequest(Document):
 			),
 		)
 
-		if self.half_day and self.half_day_date and getdate(self.half_day_date) == getdate(attendance_date):
-			half_day_leaves = [
-				leave
-				for leave in leaves
-				if leave.half_day
-				and leave.half_day_date
-				and getdate(leave.half_day_date) == getdate(attendance_date)
-			]
-			# a single half day leave on this date leaves the other half for the request to mark
-			if len(half_day_leaves) == 1:
-				leaves.remove(half_day_leaves[0])
-
-		return leaves[0].name if leaves else None
-
 	def get_attendance_doc(self, attendance_date: str) -> str | None:
 		"""The existing Attendance for this employee + date, if any.
 
