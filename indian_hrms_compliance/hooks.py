@@ -124,6 +124,7 @@ website_route_rules = [
 jinja = {
 	"methods": [
 		"indian_hrms_compliance.utils.get_country",
+		"indian_hrms_compliance.compat.money_in_words",
 	],
 }
 

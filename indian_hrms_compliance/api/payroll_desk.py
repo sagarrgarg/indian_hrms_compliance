@@ -26,7 +26,7 @@ def _resolve_company(company=None):
 		return company
 	from indian_hrms_compliance.api.cockpit import _scope_company
 
-	return _scope_company() or frappe.db.get_value("Company", {}, "name")
+	return _scope_company() or frappe.db.get_value("Company", {}, "name", order_by="modified desc")
 
 
 # --------------------------------------------------------------------- overview

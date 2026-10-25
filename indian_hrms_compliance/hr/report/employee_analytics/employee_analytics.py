@@ -46,6 +46,7 @@ def get_employees(filters):
 	return frappe.get_list(
 		"Employee",
 		filters=filters_for_employees,
+		order_by="modified desc",
 		fields=[
 			"name",
 			"employee_name",

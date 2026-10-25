@@ -333,6 +333,7 @@ def _state_for_employee(employee):
 			"address_title": ("like", f"%{employee}%"),
 		},
 		"state",
+		order_by="modified desc",
 	)
 	if addr_state:
 		matched = _match_state(addr_state)

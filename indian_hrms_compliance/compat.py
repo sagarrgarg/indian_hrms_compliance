@@ -100,3 +100,70 @@ def prune_missing_workspace_links():
 		if link.link_to and not frappe.db.exists("DocType", link.link_to):
 			# a direct delete, not doc.save(), so developer mode doesn't re-export the JSON
 			frappe.db.delete("Workspace Link", {"name": link.name})
+
+
+# v15 Frappe's money_in_words, used on v16 so amounts in words keep v15's wording.
+# v16 takes the number format from the user's Language or System Settings rather than the
+# Currency, so INR could read "One Hundred And Twenty Thousand" instead of "One Lakh, Twenty
+# Thousand", and it derives decimals from fraction_units.
+_V15_FORMAT_DECIMALS = {
+	"#,###.##": 2, "#.###,##": 2, "# ###.##": 2, "# ###,##": 2, "#'###.##": 2, "#, ###.##": 2,
+	"#,##,###.##": 2, "#,###.###": 3, "#.###": 0, "#,###": 0, "#.########": 8,
+}
+
+
+def money_in_words(number, main_currency=None, fraction_currency=None):
+	from frappe.utils import money_in_words as frappe_money_in_words
+
+	if not IS_V16:
+		return frappe_money_in_words(number, main_currency, fraction_currency)
+
+	from frappe.utils import cint, flt, get_defaults, in_words
+
+	_ = frappe._
+	try:
+		number = float(number)
+	except ValueError:
+		return ""
+	number = flt(number)
+	if number < 0:
+		return ""
+	if not main_currency:
+		main_currency = get_defaults().get("currency", "INR")
+	if not fraction_currency:
+		fraction_currency = frappe.db.get_value("Currency", main_currency, "fraction", cache=True) or _("Cent")
+	number_format = (
+		frappe.db.get_value("Currency", main_currency, "number_format", cache=True)
+		or frappe.db.get_default("number_format")
+		or "#,###.##"
+	)
+	fraction_length = _V15_FORMAT_DECIMALS.get(number_format, 2)
+	n = f"%.{fraction_length}f" % number
+	numbers = n.split(".")
+	main, fraction = numbers if len(numbers) > 1 else [n, "00"]
+	if len(fraction) < fraction_length:
+		fraction += "0" * (fraction_length - len(fraction))
+	in_million = number_format != "#,##,###.##"
+
+	if main == "0" and fraction in ["00", "000"]:
+		out = _(main_currency, context="Currency") + " " + _("Zero")
+	elif main == "0":
+		out = in_words(fraction, in_million).title() + " " + _(fraction_currency, context="Currency")
+	else:
+		if main_currency == "DZD":
+			out = in_words(main, in_million).title() + " " + _("Dinars", context="Currency")
+		else:
+			out = _(main_currency, context="Currency") + " " + in_words(main, in_million).title()
+		if cint(fraction):
+			out = (
+				out + " " + _("and") + " " + in_words(fraction, in_million).title() + " "
+				+ _(fraction_currency, context="Currency")
+			)
+	if main_currency == "DZD":
+		return out + "."
+	return out + " " + _("only.")
+
+
+def commit_is_ignored() -> bool:
+	"""True inside v16 doc_events handlers, where frappe.db.commit() and rollback() do nothing."""
+	return bool(getattr(frappe.local.db, "_disable_transaction_control", 0))

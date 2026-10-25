@@ -35,6 +35,7 @@ from erpnext.controllers.accounts_controller import AccountsController
 from erpnext.setup.doctype.employee.employee import get_holiday_list_for_employee
 from erpnext.utilities.transaction_base import TransactionBase  # noqa: F401 (kept for back-compat)
 
+from indian_hrms_compliance import compat
 from indian_hrms_compliance.compat import agg
 from indian_hrms_compliance.hr.utils import validate_active_employee
 from indian_hrms_compliance.payroll.doctype.additional_salary.additional_salary import get_additional_salaries
@@ -245,8 +246,8 @@ class SalarySlip(AccountsController):
 		company_currency = erpnext.get_company_currency(self.company)
 		total = self.net_pay if self.is_rounding_total_disabled() else self.rounded_total
 		base_total = self.base_net_pay if self.is_rounding_total_disabled() else self.base_rounded_total
-		self.total_in_words = money_in_words(total, doc_currency)
-		self.base_total_in_words = money_in_words(base_total, company_currency)
+		self.total_in_words = compat.money_in_words(total, doc_currency)
+		self.base_total_in_words = compat.money_in_words(base_total, company_currency)
 
 	def on_update(self):
 		self.publish_update()

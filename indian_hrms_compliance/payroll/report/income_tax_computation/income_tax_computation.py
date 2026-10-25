@@ -60,7 +60,7 @@ class IncomeTaxComputationReport:
 			"relieving_date",
 		]
 
-		employees = frappe.get_all("Employee", filters=filters, fields=fields)
+		employees = frappe.get_all("Employee", filters=filters, fields=fields, order_by="modified desc")
 		ss_assignments = self.get_ss_assignments([d.employee for d in employees])
 
 		for d in employees:
