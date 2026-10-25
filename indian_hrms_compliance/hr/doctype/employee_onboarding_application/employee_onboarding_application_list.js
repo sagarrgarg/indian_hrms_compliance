@@ -35,7 +35,7 @@ frappe.listview_settings[APP_DOCTYPE] = {
 		if (!user_is_hr()) return;
 		listview.page
 			.add_inner_button(__("Generate Invite Link"), () => open_new_candidate_invite_dialog())
-			.addClass("btn-primary");
+			.addClass("btn-primary").each(indian_hrms_compliance.es_button_style);
 	},
 };
 

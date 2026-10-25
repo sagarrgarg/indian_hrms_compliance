@@ -59,7 +59,7 @@ frappe.ui.form.on("HRMS Task", {
 							.then((r) => {
 								const d = r.message;
 								if (!d) return;
-								const link = `<a href="/app/goal/${encodeURIComponent(d.goal)}" target="_blank">${frappe.utils.escape_html(d.goal || "")}</a>`;
+								const link = `<a href="${indian_hrms_compliance.desk_prefix()}/goal/${encodeURIComponent(d.goal)}" target="_blank">${frappe.utils.escape_html(d.goal || "")}</a>`;
 								frappe.msgprint({
 									title: d.created
 										? __("Test Instance Created ✅")

@@ -17,6 +17,9 @@ import ListView from "@/components/ListView.vue"
 
 
 const TAB_BUTTONS = ["My Claims", "Team Claims"] // __("My Claims"), __("Team Claims")
+// Frappe v16 takes aggregates as {COUNT: field, as: alias}; v15 only as a SQL string
+const IS_FRAPPE_V16 = (window.frappe?.boot?.frappe_major || 15) >= 16
+
 const EXPENSE_CLAIM_FIELDS = [
 	"`tabExpense Claim`.name",
 	"`tabExpense Claim`.employee",
@@ -28,7 +31,9 @@ const EXPENSE_CLAIM_FIELDS = [
 	"`tabExpense Claim`.posting_date",
 	"`tabExpense Claim`.company",
 	"`tabExpense Claim Detail`.expense_type",
-	"count(`tabExpense Claim Detail`.expense_type) as total_expenses",
+	IS_FRAPPE_V16
+		? { COUNT: "`tabExpense Claim Detail`.expense_type", as: "total_expenses" }
+		: "count(`tabExpense Claim Detail`.expense_type) as total_expenses",
 ]
 
 const FILTER_CONFIG = [

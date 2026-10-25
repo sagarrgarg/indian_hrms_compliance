@@ -160,7 +160,7 @@ frappe.ui.form.on("Payroll Entry", {
 		} else if (frm.doc.salary_slips_created && frm.doc.status !== "Queued") {
 			frm.add_custom_button(__("Submit Salary Slip"), function () {
 				submit_salary_slip(frm);
-			}).addClass("btn-primary");
+			}).addClass("btn-primary").each(indian_hrms_compliance.es_button_style);
 
 			// Recompute the DRAFT slips so they pick up anything edited after they
 			// were created — corrected attendance, advance recoveries, additional
@@ -186,7 +186,7 @@ frappe.ui.form.on("Payroll Entry", {
 		} else if (!frm.doc.salary_slips_created && frm.doc.status === "Failed") {
 			frm.add_custom_button(__("Create Salary Slips"), function () {
 				frm.trigger("create_salary_slip");
-			}).addClass("btn-primary");
+			}).addClass("btn-primary").each(indian_hrms_compliance.es_button_style);
 		}
 	},
 
@@ -195,11 +195,11 @@ frappe.ui.form.on("Payroll Entry", {
 			if (!r.message.has_bank_entries) {
 				frm.add_custom_button(__("Make Bank Entry"), function () {
 					make_bank_entry(frm);
-				}).addClass("btn-primary");
+				}).addClass("btn-primary").each(indian_hrms_compliance.es_button_style);
 			} else if (!r.message.has_bank_entries_for_withheld_salaries) {
 				frm.add_custom_button(__("Release Withheld Salaries"), function () {
 					make_bank_entry(frm, (for_withheld_salaries = 1));
-				}).addClass("btn-primary");
+				}).addClass("btn-primary").each(indian_hrms_compliance.es_button_style);
 			}
 		});
 	},

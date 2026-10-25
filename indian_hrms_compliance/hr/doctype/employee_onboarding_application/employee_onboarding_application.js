@@ -20,15 +20,15 @@ frappe.ui.form.on(APP_DOCTYPE, {
 		}
 
 		if (frm.doc.status === "Pending Verification") {
-			frm.add_custom_button(__("Mark Verified"), () => mark_verified(frm)).addClass("btn-primary");
-			frm.add_custom_button(__("Reject"), () => reject(frm)).addClass("btn-danger");
+			frm.add_custom_button(__("Mark Verified"), () => mark_verified(frm)).addClass("btn-primary").each(indian_hrms_compliance.es_button_style);
+			frm.add_custom_button(__("Reject"), () => reject(frm)).addClass("btn-danger").each(indian_hrms_compliance.es_button_style);
 		}
 
 		if (["Pending Verification", "Verified"].includes(frm.doc.status)) {
 			frm.add_custom_button(__("Convert to Employee"), () => {
 				frappe.route_options = { application: frm.doc.name };
 				frappe.set_route("new-employee-setup");
-			}).addClass("btn-primary");
+			}).addClass("btn-primary").each(indian_hrms_compliance.es_button_style);
 		}
 
 		if (frm.doc.status === "Converted" && frm.doc.linked_employee) {

@@ -10,7 +10,7 @@
 				<span class="ellipsis">{{ name }}</span>
 				<div class="btn-sm btn-edit-node">
 					<a class="node-edit-icon">
-						<svg class="es-icon es-line icon-xs icon">
+						<svg class="es-icon es-line icon-xs icon" style="fill: var(--icon-stroke); stroke: var(--icon-fill);">
 							<use href="#es-line-edit"></use>
 						</svg>
 					</a>
@@ -24,7 +24,12 @@
 
 				{% if is_mobile %}
 					<div class="node-connections text-muted ellipsis">
-						&nbsp;{{ connections }} <span class="fa fa-level-down"></span>
+						&nbsp;{{ connections }}
+						{% if (cint((frappe.boot.versions.frappe || "15").split(".")[0]) >= 16) { %}
+							<svg class="icon icon-xs"><use href="#icon-corner-right-down"></use></svg>
+						{% } else { %}
+							<span class="fa fa-level-down"></span>
+						{% } %}
 					</div>
 				{% else %}
 					{% if connections == 1 %}

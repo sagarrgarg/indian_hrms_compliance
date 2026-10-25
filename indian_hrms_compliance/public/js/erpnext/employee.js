@@ -214,7 +214,7 @@ frappe.ui.form.on("Employee", {
 							<td>${esc(l.warning_category)}</td>
 							<td>${esc(incident)}</td>
 							<td style="white-space:nowrap;">
-								<a href="/app/appointment-letter/${encodeURIComponent(l.name)}">${__("Open")}</a> ·
+								<a href="${indian_hrms_compliance.desk_prefix()}/appointment-letter/${encodeURIComponent(l.name)}">${__("Open")}</a> ·
 								<a href="/printview?doctype=Appointment%20Letter&name=${encodeURIComponent(l.name)}&format=Warning%20Letter" target="_blank">${__("Print")}</a>
 							</td></tr>`;
 					});
@@ -228,7 +228,7 @@ frappe.ui.form.on("Employee", {
 						html += `<tr>
 							<td style="white-space:nowrap;">${a.action_date ? frappe.datetime.str_to_user(a.action_date) : ""}</td>
 							<td>${esc(a.nature_of_misconduct)}</td><td>${esc(a.workflow_state)}</td><td>${esc(a.outcome)}</td>
-							<td><a href="/app/disciplinary-action/${encodeURIComponent(a.name)}">${__("Open")}</a></td></tr>`;
+							<td><a href="${indian_hrms_compliance.desk_prefix()}/disciplinary-action/${encodeURIComponent(a.name)}">${__("Open")}</a></td></tr>`;
 					});
 					html += `</tbody></table>`;
 				}

@@ -81,3 +81,22 @@ def hide_half_day_holidays():
 			update_modified=False,
 		)
 	frappe.db.set_value("Holiday List", {"is_half_day": 1}, "is_half_day", 0, update_modified=False)
+
+
+def prune_missing_workspace_links():
+	"""after_migrate / after_install: drop workspace links to DocTypes this Frappe lacks.
+
+	v16 removed Energy Points, and on v16 a single link to a missing DocType makes
+	Workspace.get_links return no cards at all, so the Performance workspace showed none.
+	No-op on v15, where every link target exists."""
+	workspaces = frappe.get_all("Workspace", filters={"module": ("in", ["HR", "Payroll"])}, pluck="name")
+	if not workspaces:
+		return
+	for link in frappe.get_all(
+		"Workspace Link",
+		filters={"parenttype": "Workspace", "parent": ("in", workspaces), "type": "Link", "link_type": "DocType"},
+		fields=["name", "link_to"],
+	):
+		if link.link_to and not frappe.db.exists("DocType", link.link_to):
+			# a direct delete, not doc.save(), so developer mode doesn't re-export the JSON
+			frappe.db.delete("Workspace Link", {"name": link.name})

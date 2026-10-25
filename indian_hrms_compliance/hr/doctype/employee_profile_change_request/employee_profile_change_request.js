@@ -17,8 +17,8 @@ frappe.ui.form.on(PCR_DOCTYPE, {
 				__("Approve & Apply"),
 				() => approve(frm),
 				__("Actions")
-			).addClass("btn-primary");
-			frm.add_custom_button(__("Reject"), () => reject(frm), __("Actions")).addClass("btn-danger");
+			).addClass("btn-primary").each(indian_hrms_compliance.es_button_style);
+			frm.add_custom_button(__("Reject"), () => reject(frm), __("Actions")).addClass("btn-danger").each(indian_hrms_compliance.es_button_style);
 		}
 
 		if (frm.doc.status === "Approved" && frm.doc.employee) {

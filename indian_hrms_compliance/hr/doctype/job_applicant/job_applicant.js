@@ -67,7 +67,7 @@ frappe.ui.form.on("Job Applicant", {
 					frm.events.send_onboarding_invite(frm);
 				},
 				__("Create"),
-			).addClass("btn-primary");
+			).addClass("btn-primary").each(indian_hrms_compliance.es_button_style);
 		}
 	},
 

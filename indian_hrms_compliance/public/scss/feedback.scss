@@ -39,7 +39,7 @@
 
 		.progress-bar-cosmetic {
 			background-color: var(--gray-600);
-			border-radius: var(--border-radius);
+			border-radius: var(--border-radius, 8px);
 		}
 	}
 
@@ -52,7 +52,7 @@
 
 .feedback-history {
 	.feedback-content {
-		border-radius: var(--border-radius);
+		border-radius: var(--border-radius, 8px);
 		border: 1px solid var(--border-color);
 	}
 

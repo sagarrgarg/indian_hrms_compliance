@@ -64,7 +64,7 @@ frappe.ui.form.on("Additional Salary", {
 				frappe.confirm(__("Approve this grant? It will be submitted and feed payroll."), () =>
 					call("approve_additional_salary"),
 				);
-			}).addClass("btn-success");
+			}).addClass("btn-success").each(indian_hrms_compliance.es_button_style);
 
 			frm.add_custom_button(__("Reject"), () => {
 				frappe.prompt(
@@ -80,7 +80,7 @@ frappe.ui.form.on("Additional Salary", {
 					__("Reject Grant"),
 					__("Reject"),
 				);
-			}).addClass("btn-danger");
+			}).addClass("btn-danger").each(indian_hrms_compliance.es_button_style);
 		}
 	},
 

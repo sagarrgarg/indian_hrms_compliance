@@ -51,7 +51,7 @@ frappe.ui.form.on("Employee Advance", {
 						frm.reload_doc()
 					},
 				})
-			}).addClass("btn-primary")
+			}).addClass("btn-primary").each(indian_hrms_compliance.es_button_style)
 		}
 
 		// Approver-side actions on the Desk form (same endpoints the PWA Advance
@@ -81,7 +81,7 @@ frappe.ui.form.on("Employee Advance", {
 						__("Approve this advance? It will be submitted so it can be paid."),
 						() => decide("approve_request"),
 					);
-				}).addClass("btn-success");
+				}).addClass("btn-success").each(indian_hrms_compliance.es_button_style);
 
 				frm.add_custom_button(__("Reject"), function () {
 					frappe.prompt(
@@ -97,7 +97,7 @@ frappe.ui.form.on("Employee Advance", {
 						__("Reject Advance"),
 						__("Reject"),
 					);
-				}).addClass("btn-danger");
+				}).addClass("btn-danger").each(indian_hrms_compliance.es_button_style);
 			}
 		}
 

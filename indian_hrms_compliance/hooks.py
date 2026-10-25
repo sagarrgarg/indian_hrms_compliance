@@ -143,6 +143,7 @@ after_migrate = [
 	"indian_hrms_compliance.setup.seed_backdated_attendance_role",
 	"indian_hrms_compliance.setup.apply_property_setters",
 	"indian_hrms_compliance.compat.hide_half_day_holidays",
+	"indian_hrms_compliance.compat.prune_missing_workspace_links",
 	"indian_hrms_compliance.regional.india.tax_defaults.seed_all",
 	"indian_hrms_compliance.setup.update_select_perm_after_install",
 	"indian_hrms_compliance.payroll.salary_component_accounts.backfill",

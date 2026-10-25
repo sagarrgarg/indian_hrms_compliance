@@ -19,7 +19,7 @@ frappe.ui.form.on("Employee Attendance Tool", {
 	reset_tool_actions(frm) {
 		frm.disable_save();
 		get_employees_button = this.cur_frm.fields_dict.get_employees.$input;
-		get_employees_button.removeClass("btn-default").addClass("btn-primary");
+		get_employees_button.removeClass("btn-default").addClass("btn-primary").each(indian_hrms_compliance.es_button_style);
 	},
 
 	get_employees: function (frm) {

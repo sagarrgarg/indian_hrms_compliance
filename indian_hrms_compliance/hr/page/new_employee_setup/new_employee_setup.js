@@ -221,8 +221,8 @@ frappe.pages["new-employee-setup"].on_page_load = function (wrapper) {
 			<div class="alert alert-success">
 				<div style="font-weight:600;margin-bottom:6px;">${__("Employee Created")}: ${frappe.utils.escape_html(m.employee)}</div>
 				<ul style="margin:0 0 8px 18px;">${items}</ul>
-				<a class="btn btn-xs btn-default" href="/app/employee/${encodeURIComponent(m.employee)}">${__("Open Employee")}</a>
-				${m.user ? `<a class="btn btn-xs btn-default" href="/app/user/${encodeURIComponent(m.user)}">${__("Open User")}</a>` : ""}
+				<a class="btn btn-xs btn-default" href="${indian_hrms_compliance.desk_prefix()}/employee/${encodeURIComponent(m.employee)}">${__("Open Employee")}</a>
+				${m.user ? `<a class="btn btn-xs btn-default" href="${indian_hrms_compliance.desk_prefix()}/user/${encodeURIComponent(m.user)}">${__("Open User")}</a>` : ""}
 				<button class="btn btn-xs btn-primary nes-another">${__("Create Another")}</button>
 			</div>
 		`);

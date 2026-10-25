@@ -28,7 +28,7 @@ function _indian_hrms_check_overdue_policy_acks() {
 
 	const rows = overdue
 		.map((a) => {
-			const link = `<a href="/app/employee-policy-acknowledgement/${a.name}">Open</a>`;
+			const link = `<a href="${indian_hrms_compliance.desk_prefix()}/employee-policy-acknowledgement/${a.name}">Open</a>`;
 			return `<tr>
 				<td>${frappe.utils.escape_html(a.policy_name_fetched || a.policy)}</td>
 				<td>${frappe.utils.escape_html(a.policy_version || "")}</td>

@@ -1,6 +1,8 @@
 import frappe
 from frappe.boot import load_translations
 
+from indian_hrms_compliance.compat import FRAPPE_MAJOR
+
 no_cache = 1
 
 
@@ -27,6 +29,7 @@ def get_boot():
 			"site_name": frappe.local.site,
 			"push_relay_server_url": frappe.conf.get("push_relay_server_url") or "",
 			"default_route": get_default_route(),
+			"frappe_major": FRAPPE_MAJOR,
 		}
 	)
 

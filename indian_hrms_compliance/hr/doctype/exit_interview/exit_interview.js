@@ -19,7 +19,7 @@ frappe.ui.form.on("Exit Interview", {
 			if (!message.relieving_date) {
 				frappe.throw({
 					message: __("Please set the relieving date for employee {0}", [
-						'<a href="/app/employee/' +
+						'<a href="' + indian_hrms_compliance.desk_prefix() + '/employee/' +
 							frm.doc.employee +
 							'">' +
 							frm.doc.employee +

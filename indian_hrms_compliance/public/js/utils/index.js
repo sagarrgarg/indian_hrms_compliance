@@ -1,6 +1,23 @@
 frappe.provide("indian_hrms_compliance");
 
 $.extend(indian_hrms_compliance, {
+	// The desk lives at /app on Frappe v15 and /desk on v16. v16 only redirects /app links,
+	// which reloads the whole desk, so build links with the prefix of the running version.
+	desk_prefix: () => (frappe.router.is_app_route("/desk") ? "/desk" : "/app"),
+	// v16 custom buttons are .es-button, styled by data-variant/data-theme rather than btn-*
+	// classes, so a btn-primary added to one has no effect. Use as .each(...) after addClass.
+	es_button_style: (i, el) => {
+		const $b = $(el);
+		if (!$b.hasClass("es-button")) return;
+		if ($b.is(".btn-primary, .btn-success, .btn-danger, .btn-warning, .btn-info")) {
+			$b.attr("data-variant", "solid");
+		}
+		if ($b.hasClass("btn-danger")) $b.attr("data-theme", "red");
+	},
+	fix_desk_links: (html) =>
+		indian_hrms_compliance.desk_prefix() === "/app"
+			? html
+			: String(html).replace(/href=(["'])\/app\//g, "href=$1/desk/"),
 	proceed_save_with_reminders_frequency_change: () => {
 		frappe.ui.hide_open_dialog();
 		frappe.call({
@@ -142,9 +159,11 @@ $.extend(indian_hrms_compliance, {
 		if (failure.length) {
 			message += __("Failed to {0} {1} for employees:", [action, doctype]);
 			message += " " + frappe.utils.comma_and(failure) + "<hr>";
-			message += __(
-				"Check <a href='/app/List/Error Log?reference_doctype={0}'>{1}</a> for more details",
-				[doctype, __("Error Log")],
+			message += indian_hrms_compliance.fix_desk_links(
+				__("Check <a href='/app/List/Error Log?reference_doctype={0}'>{1}</a> for more details", [
+					doctype,
+					__("Error Log"),
+				]),
 			);
 			title = __("Failure");
 			indicator = "red";

@@ -108,7 +108,7 @@ frappe.pages["payroll-control"].on_page_load = function (wrapper) {
 				const badge = i.ok
 					? `<span class="pcc-badge" style="background:#059669">✓</span>`
 					: `<span class="pcc-badge" style="background:#d97706">!</span>`;
-				return `<div class="pcc-chk">${badge}<div style="flex:1"><div class="t">${frappe.utils.escape_html(i.label)}</div><div class="d">${frappe.utils.escape_html(i.detail || "")}</div></div>${i.route ? `<a href="${i.route}" target="_blank">${__("Open")}</a>` : ""}</div>`;
+				return `<div class="pcc-chk">${badge}<div style="flex:1"><div class="t">${frappe.utils.escape_html(i.label)}</div><div class="d">${frappe.utils.escape_html(i.detail || "")}</div></div>${i.route ? `<a href="${i.route.replace(/^\/app\//, indian_hrms_compliance.desk_prefix() + "/")}" target="_blank">${__("Open")}</a>` : ""}</div>`;
 			})
 			.join("");
 		const erBar = er.total
@@ -155,7 +155,7 @@ frappe.pages["payroll-control"].on_page_load = function (wrapper) {
 				: `<div style="font-size:12px;color:#059669;">${__("No overdue or upcoming statutory filings 🎉")}</div>`;
 		$body.find(".pcc-compliance").html(
 			`<div class="pcc-card"><h3>${__("Statutory Deadlines (45 days)")}</h3>${body}
-			<div style="margin-top:10px;"><a class="pcc-link" href="/app/compliance-filing" target="_blank">${__("Open Compliance Calendar")}</a></div></div>`
+			<div style="margin-top:10px;"><a class="pcc-link" href="${indian_hrms_compliance.desk_prefix()}/compliance-filing" target="_blank">${__("Open Compliance Calendar")}</a></div></div>`
 		);
 	}
 
@@ -164,7 +164,7 @@ frappe.pages["payroll-control"].on_page_load = function (wrapper) {
 		const body = runs.length
 			? runs
 					.map(
-						(r) => `<div class="pcc-row"><a href="/app/payroll-entry/${encodeURIComponent(r.name)}" target="_blank">${r.name}</a>
+						(r) => `<div class="pcc-row"><a href="${indian_hrms_compliance.desk_prefix()}/payroll-entry/${encodeURIComponent(r.name)}" target="_blank">${r.name}</a>
 				<span><span style="color:#6b7280;font-size:11px;margin-right:8px;">${frappe.datetime.str_to_user(r.start_date)} – ${frappe.datetime.str_to_user(r.end_date)}</span>
 				<span class="pcc-pill" style="background:#eef2ff;color:#4338ca;">${frappe.utils.escape_html(r.status || "")}</span></span></div>`
 					)
@@ -186,7 +186,7 @@ frappe.pages["payroll-control"].on_page_load = function (wrapper) {
 		];
 		$body.find(".pcc-links").html(
 			`<div class="pcc-card"><h3>${__("Quick Links")}</h3>${links
-				.map(([t, u]) => `<a class="pcc-link" href="${u}" target="_blank">${__(t)}</a>`)
+				.map(([t, u]) => `<a class="pcc-link" href="${u.replace(/^\/app\//, indian_hrms_compliance.desk_prefix() + "/")}" target="_blank">${__(t)}</a>`)
 				.join("")}</div>`
 		);
 	}

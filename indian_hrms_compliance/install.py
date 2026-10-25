@@ -23,6 +23,7 @@ def after_install():
 		setup()
 		run_setup_patches()
 		compat.hide_half_day_holidays()
+		compat.prune_missing_workspace_links()
 
 		click.secho("Thank you for installing Frappe HR!", fg="green")
 

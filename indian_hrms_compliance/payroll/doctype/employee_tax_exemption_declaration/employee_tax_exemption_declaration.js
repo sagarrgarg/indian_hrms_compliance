@@ -30,7 +30,7 @@ frappe.ui.form.on("Employee Tax Exemption Declaration", {
 					method: "indian_hrms_compliance.payroll.doctype.employee_tax_exemption_declaration.employee_tax_exemption_declaration.make_proof_submission",
 					frm: frm,
 				});
-			}).addClass("btn-primary");
+			}).addClass("btn-primary").each(indian_hrms_compliance.es_button_style);
 		}
 	},
 

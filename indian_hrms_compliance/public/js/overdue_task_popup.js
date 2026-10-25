@@ -21,7 +21,7 @@ function _indian_hrms_check_overdue_tasks() {
 
 	const rows = overdue
 		.map((t) => {
-			const link = `<a href="/app/goal/${t.name}">Open</a>`;
+			const link = `<a href="${indian_hrms_compliance.desk_prefix()}/goal/${t.name}">Open</a>`;
 			return `<tr>
 				<td>${frappe.utils.escape_html(t.goal_name || t.task_template || t.name)}</td>
 				<td>${frappe.utils.escape_html(t.kra || "")}</td>
