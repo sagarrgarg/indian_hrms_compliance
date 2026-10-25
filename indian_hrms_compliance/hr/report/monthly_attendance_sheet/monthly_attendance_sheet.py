@@ -32,6 +32,19 @@ status_map = {
 	"Weekly Off": "WO",
 }
 
+# Legend colour per status, kept beside status_map so a new status can't leave the legend short.
+status_colors = {
+	"Present": "green",
+	"Absent": "red",
+	"Half Day/Other Half Absent": "orange",
+	"Half Day/Other Half Present": "#914EE3",
+	"Half Day/Other Half WFH": "#914EE3",
+	"Work From Home": "green",
+	"On Leave": "#3187D8",
+	"Holiday": "#878787",
+	"Weekly Off": "#878787",
+}
+
 day_abbr = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
 
@@ -80,25 +93,12 @@ def execute(filters: Filters | None = None) -> tuple:
 
 def get_message() -> str:
 	message = ""
-	colors = [
-		"green",
-		"red",
-		"orange",
-		"#914EE3",
-		"green",
-		"#3187D8",
-		"#878787",
-		"#878787",
-	]
-
-	count = 0
 	for status, abbr in status_map.items():
 		message += f"""
-			<span style='border-left: 2px solid {colors[count]}; padding-right: 12px; padding-left: 5px; margin-right: 3px;'>
+			<span style='border-left: 2px solid {status_colors.get(status, "#878787")}; padding-right: 12px; padding-left: 5px; margin-right: 3px;'>
 				{_(status)} - {abbr}
 			</span>
 		"""
-		count += 1
 
 	return message
 
@@ -726,9 +726,13 @@ def get_chart_data(attendance_map: dict, filters: Filters) -> dict:
 					total_absent_on_day += 1
 				elif attendance_on_day in ["Present", "Work From Home"]:
 					total_present_on_day += 1
-				elif attendance_on_day == "Half Day":
-					total_present_on_day += 0.5
+				elif attendance_on_day and attendance_on_day.startswith("Half Day"):
+					# Half day leave; the other half is absent only when marked so
 					total_leaves_on_day += 0.5
+					if attendance_on_day == "Half Day/Other Half Absent":
+						total_absent_on_day += 0.5
+					else:
+						total_present_on_day += 0.5
 
 		absent.append(total_absent_on_day)
 		present.append(total_present_on_day)
