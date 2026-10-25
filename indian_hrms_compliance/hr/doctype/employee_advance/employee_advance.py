@@ -79,6 +79,10 @@ class EmployeeAdvance(Document):
 					title=_("Missing Advance Account"),
 				)
 
+	def on_discard(self):
+		# Frappe v16's Discard sets docstatus 2 on a draft; keep status in step (v15 never calls this)
+		self.db_set("status", "Cancelled")
+
 	def on_cancel(self):
 		self.ignore_linked_doctypes = ("GL Entry", "Payment Ledger Entry", "Advance Payment Ledger Entry")
 		self.check_linked_payment_entry()

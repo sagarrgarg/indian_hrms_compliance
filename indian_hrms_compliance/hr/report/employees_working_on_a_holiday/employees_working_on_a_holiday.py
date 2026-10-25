@@ -60,7 +60,7 @@ def get_data(filters):
 	if filters.department:
 		employee_filters["department"] = filters.department
 
-	for employee in frappe.get_list("Employee", filters=employee_filters, pluck="name"):
+	for employee in frappe.get_list("Employee", filters=employee_filters, pluck="name", order_by="modified desc"):
 		holiday_list = get_holiday_list_for_employee(employee, raise_exception=False)
 		if not holiday_list or (filters.holiday_list and filters.holiday_list != holiday_list):
 			continue

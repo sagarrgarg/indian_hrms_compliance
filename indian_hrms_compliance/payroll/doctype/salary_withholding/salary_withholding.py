@@ -12,6 +12,10 @@ from frappe.utils import add_days, add_to_date, cint, get_link_to_form, getdate
 
 
 class SalaryWithholding(Document):
+	def on_discard(self):
+		# Frappe v16's Discard sets docstatus 2 on a draft; keep status in step (v15 never calls this)
+		self.db_set("status", "Cancelled")
+
 	def validate(self):
 		if not self.payroll_frequency:
 			self.payroll_frequency = get_payroll_frequency(self.employee, self.from_date)

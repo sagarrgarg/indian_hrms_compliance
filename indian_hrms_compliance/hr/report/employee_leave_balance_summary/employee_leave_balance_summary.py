@@ -51,6 +51,7 @@ def get_data(filters, leave_types):
 		"Employee",
 		filters=conditions,
 		fields=["name", "employee_name", "department", "user_id"],
+		order_by="modified desc",
 	)
 
 	data = []

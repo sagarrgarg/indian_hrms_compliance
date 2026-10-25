@@ -142,6 +142,7 @@ after_migrate = [
 	"indian_hrms_compliance.setup.seed_governance_profile",
 	"indian_hrms_compliance.setup.seed_backdated_attendance_role",
 	"indian_hrms_compliance.setup.apply_property_setters",
+	"indian_hrms_compliance.compat.hide_half_day_holidays",
 	"indian_hrms_compliance.regional.india.tax_defaults.seed_all",
 	"indian_hrms_compliance.setup.update_select_perm_after_install",
 	"indian_hrms_compliance.payroll.salary_component_accounts.backfill",
@@ -244,6 +245,7 @@ doc_events = {
 		"validate": "indian_hrms_compliance.payroll.salary_component_accounts.ensure_component_rows",
 	},
 	"Holiday List": {
+		"validate": "indian_hrms_compliance.compat.neutralise_half_day_holidays",
 		"on_update": "indian_hrms_compliance.utils.holiday_list.invalidate_cache",
 		"on_trash": "indian_hrms_compliance.utils.holiday_list.invalidate_cache",
 	},
@@ -527,6 +529,8 @@ scheduler_events.setdefault("monthly", []).append(
 )
 
 advance_payment_doctypes = ["Leave Encashment", "Gratuity", "Employee Advance"]
+# ERPNext v16 reads this name instead (v15 ignores it)
+advance_payment_payable_doctypes = ["Leave Encashment", "Gratuity", "Employee Advance"]
 
 invoice_doctypes = ["Expense Claim"]
 

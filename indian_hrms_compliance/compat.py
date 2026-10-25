@@ -44,3 +44,40 @@ def literal(value: str, alias: str):
 
 		return ValueWrapper(value).as_(alias)
 	return f"'{value}' as {alias}"
+
+
+def neutralise_half_day_holidays(doc, method=None):
+	"""Holiday List validate hook: keep every holiday a full day on v16.
+
+	ERPNext v16 added Holiday(.List).is_half_day. Its holiday_list.is_holiday() skips half-day
+	rows while employee.is_holiday() and this app's payroll and leave code count them as full
+	holidays, so attendance and payroll would disagree about the same day. v15 has no half-day
+	holidays; this keeps that meaning."""
+	if not IS_V16:
+		return
+	doc.is_half_day = 0
+	for row in doc.get("holidays") or []:
+		row.is_half_day = 0
+	doc.total_holidays = len(doc.get("holidays") or [])
+
+
+def hide_half_day_holidays():
+	"""after_migrate / after_install: hide v16's half-day holiday checkboxes and clear any
+	rows ticked before this fix (see neutralise_half_day_holidays)."""
+	if not IS_V16 or not frappe.get_meta("Holiday").has_field("is_half_day"):
+		return
+	from frappe.custom.doctype.property_setter.property_setter import make_property_setter
+
+	for doctype in ("Holiday List", "Holiday"):
+		make_property_setter(doctype, "is_half_day", "hidden", 1, "Check", validate_fields_for_doctype=False)
+
+	for holiday_list in frappe.get_all("Holiday", filters={"is_half_day": 1}, pluck="parent", distinct=True):
+		frappe.db.set_value("Holiday", {"parent": holiday_list, "is_half_day": 1}, "is_half_day", 0)
+		frappe.db.set_value(
+			"Holiday List",
+			holiday_list,
+			"total_holidays",
+			frappe.db.count("Holiday", {"parent": holiday_list}),
+			update_modified=False,
+		)
+	frappe.db.set_value("Holiday List", {"is_half_day": 1}, "is_half_day", 0, update_modified=False)

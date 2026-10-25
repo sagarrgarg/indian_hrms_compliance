@@ -133,6 +133,10 @@ class PayrollEntry(Document):
 				).format(frappe.bold(get_link_to_form("Account", self.payroll_payable_account)))
 			)
 
+	def on_discard(self):
+		# Frappe v16's Discard sets docstatus 2 on a draft; keep status in step (v15 never calls this)
+		self.db_set("status", "Cancelled")
+
 	def on_cancel(self):
 		self.ignore_linked_doctypes = ("GL Entry", "Salary Slip", "Journal Entry")
 

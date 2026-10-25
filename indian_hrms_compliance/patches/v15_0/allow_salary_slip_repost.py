@@ -12,6 +12,15 @@ import frappe
 
 
 def execute():
+	if not frappe.db.exists("DocType", "Repost Accounting Ledger Settings"):
+		# ERPNext v16 moved the allowed types into Accounts Settings
+		settings = frappe.get_single("Accounts Settings")
+		if "Salary Slip" not in [d.document_type for d in settings.repost_allowed_types]:
+			settings.append("repost_allowed_types", {"document_type": "Salary Slip"})
+			settings.flags.ignore_permissions = True
+			settings.save()
+		return
+
 	settings = frappe.get_single("Repost Accounting Ledger Settings")
 	row = next((d for d in settings.allowed_types if d.document_type == "Salary Slip"), None)
 	if row and row.allowed:
