@@ -22,8 +22,10 @@
    "title": "Payroll"
   }
  ],
- "modified": "2026-10-25 20:00:00",
+ "modified": "2026-10-25 21:00:00.000000",
  "modified_by": "Administrator",
  "name": "indian_hrms_compliance",
- "owner": "Administrator"
+ "owner": "Administrator",
+ "standard": 1,
+ "user": ""
 }
