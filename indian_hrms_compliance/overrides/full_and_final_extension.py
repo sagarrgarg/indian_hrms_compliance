@@ -350,9 +350,12 @@ def _apply_tds_line(doc):
 def _compute_tds(doc):
 	"""Returns the TDS amount to deduct on this FnF. Returns 0 when no
 	slab applies."""
-	from frappe.utils import get_fiscal_year
+	from erpnext.accounts.utils import FiscalYearError, get_fiscal_year
 
-	fy = get_fiscal_year(doc.relieving_date, as_dict=True)
+	try:
+		fy = get_fiscal_year(doc.relieving_date, company=doc.company, as_dict=True)
+	except FiscalYearError:
+		return 0
 	if not fy:
 		return 0
 
