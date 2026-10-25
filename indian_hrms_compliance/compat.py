@@ -40,7 +40,7 @@ def agg(func: str, field: str, alias: str):
 def literal(value: str, alias: str):
 	"""A constant column, e.g. 'Attendance' as doctype, for get_all / get_list `fields`."""
 	if IS_V16:
-		from frappe.query_builder import ValueWrapper
+		from frappe.query_builder.terms import ValueWrapper
 
 		return ValueWrapper(value).as_(alias)
 	return f"'{value}' as {alias}"
