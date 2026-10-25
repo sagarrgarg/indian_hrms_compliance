@@ -55,6 +55,7 @@ def run_setup_patches():
 
 	print("Running setup patches...")
 	failed = []
+	developer_mode = frappe.conf.developer_mode  # run_single switches it off for the process
 	for patch in setup_patches:
 		try:
 			run_single(patch, force=True)
@@ -63,6 +64,7 @@ def run_setup_patches():
 			frappe.db.rollback()
 			failed.append(patch.split()[0])
 			frappe.log_error(f"Setup patch failed on install: {patch}")
+	frappe.conf.developer_mode = developer_mode
 
 	if failed:
 		click.secho("These setup patches failed (see Error Log): " + ", ".join(failed), fg="yellow")

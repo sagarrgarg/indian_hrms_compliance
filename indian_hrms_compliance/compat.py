@@ -31,10 +31,11 @@ def agg(func: str, field: str, alias: str):
 
 	v16 rejects SQL functions written as strings ("SUM(x) as y") and takes
 	{"SUM": "x", "as": "y"} instead; v15 only understands the string form."""
-	func = func.upper()
 	if IS_V16:
-		return {func: field, "as": alias}
-	return f"{func}({field}) as {alias}"
+		return {func.upper(): field, "as": alias}
+	# lower case: v15 only recognises "count(", "sum(", ... in lower case when it parses
+	# child-table fields such as count(`tabExpense Claim Detail`.expense_type)
+	return f"{func.lower()}({field}) as {alias}"
 
 
 def literal(value: str, alias: str):
