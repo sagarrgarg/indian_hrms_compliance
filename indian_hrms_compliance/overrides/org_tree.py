@@ -140,7 +140,7 @@ def _rebuild_employee_tree() -> None:
 	compute wrong descendants. A rebuild keeps it consistent. Wrapped so a rebuild
 	hiccup never fails the head-edit / propagation itself."""
 	try:
-		from frappe.utils.nestedset import rebuild_tree
+		from indian_hrms_compliance.compat import rebuild_tree
 
 		rebuild_tree("Employee", "reports_to")
 	except Exception:
