@@ -25,6 +25,7 @@ from erpnext.setup.doctype.employee.employee import get_holiday_list_for_employe
 
 import indian_hrms_compliance
 from indian_hrms_compliance.api import get_current_employee_info
+from indian_hrms_compliance.compat import agg
 from indian_hrms_compliance.hr.doctype.attendance_request.attendance_request import (
 	get_wfh_request,
 	wfh_only_status,
@@ -1205,7 +1206,7 @@ def get_leaves_pending_approval_for_period(
 			"from_date": ["between", (from_date, to_date)],
 			"to_date": ["between", (from_date, to_date)],
 		},
-		fields=["SUM(total_leave_days) as leaves"],
+		fields=[agg("SUM", "total_leave_days", "leaves")],
 	)[0]
 	return leaves["leaves"] if leaves["leaves"] else 0.0
 

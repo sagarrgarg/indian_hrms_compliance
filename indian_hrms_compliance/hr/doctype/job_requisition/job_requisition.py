@@ -7,6 +7,8 @@ from frappe.model.document import Document
 from frappe.model.mapper import get_mapped_doc
 from frappe.utils import format_duration, get_link_to_form, time_diff_in_seconds
 
+from indian_hrms_compliance.compat import agg
+
 
 class JobRequisition(Document):
 	def validate(self):
@@ -95,7 +97,7 @@ def get_avg_time_to_fill(
 	avg_time_to_fill = frappe.db.get_list(
 		"Job Requisition",
 		filters=filters,
-		fields=["avg(time_to_fill) as average_time"],
+		fields=[agg("AVG", "time_to_fill", "average_time")],
 	)[0].average_time
 
 	return format_duration(avg_time_to_fill) if avg_time_to_fill else 0

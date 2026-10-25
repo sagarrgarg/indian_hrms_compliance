@@ -7,6 +7,7 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.utils import add_days, date_diff, flt, formatdate, get_link_to_form, getdate
 
+from indian_hrms_compliance.compat import agg
 from indian_hrms_compliance.hr.doctype.leave_application.leave_application import get_approved_leaves_for_period
 from indian_hrms_compliance.hr.doctype.leave_ledger_entry.leave_ledger_entry import (
 	create_leave_ledger_entry,
@@ -127,7 +128,7 @@ class LeaveAllocation(Document):
 				"is_carry_forward": 0,
 				"docstatus": 1,
 			},
-			fields=["SUM(leaves) as total_leaves"],
+			fields=[agg("SUM", "leaves", "total_leaves")],
 		)
 
 		return ledger_entries[0].total_leaves if ledger_entries else 0
@@ -471,7 +472,7 @@ def get_unused_leaves(employee, leave_type, from_date, to_date):
 			"to_date": ("<=", to_date),
 		},
 		or_filters={"is_expired": 0, "is_carry_forward": 1},
-		fields=["sum(leaves) as leaves"],
+		fields=[agg("SUM", "leaves", "leaves")],
 	)
 	return flt(leaves[0]["leaves"])
 

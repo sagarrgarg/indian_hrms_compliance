@@ -7,6 +7,7 @@ from frappe.utils import add_days, cint, date_diff, flt, getdate, now_datetime, 
 
 from erpnext.setup.doctype.employee.employee import get_holiday_list_for_employee
 
+from indian_hrms_compliance.compat import agg
 from indian_hrms_compliance.overrides.employee_master import resolve_employee_approver
 
 # ---------------------------------------------------------------------------
@@ -884,7 +885,7 @@ def get_expense_claims(
 		"`tabExpense Claim`.company",
 		"`tabExpense Claim`.creation",
 		"`tabExpense Claim Detail`.expense_type",
-		"count(`tabExpense Claim Detail`.expense_type) as total_expenses",
+		agg("COUNT", "`tabExpense Claim Detail`.expense_type", "total_expenses"),
 	]
 
 	if workflow_state_field := get_workflow_state_field("Expense Claim"):

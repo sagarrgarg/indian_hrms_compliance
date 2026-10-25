@@ -6,6 +6,8 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.utils import DATE_FORMAT, flt, formatdate, get_link_to_form, getdate, today
 
+from indian_hrms_compliance.compat import agg
+
 
 class InvalidLeaveLedgerEntry(frappe.ValidationError):
 	pass
@@ -182,7 +184,7 @@ def create_expiry_ledger_entry(allocations):
 
 def get_remaining_leaves(allocation):
 	"""Returns remaining leaves from the given allocation"""
-	return frappe.db.get_value(
+	return frappe.get_all(
 		"Leave Ledger Entry",
 		filters={
 			"employee": allocation.employee,
@@ -190,8 +192,8 @@ def get_remaining_leaves(allocation):
 			"to_date": ("<=", allocation.to_date),
 			"docstatus": 1,
 		},
-		fieldname=["SUM(leaves)"],
-	)
+		fields=[agg("SUM", "leaves", "leaves")],
+	)[0].leaves
 
 
 @frappe.whitelist()

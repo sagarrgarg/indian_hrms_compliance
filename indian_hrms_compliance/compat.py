@@ -24,3 +24,23 @@ def rebuild_tree(doctype: str, parent_field: str) -> None:
 		_rebuild_tree(doctype, parent_field)
 	else:
 		_rebuild_tree(doctype)
+
+
+def agg(func: str, field: str, alias: str):
+	"""One aggregate column for the `fields` of frappe.get_all / get_list.
+
+	v16 rejects SQL functions written as strings ("SUM(x) as y") and takes
+	{"SUM": "x", "as": "y"} instead; v15 only understands the string form."""
+	func = func.upper()
+	if IS_V16:
+		return {func: field, "as": alias}
+	return f"{func}({field}) as {alias}"
+
+
+def literal(value: str, alias: str):
+	"""A constant column, e.g. 'Attendance' as doctype, for get_all / get_list `fields`."""
+	if IS_V16:
+		from frappe.query_builder import ValueWrapper
+
+		return ValueWrapper(value).as_(alias)
+	return f"'{value}' as {alias}"

@@ -19,6 +19,7 @@ from frappe.utils import (
 from frappe.utils.background_jobs import get_job
 
 import indian_hrms_compliance
+from indian_hrms_compliance.compat import literal
 from indian_hrms_compliance.hr.doctype.shift_assignment.shift_assignment import has_overlapping_timings
 from indian_hrms_compliance.hr.utils import (
 	get_holiday_dates_for_employee,
@@ -274,7 +275,7 @@ def add_attendance(filters):
 		"Attendance",
 		fields=[
 			"name",
-			"'Attendance' as doctype",
+			literal("Attendance", "doctype"),
 			"attendance_date",
 			"employee_name",
 			"status",

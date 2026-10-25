@@ -9,6 +9,8 @@ from frappe.utils import getdate
 from frappe.utils.dashboard import cache_source
 from frappe.utils.dateutils import get_period
 
+from indian_hrms_compliance.compat import agg
+
 
 @frappe.whitelist()
 @cache_source
@@ -67,7 +69,7 @@ def get_records(from_date: str, to_date: str, datefield: str, company: str) -> t
 
 	data = frappe.db.get_list(
 		"Employee",
-		fields=[f"{datefield} as _unit", "SUM(1)", "COUNT(*)"],
+		fields=[f"{datefield} as _unit", agg("SUM", 1, "total"), agg("COUNT", "*", "count")],
 		filters=filters,
 		group_by="_unit",
 		order_by="_unit asc",

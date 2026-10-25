@@ -35,6 +35,7 @@ from erpnext.controllers.accounts_controller import AccountsController
 from erpnext.setup.doctype.employee.employee import get_holiday_list_for_employee
 from erpnext.utilities.transaction_base import TransactionBase  # noqa: F401 (kept for back-compat)
 
+from indian_hrms_compliance.compat import agg
 from indian_hrms_compliance.hr.utils import validate_active_employee
 from indian_hrms_compliance.payroll.doctype.additional_salary.additional_salary import get_additional_salaries
 from indian_hrms_compliance.payroll.doctype.employee_benefit_application.employee_benefit_application import (
@@ -2733,7 +2734,7 @@ class SalarySlip(AccountsController):
 					"company": self.company,
 					"docstatus": 1,
 				},
-				fields="SUM(amount) as total_amount",
+				fields=[agg("SUM", "amount", "total_amount")],
 			)[0].total_amount
 			or 0.0
 		)
@@ -2880,7 +2881,7 @@ class SalarySlip(AccountsController):
 
 		salary_slip_sum = frappe.get_list(
 			"Salary Slip",
-			fields=["sum(net_pay) as net_sum", "sum(gross_pay) as gross_sum"],
+			fields=[agg("SUM", "net_pay", "net_sum"), agg("SUM", "gross_pay", "gross_sum")],
 			filters={
 				"employee": self.employee,
 				"company": self.company,
@@ -2904,7 +2905,7 @@ class SalarySlip(AccountsController):
 		first_day_of_the_month = get_first_day(self.start_date)
 		salary_slip_sum = frappe.get_list(
 			"Salary Slip",
-			fields=["sum(net_pay) as sum"],
+			fields=[agg("SUM", "net_pay", "sum")],
 			filters={
 				"employee": self.employee,
 				"company": self.company,

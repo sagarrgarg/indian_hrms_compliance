@@ -1,3 +1,5 @@
+import frappe
+
 app_name = "indian_hrms_compliance"
 app_title = "Indian HRMS & Compliance"
 app_publisher = "Frappe Technologies Pvt. Ltd."
@@ -12,7 +14,8 @@ add_to_apps_screen = [
 		"name": "indian_hrms_compliance",
 		"logo": "/assets/indian_hrms_compliance/images/frappe-hr-logo.svg",
 		"title": "Indian HRMS & Compliance",
-		"route": "/app/hr",
+		# v16 serves the desk at /desk (it redirects /app there); v15 at /app
+		"route": "/desk/hr" if int(frappe.__version__.split(".")[0]) >= 16 else "/app/hr",
 		"has_permission": "indian_hrms_compliance.hr.utils.check_app_permission",
 	}
 ]

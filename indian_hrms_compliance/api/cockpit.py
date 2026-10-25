@@ -17,6 +17,8 @@ companies.
 import frappe
 from frappe.utils import add_days, add_months, get_first_day, getdate, nowdate
 
+from indian_hrms_compliance.compat import agg
+
 FILED_STATUSES = ("Filed", "Late Filed", "Waived", "Not Applicable")
 DUE_SOON_DAYS = 30
 COCKPIT_ROLES = ("HR Manager", "HR User", "System Manager")
@@ -362,7 +364,7 @@ def get_org_integrity_summary(status: str = "Open", limit: int = 50) -> dict:
 		for r in frappe.get_all(
 			"Org Integrity Finding",
 			filters=filters,
-			fields=["severity", "count(name) as c"],
+			fields=["severity", agg("COUNT", "name", "c")],
 			group_by="severity",
 		)
 		if r.severity
@@ -372,7 +374,7 @@ def get_org_integrity_summary(status: str = "Open", limit: int = 50) -> dict:
 		for r in frappe.get_all(
 			"Org Integrity Finding",
 			filters=filters,
-			fields=["check_type", "count(name) as c"],
+			fields=["check_type", agg("COUNT", "name", "c")],
 			group_by="check_type",
 		)
 		if r.check_type

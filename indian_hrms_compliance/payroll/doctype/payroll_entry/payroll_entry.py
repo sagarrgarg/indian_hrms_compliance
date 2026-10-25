@@ -29,6 +29,7 @@ from erpnext.accounts.doctype.accounting_dimension.accounting_dimension import (
 )
 from erpnext.accounts.utils import get_fiscal_year
 
+from indian_hrms_compliance.compat import agg
 from indian_hrms_compliance.payroll.doctype.salary_slip.salary_slip_loan_utils import if_lending_app_installed
 from indian_hrms_compliance.payroll.doctype.salary_withholding.salary_withholding import link_bank_entry_in_salary_withholdings
 
@@ -1487,7 +1488,7 @@ class PayrollEntry(Document):
 		holidays = frappe.db.get_all(
 			"Holiday",
 			filters={"parent": holiday_list, "holiday_date": ("between", [start_date, end_date])},
-			fields=["COUNT(*) as holidays_count"],
+			fields=[agg("COUNT", "*", "holidays_count")],
 		)[0]
 
 		if holidays:

@@ -1,0 +1,29 @@
+{
+ "app": "indian_hrms_compliance",
+ "creation": "2026-10-25 20:00:00",
+ "docstatus": 0,
+ "doctype": "Dock",
+ "idx": 0,
+ "items": [
+  {
+   "added": 0,
+   "hidden": 0,
+   "icon": "briefcase-soft",
+   "link_to": "HR",
+   "link_type": "Sidebar",
+   "title": "HR"
+  },
+  {
+   "added": 0,
+   "hidden": 0,
+   "icon": "wallet-soft",
+   "link_to": "Payroll",
+   "link_type": "Sidebar",
+   "title": "Payroll"
+  }
+ ],
+ "modified": "2026-10-25 20:00:00",
+ "modified_by": "Administrator",
+ "name": "indian_hrms_compliance",
+ "owner": "Administrator"
+}

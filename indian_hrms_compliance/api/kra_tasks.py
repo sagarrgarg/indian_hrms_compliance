@@ -13,6 +13,7 @@ import frappe
 from frappe import _
 
 from indian_hrms_compliance.api.cockpit import COCKPIT_ROLES, _scope_company
+from indian_hrms_compliance.compat import agg
 
 KRA_FIELDS = (
 	"title", "kra_category", "color", "status", "owner_designation", "dri",
@@ -66,7 +67,7 @@ def list_kras():
 	for r in frappe.get_all(
 		"HRMS Task",
 		filters={"status": "Active", "kra": ("in", [r.name for r in rows] or ["__none__"])},
-		fields=["kra", "count(name) as n"],
+		fields=["kra", agg("COUNT", "name", "n")],
 		group_by="kra",
 	):
 		live_counts[r.kra] = r.n

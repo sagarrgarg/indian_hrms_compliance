@@ -6,6 +6,7 @@ from frappe import _, scrub
 from frappe.query_builder.functions import Sum
 from frappe.utils import add_days, flt, getdate, rounded
 
+from indian_hrms_compliance.compat import agg
 from indian_hrms_compliance.payroll.doctype.payroll_entry.payroll_entry import get_start_end_dates
 from indian_hrms_compliance.payroll.doctype.salary_slip.salary_slip import calculate_tax_by_tax_slab
 
@@ -421,7 +422,7 @@ class IncomeTaxComputationReport:
 						"company": self.filters.company,
 						"docstatus": 1,
 					},
-					fields="SUM(amount) as total_amount",
+					fields=[agg("SUM", "amount", "total_amount")],
 				)[0].total_amount
 				or 0.0
 			)

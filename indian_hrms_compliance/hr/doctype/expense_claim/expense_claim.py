@@ -18,6 +18,7 @@ from erpnext.accounts.general_ledger import make_gl_entries
 from erpnext.controllers.accounts_controller import AccountsController
 
 import indian_hrms_compliance
+from indian_hrms_compliance.compat import agg
 from indian_hrms_compliance.hr.utils import set_employee_name, share_doc_with_approver, validate_active_employee
 from indian_hrms_compliance.mixins.pwa_notifications import PWANotificationsMixin
 
@@ -456,15 +457,18 @@ def get_total_reimbursed_amount(doc):
 		# No need to check for cancelled state here as it will anyways update status as cancelled
 		return doc.grand_total
 	else:
-		amount_via_jv = frappe.db.get_value(
-			"Journal Entry Account",
-			{"reference_name": doc.name, "docstatus": 1},
-			"sum(debit_in_account_currency - credit_in_account_currency)",
-		)
+		jea = frappe.qb.DocType("Journal Entry Account")
+		amount_via_jv = (
+			frappe.qb.from_(jea)
+			.select(Sum(jea.debit_in_account_currency - jea.credit_in_account_currency))
+			.where((jea.reference_name == doc.name) & (jea.docstatus == 1))
+		).run()[0][0]
 
-		amount_via_payment_entry = frappe.db.get_value(
-			"Payment Entry Reference", {"reference_name": doc.name, "docstatus": 1}, "sum(allocated_amount)"
-		)
+		amount_via_payment_entry = frappe.get_all(
+			"Payment Entry Reference",
+			filters={"reference_name": doc.name, "docstatus": 1},
+			fields=[agg("SUM", "allocated_amount", "total")],
+		)[0].total
 
 		return flt(amount_via_jv) + flt(amount_via_payment_entry)
 
