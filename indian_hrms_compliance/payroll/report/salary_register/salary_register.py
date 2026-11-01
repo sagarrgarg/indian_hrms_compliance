@@ -42,6 +42,7 @@ def execute(filters=None):
 	only_bank = (filters.get("bank") or "").strip()
 	exclude_bank = (filters.get("exclude_bank") or "").strip()
 	emp_bank = _employee_bank_map(salary_slips) if (only_bank or exclude_bank) else {}
+	emp_branch = _employee_branch_map(salary_slips)
 
 	data = []
 	for ss in salary_slips:
@@ -56,7 +57,7 @@ def execute(filters=None):
 			"employee": ss.employee,
 			"employee_name": ss.employee_name,
 			"data_of_joining": doj_map.get(ss.employee),
-			"branch": ss.branch,
+			"branch": ss.branch or emp_branch.get(ss.employee),
 			"department": ss.department,
 			"designation": ss.designation,
 			"company": ss.company,
@@ -72,7 +73,7 @@ def execute(filters=None):
 			"total_loan_repayment": ss.total_loan_repayment,
 		}
 
-		update_column_width(ss, columns)
+		update_column_width(row, columns)
 
 		for e in earning_types:
 			row.update({frappe.scrub(e): ss_earning_map.get(ss.name, {}).get(e)})
@@ -120,6 +121,18 @@ def _employee_bank_map(salary_slips):
 	}
 
 
+def _employee_branch_map(salary_slips):
+	"""employee -> branch, used when the slip itself has no branch (e.g. the branch
+	was set on the Employee after the slip was made)."""
+	emps = list({ss.employee for ss in salary_slips if ss.employee and not ss.branch})
+	if not emps:
+		return {}
+	return {
+		r.name: r.branch
+		for r in frappe.get_all("Employee", filters={"name": ["in", emps]}, fields=["name", "branch"])
+	}
+
+
 def get_earning_and_deduction_types(salary_slips):
 	salary_component_and_type = {_("Earning"): [], _("Deduction"): []}
 
@@ -130,15 +143,12 @@ def get_earning_and_deduction_types(salary_slips):
 	return sorted(salary_component_and_type[_("Earning")]), sorted(salary_component_and_type[_("Deduction")])
 
 
-def update_column_width(ss, columns):
-	if ss.branch is not None:
-		columns[3].update({"width": 120})
-	if ss.department is not None:
-		columns[4].update({"width": 120})
-	if ss.designation is not None:
-		columns[5].update({"width": 120})
-	if ss.leave_without_pay is not None:
-		columns[9].update({"width": 120})
+def update_column_width(row, columns):
+	# Widen a column once any row has a value for it. Looked up by fieldname,
+	# not position, so adding a column doesn't shift which one gets widened.
+	for col in columns:
+		if col.get("fieldname") in ("branch", "department", "designation") and row.get(col["fieldname"]):
+			col["width"] = 120
 
 
 def get_columns(earning_types, ded_types):
@@ -349,7 +359,16 @@ def get_salary_slips(filters, company_currency):
 		query = query.where(salary_slip.designation == filters["designation"])
 
 	if filters.get("branch"):
-		query = query.where(salary_slip.branch == filters["branch"])
+		# Slips without a saved branch fall back to the employee's branch,
+		# same as the Branch column shows.
+		branch_emps = frappe.get_all("Employee", filters={"branch": filters["branch"]}, pluck="name")
+		cond = salary_slip.branch == filters["branch"]
+		if branch_emps:
+			cond = cond | (
+				(salary_slip.branch.isnull() | (salary_slip.branch == ""))
+				& salary_slip.employee.isin(branch_emps)
+			)
+		query = query.where(cond)
 
 	salary_slips = query.run(as_dict=1)
 
@@ -620,6 +639,7 @@ def _wages_register_context(filters):
 		"employee_name",
 		"father_or_husband_name",
 		"designation",
+		"branch",
 		"provident_fund_account",
 		"uan_number",
 		"esic_ip_number",
@@ -700,6 +720,7 @@ def _wages_register_context(filters):
 			employee_name=emp.employee_name or s.employee_name,
 			father_or_husband_name=emp.father_or_husband_name or "",
 			designation=emp.designation or s.designation or "",
+			branch=s.branch or emp.branch or "",
 			pf_no=emp.provident_fund_account or "",
 			esic_no=emp.esic_ip_number or "",
 			uan=emp.uan_number or "",
@@ -745,6 +766,7 @@ def _wages_register_context(filters):
 	return {
 		"company": _get_company_header(company),
 		"period_label": _period_label(filters.get("from_date")),
+		"branch": filters.get("branch") or "",
 		"from_date": formatdate(filters.get("from_date")),
 		"to_date": formatdate(filters.get("to_date")),
 		"earn_cols": earn_cols,
@@ -974,6 +996,7 @@ def _payroll_summary_context(filters):
 	return {
 		"company": _get_company_header(company),
 		"period_label": _period_label(filters.get("from_date")),
+		"branch": filters.get("branch") or "",
 		"earn_tot": earn_tot,
 		"total_earning": total_earning,
 		"bonus_advance": bonus_tot,
@@ -1010,7 +1033,8 @@ def _xlsx_header(ws, ctx, title):
 	if co.lwf_establishment_code:
 		meta.append(f"LWF No.: {co.lwf_establishment_code}")
 	ws.append(["   ·   ".join(meta)])
-	ws.append([f"{title} for the month of {ctx['period_label']}"])
+	branch = f"  (Branch: {ctx['branch']})" if ctx.get("branch") else ""
+	ws.append([f"{title} for the month of {ctx['period_label']}{branch}"])
 	ws["A3"].font = Font(bold=True)
 	ws.append([])
 
@@ -1049,6 +1073,7 @@ def download_wages_register_xlsx(filters=None):
 		("Employee Name", lambda r: r.employee_name, "text"),
 		("Father / Husband Name", lambda r: r.father_or_husband_name, "text"),
 		("Designation", lambda r: r.designation, "text"),
+		("Branch", lambda r: r.branch, "text"),
 		("UAN", lambda r: r.uan, "text"),
 		("PF Number", lambda r: r.pf_no, "text"),
 		("ESIC IP Number", lambda r: r.esic_no, "text"),
