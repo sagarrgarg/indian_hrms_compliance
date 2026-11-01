@@ -25,6 +25,7 @@ frappe.pages["new-employee-setup"].on_page_load = function (wrapper) {
 			{ fieldtype: "Column Break" },
 			{ fieldname: "company", fieldtype: "Link", label: __("Company"), options: "Company", reqd: 1 },
 			{ fieldname: "department", fieldtype: "Link", label: __("Department"), options: "Department", get_query: companyQuery },
+			{ fieldname: "branch", fieldtype: "Link", label: __("Branch"), options: "Branch", reqd: 1, description: __("Decides the applicable salary structures and state PT / LWF.") },
 			{ fieldname: "designation", fieldtype: "Link", label: __("Designation"), options: "Designation" },
 			{ fieldname: "grade", fieldtype: "Link", label: __("Employee Grade"), options: "Employee Grade" },
 
@@ -62,7 +63,12 @@ frappe.pages["new-employee-setup"].on_page_load = function (wrapper) {
 			{ fieldname: "shift_request_approver", fieldtype: "Link", label: __("Shift Request Approver"), options: "Employee", get_query: approverQuery },
 
 			{ fieldtype: "Section Break", label: __("Payroll & Shift") },
-			{ fieldname: "salary_structure", fieldtype: "Link", label: __("Salary Structure"), options: "Salary Structure", get_query: () => ({ filters: { docstatus: 1, is_active: "Yes" }, or_filters: [["company", "=", fg.get_value("company")], ["company", "is", "not set"]] }) },
+			{ fieldname: "salary_structure", fieldtype: "Link", label: __("Salary Structure"), options: "Salary Structure", get_query: () => ({
+				// Same search as Salary Structure Assignment: active, this company's,
+				// and applicable to the chosen branch.
+				query: "indian_hrms_compliance.payroll.doctype.salary_structure.salary_structure.salary_structure_query",
+				filters: { company: fg.get_value("company"), branch: fg.get_value("branch") },
+			}) },
 			{ fieldname: "base", fieldtype: "Currency", label: __("Base Amount"), depends_on: "salary_structure" },
 			{ fieldname: "income_tax_slab", fieldtype: "Link", label: __("Income Tax Slab"), options: "Income Tax Slab", depends_on: "salary_structure" },
 			{ fieldtype: "Column Break" },

@@ -35,6 +35,21 @@ def setup_new_employee(data):
 		frappe.throw(_("First Name is required."))
 	if not d.company:
 		frappe.throw(_("Company is required."))
+	# Mandatory on Employee (employee_master.validate_branch_required); checked
+	# here too so HR gets the message before anything is created.
+	if not d.branch:
+		frappe.throw(_("Branch is required."))
+	if d.salary_structure:
+		from indian_hrms_compliance.payroll.doctype.salary_structure.salary_structure import (
+			structure_allowed_for_branch,
+		)
+
+		if not structure_allowed_for_branch(d.salary_structure, d.branch):
+			frappe.throw(
+				_("Salary Structure {0} is not applicable to Branch {1}.").format(
+					frappe.bold(d.salary_structure), frappe.bold(d.branch)
+				)
+			)
 	if not d.gender:
 		frappe.throw(_("Gender is required."))
 	if not d.date_of_birth:
@@ -172,6 +187,7 @@ def _create_employee(d):
 			"last_name": d.last_name,
 			"company": d.company,
 			"department": d.department,
+			"branch": d.branch,
 			"designation": d.designation,
 			"grade": d.grade,
 			"date_of_joining": d.date_of_joining,

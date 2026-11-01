@@ -81,6 +81,7 @@
   "col_review_1",
   "target_company",
   "target_department",
+  "target_branch",
   "target_designation",
   "employment_type",
   "offer_letter",
@@ -555,6 +556,13 @@
    "options": "Department"
   },
   {
+   "description": "Branch the joiner will be posted to. Carried to the New Employee Setup page, where it is mandatory.",
+   "fieldname": "target_branch",
+   "fieldtype": "Link",
+   "label": "Target Branch",
+   "options": "Branch"
+  },
+  {
    "fieldname": "target_designation",
    "fieldtype": "Link",
    "label": "Target Designation",
@@ -659,7 +667,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-10-02 14:00:00.000000",
+ "modified": "2026-11-01 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "HR",
  "name": "Employee Onboarding Application",
