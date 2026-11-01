@@ -45,7 +45,7 @@
 		<b>Firm ESIC No.:</b> {{ company.esic_establishment_code or "—" }}
 		{% if company.lwf_establishment_code %} &nbsp;&middot;&nbsp; <b>LWF No.:</b> {{ company.lwf_establishment_code }}{% endif %}
 	</div>
-	<div class="wr-title">Salary / Wages Register for the month of {{ period_label }}</div>
+	<div class="wr-title">Salary / Wages Register for the month of {{ period_label }}{% if branch %} &nbsp;&middot;&nbsp; Branch: {{ branch }}{% endif %}</div>
 </div>
 
 {% set ncols = 5 + (earn_cols|length + 1) + 4 + (earn_cols|length + 1) + (1 if has_bonus else 0) + (ded_cols|length + 1) + ((emp_cols|length + 1) if emp_cols else 0) + 2 %}
@@ -66,7 +66,7 @@
 			<th>Employee Name<span class="sub">F / H Name</span></th>
 			<th>Designation<span class="sub">U.A.N.</span></th>
 			<th>P.F. Number<span class="sub">D.O.J.</span></th>
-			<th>Insurance<br>Number</th>
+			<th>Insurance<br>Number<span class="sub">Branch</span></th>
 			{% for c in earn_cols %}<th>{{ c }}</th>{% endfor %}
 			<th>Total</th>
 			<th>W.D.</th><th>E.L.</th><th>LWP</th><th>ABS</th><th>P.D.</th>
@@ -85,7 +85,7 @@
 			<td>{{ r.employee_name }}<span class="sub">{{ r.father_or_husband_name }}</span></td>
 			<td>{{ r.designation }}<span class="sub">{{ r.uan }}</span></td>
 			<td>{{ r.pf_no }}<span class="sub">{{ r.doj }}</span></td>
-			<td>{{ r.esic_no }}</td>
+			<td>{{ r.esic_no }}<span class="sub">{{ r.branch }}</span></td>
 			{% for c in earn_cols %}{{ n(r.rate[c]) }}{% endfor %}
 			{{ n(r.rate_total) }}
 			<td class="num">{{ "%g"|format(r.wd) }}</td>

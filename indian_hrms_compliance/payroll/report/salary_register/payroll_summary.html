@@ -41,7 +41,7 @@
 
 <div class="co">{{ company.company_name or company.name }}</div>
 {% if company.address %}<div class="addr">{{ company.address }}</div>{% endif %}
-<div class="gt">Grand Total of Salary / Wages for the month of &nbsp; <b>{{ period_label }}</b></div>
+<div class="gt">Grand Total of Salary / Wages for the month of &nbsp; <b>{{ period_label }}</b>{% if branch %} &nbsp;&middot;&nbsp; Branch: <b>{{ branch }}</b>{% endif %}</div>
 <hr class="rule">
 
 <div class="box">
