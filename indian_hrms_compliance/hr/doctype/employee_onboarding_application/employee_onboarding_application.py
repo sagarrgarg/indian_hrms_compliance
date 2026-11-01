@@ -1097,6 +1097,7 @@ def get_application_for_setup(name: str) -> dict:
 	data["onboarding_application"] = doc.name
 	data["company"] = doc.target_company
 	data["department"] = doc.target_department
+	data["branch"] = doc.get("target_branch")
 	data["designation"] = doc.target_designation
 	data["employment_type"] = doc.employment_type
 	data["user_email"] = doc.personal_email

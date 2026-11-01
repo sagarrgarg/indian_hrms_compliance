@@ -26,6 +26,29 @@ def _first(doctype, filters=None):
 	return frappe.db.get_value(doctype, filters or {}, "name")
 
 
+def _make_leave_policy():
+	leave_type = _first("Leave Type") or frappe.get_doc(
+		{"doctype": "Leave Type", "leave_type_name": "NES Test Leave", "max_leaves_allowed": 12}
+	).insert(ignore_permissions=True).name
+	policy = frappe.get_doc(
+		{
+			"doctype": "Leave Policy",
+			"title": "NES Test Leave Policy",
+			"leave_policy_details": [{"leave_type": leave_type, "annual_allocation": 12}],
+		}
+	).insert(ignore_permissions=True)
+	policy.submit()
+	frappe.db.commit()
+	return policy.name
+
+
+def _make_shift():
+	shift = frappe.get_doc({"doctype": "Shift Type", "start_time": "09:00:00", "end_time": "18:00:00"})
+	shift.insert(ignore_permissions=True, set_name="NES Test Shift")
+	frappe.db.commit()
+	return shift.name
+
+
 class TestNewEmployeeSetup(FrappeTestCase):
 	@classmethod
 	def setUpClass(cls):
@@ -35,6 +58,14 @@ class TestNewEmployeeSetup(FrappeTestCase):
 		if not (cls.company and cls.gender):
 			raise frappe.tests.utils.unittest.SkipTest("Company + Gender required.")
 		frappe.set_user("Administrator")
+		# Branch is mandatory on an active Employee.
+		cls.branch = "NES Test Branch"
+		if not frappe.db.exists("Branch", cls.branch):
+			frappe.get_doc({"doctype": "Branch", "branch": cls.branch}).insert(ignore_permissions=True)
+		# Leave Policy and Shift are mandatory on the setup page; use the site's own
+		# or create minimal ones so the tests run on an empty test site too.
+		cls.leave_policy = _first("Leave Policy", {"docstatus": 1}) or _make_leave_policy()
+		cls.shift = _first("Shift Type") or _make_shift()
 
 	def tearDown(self):
 		frappe.db.rollback()
@@ -44,6 +75,9 @@ class TestNewEmployeeSetup(FrappeTestCase):
 			first_name="Setup",
 			last_name="Tester",
 			company=self.company,
+			branch=self.branch,
+			leave_policy=self.leave_policy,
+			default_shift=self.shift,
 			gender=self.gender,
 			date_of_birth="1995-05-05",
 			date_of_joining="2026-01-01",
@@ -155,9 +189,7 @@ class TestNewEmployeeSetup(FrappeTestCase):
 	# ---- leave policy assignment --------------------------------------
 
 	def test_leave_policy_assignment_created_when_chosen(self):
-		leave_policy = _first("Leave Policy")
-		if not leave_policy:
-			self.skipTest("A configured Leave Policy is required for this test.")
+		leave_policy = self.leave_policy
 		emp = self._run(leave_policy=leave_policy)["employee"]
 		lpa = frappe.db.get_value(
 			"Leave Policy Assignment",
@@ -168,3 +200,57 @@ class TestNewEmployeeSetup(FrappeTestCase):
 		self.assertTrue(lpa, "a Leave Policy Assignment should be created for the employee")
 		self.assertEqual(lpa.assignment_based_on, "Joining Date")
 		self.assertEqual(lpa.docstatus, 1, "the assignment should be submitted")
+
+	# ---- branch --------------------------------------------------------
+
+	def test_branch_is_set_on_employee(self):
+		emp = self._run()["employee"]
+		self.assertEqual(frappe.db.get_value("Employee", emp, "branch"), self.branch)
+
+	def test_missing_branch_is_rejected_before_anything_is_created(self):
+		before = frappe.db.count("Employee")
+		with self.assertRaises(frappe.ValidationError) as ctx:
+			self._run(branch=None)
+		self.assertIn("Branch", str(ctx.exception))
+		self.assertEqual(frappe.db.count("Employee"), before)
+
+	def test_salary_structure_of_another_branch_is_rejected(self):
+		# Only the structure's Applicable Branches rows are read by the check.
+		structure = "NES Branch-Locked Structure"
+		other = "NES Other Branch"
+		if not frappe.db.exists("Branch", other):
+			frappe.get_doc({"doctype": "Branch", "branch": other}).insert(ignore_permissions=True)
+		# Restrict the structure to the other branch only.
+		frappe.get_doc(
+			{
+				"doctype": "Salary Structure Branch",
+				"parent": structure,
+				"parenttype": "Salary Structure",
+				"parentfield": "applicable_branches",
+				"branch": other,
+			}
+		).db_insert()
+		before = frappe.db.count("Employee")
+		with self.assertRaises(frappe.ValidationError) as ctx:
+			self._run(salary_structure=structure)
+		self.assertIn("not applicable", str(ctx.exception))
+		self.assertEqual(frappe.db.count("Employee"), before)
+
+	def test_application_target_branch_prefills_setup(self):
+		from indian_hrms_compliance.hr.doctype.employee_onboarding_application.employee_onboarding_application import (
+			get_application_for_setup,
+		)
+
+		name = frappe.generate_hash(length=10)
+		frappe.get_doc(
+			{
+				"doctype": "Employee Onboarding Application",
+				"name": name,
+				"first_name": "Prefill",
+				"personal_email": "prefill.branch@example.com",
+				"status": "Verified",
+				"target_company": self.company,
+				"target_branch": self.branch,
+			}
+		).db_insert()
+		self.assertEqual(get_application_for_setup(name)["branch"], self.branch)
